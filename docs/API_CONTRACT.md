@@ -526,6 +526,8 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 
 监测信息推荐参数：`hitScope=all/risk`，默认 `all`；`sortBy=publishTime/collectTime/relevance/sentiment`，旧值 `value/siteLevel` 后端仅兼容并落到默认发布时间排序；`sentiment=positive/neutral/negative/none`，多选用逗号分隔。
 
+监测模块返回的 Snowflake 业务 ID 必须按字符串序列化，避免浏览器把 19 位 Long 当作 `number` 后丢失精度。范围包括 `CampusMonitorInformation`、`CampusMonitorResult`、`CampusMonitorTask`、`CampusMonitorWatchTarget`、`CampusMonitorRunLog`、`CampusAlert` 中会被前端再次提交的 ID 字段，如 `monitorResultId`、`monitorTaskId`、`clueId`、`alertId`、`targetId`、`sourceObjectId`。对应 POST/GET 参数仍按 Long 绑定，前端可提交原样字符串或兼容数字。
+
 `CampusMonitorTask` 新增/扩展字段：`keywordsI18n`、`negativeWordsI18n`、`excludeWordsI18n`、`displayEnabled`、`autoIngestEnabled`、`lastCollectTime`、`lastMatchCount`、`displayResultCount`、`lastErrorMessage`、`ingestCapabilityStatus`。多语言 JSON 示例：`{"zh":"招生,投诉","mongolian":"...","uyghur":"..."}`。旧字段 `keywords`、`negativeWords`、`excludeWords` 继续有效。只有 `taskStatus=active` 且 `displayEnabled=1` 的任务命中会进入 `/campus/monitor/information/**` 展示和平台统计；暂停/禁用任务停止调度并隐藏其历史命中，删除任务会软删除任务、停用调度并自动隐藏前台数据。`autoIngestEnabled=1` 时，保存/运行监测任务会通过 `campus_ingest` Service 自动创建或复用 `targetType=monitor_scan` 的内部接入任务，运行时先触发接入任务，再扫描对应 `campus_ingest_record`。普通前端不再手动提交 `ingestTaskIds`，仅高级诊断展示自动绑定结果。
 
 `ingestCapabilityStatus` 取值：`ready` 可用、`partial` 部分可用、`unsupported` 平台未接入、`failed` 调用失败、`pending` 待运行。当前自动接入优先支持：百度新闻/公开网页（`baidu_search` + Jina Reader 正文增强配置）、TikHub 抖音/小红书/B站/微博/知乎/微信公众号/快手。公开论坛不再作为独立自动接入平台，历史论坛/贴吧/豆瓣数据按新闻/网页口径兼容展示。`alertMode=all_hits` 为兼容旧值保留，当前语义为“风险命中告警”：普通主题词命中不自动预警，只有负面词、风险词、非普通风险等级或高风险分才自动进入预警。

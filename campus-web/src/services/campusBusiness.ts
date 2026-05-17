@@ -1,5 +1,5 @@
 import { apiGet, apiPost } from './http';
-import type { CampusAccount, CampusAccountContent, CampusAlert, CampusClue, PageResult } from '../types/api';
+import type { ApiId, CampusAccount, CampusAccountContent, CampusAlert, CampusClue, PageResult } from '../types/api';
 
 export interface ClueQuery {
   pageNum: number;
@@ -43,15 +43,15 @@ export function saveClue(data: CampusClue) {
   return apiPost<CampusClue>('/campus/clue/save', data);
 }
 
-export function deleteClue(clueId: number) {
+export function deleteClue(clueId: ApiId) {
   return apiPost<void>('/campus/clue/delete', undefined, { clueId });
 }
 
-export function judgeClue(clueId: number, riskLevel: string, judgeOpinion?: string) {
+export function judgeClue(clueId: ApiId, riskLevel: string, judgeOpinion?: string) {
   return apiPost<CampusClue>('/campus/clue/judge', undefined, { clueId, riskLevel, judgeOpinion });
 }
 
-export function archiveClue(clueId: number, archiveReason?: string) {
+export function archiveClue(clueId: ApiId, archiveReason?: string) {
   return apiPost<CampusClue>('/campus/clue/archive', undefined, { clueId, archiveReason });
 }
 
@@ -97,6 +97,6 @@ export function listCluesForJudgment(params: JudgmentQuery) {
   return apiGet<PageResult<CampusClue>>('/campus/clue/list', params);
 }
 
-export function createAlertFromClue(clueId: number) {
+export function createAlertFromClue(clueId: ApiId) {
   return apiPost<CampusAlert[]>('/campus/alert/create-from-clue', undefined, { clueId });
 }

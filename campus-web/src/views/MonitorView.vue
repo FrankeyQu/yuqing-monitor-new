@@ -842,6 +842,7 @@ import { archiveClue, deleteClue, saveClue, judgeClue } from '../services/campus
 import { listEvents } from '../services/eventCenter';
 import { getCurrentCampusUser } from '../services/permission';
 import type {
+  ApiId,
   CampusAlert,
   CampusClue,
   CampusEvent,
@@ -1225,7 +1226,7 @@ const batchJudgeForm = reactive({
   riskLevel: 'concern',
   judgeOpinion: ''
 });
-const batchJoinEventId = ref<number | null>(null);
+const batchJoinEventId = ref<ApiId | null>(null);
 const eventOptions = ref<CampusEvent[]>([]);
 const eventSearchLoading = ref(false);
 
@@ -1369,7 +1370,7 @@ const resultConvertedFilter = ref('');
 const resultQuery = reactive({
   pageNum: 1,
   pageSize: 20,
-  monitorTaskId: undefined as number | undefined,
+  monitorTaskId: undefined as ApiId | undefined,
   keyword: '',
   riskLevel: '',
   resultStatus: '',
@@ -1394,7 +1395,7 @@ const watchTargetTotal = ref(0);
 const watchTargetQuery = reactive({
   pageNum: 1,
   pageSize: 5,
-  monitorTaskId: undefined as number | undefined,
+  monitorTaskId: undefined as ApiId | undefined,
   targetType: '',
   targetStatus: ''
 });
@@ -1557,7 +1558,7 @@ function clueStatusLabel(value?: string) {
   return labels[value || 'pending_judge'] || value || '待研判';
 }
 
-function monitorResultStatusLabel(value?: string, clueId?: number) {
+function monitorResultStatusLabel(value?: string, clueId?: ApiId) {
   if (clueId) {
     return '已转线索';
   }
@@ -2481,7 +2482,10 @@ async function loadMonitorResults() {
 }
 
 async function convertResult(row: CampusMonitorResult) {
-  if (!row.monitorResultId) return;
+  if (!row.monitorResultId) {
+    ElMessage.warning('当前记录缺少监测结果ID，请刷新后重试');
+    return;
+  }
   try {
     const clue = await convertMonitorResultToClue(row.monitorResultId);
     ElMessage.success(`已转入线索库：${clue.clueTitle || row.title || ''}`);
@@ -2492,7 +2496,10 @@ async function convertResult(row: CampusMonitorResult) {
 }
 
 async function alertResult(row: CampusMonitorResult) {
-  if (!row.monitorResultId) return;
+  if (!row.monitorResultId) {
+    ElMessage.warning('当前记录缺少监测结果ID，请刷新后重试');
+    return;
+  }
   try {
     await alertMonitorResult(row.monitorResultId);
     ElMessage.success('已转为预警');
@@ -2503,7 +2510,10 @@ async function alertResult(row: CampusMonitorResult) {
 }
 
 async function ignoreResult(row: CampusMonitorResult) {
-  if (!row.monitorResultId) return;
+  if (!row.monitorResultId) {
+    ElMessage.warning('当前记录缺少监测结果ID，请刷新后重试');
+    return;
+  }
   try {
     await ignoreMonitorResult(row.monitorResultId);
     ElMessage.success('监测结果已忽略');
@@ -2514,7 +2524,14 @@ async function ignoreResult(row: CampusMonitorResult) {
 }
 
 async function addResultWatchTarget(row: CampusMonitorResult, targetType: 'account' | 'link') {
-  if (!row.monitorResultId || !row.monitorTaskId) return;
+  if (!row.monitorResultId) {
+    ElMessage.warning('当前记录缺少监测结果ID，请刷新后重试');
+    return;
+  }
+  if (!row.monitorTaskId) {
+    ElMessage.warning('当前记录缺少监测任务ID，请刷新后重试');
+    return;
+  }
   if (targetType === 'account' && !row.authorName && !row.originalUrl) {
     ElMessage.warning('该结果没有可加入的账号或主页信息');
     return;
@@ -2526,7 +2543,7 @@ async function addResultWatchTarget(row: CampusMonitorResult, targetType: 'accou
   try {
     await createMonitorWatchTargetFromResult(row.monitorResultId, row.monitorTaskId, targetType);
     ElMessage.success(targetType === 'account' ? '已加入本任务重点账号监控' : '已加入本任务指定链接监控');
-    if (watchTargetQuery.monitorTaskId === row.monitorTaskId) {
+    if (String(watchTargetQuery.monitorTaskId || '') === String(row.monitorTaskId)) {
       await loadWatchTargets();
     }
     await loadData();

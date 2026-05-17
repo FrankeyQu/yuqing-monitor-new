@@ -12,6 +12,8 @@ export interface PageResult<T> {
   pages: number;
 }
 
+export type ApiId = string | number;
+
 export interface OverviewStats {
   todayClueCount?: number;
   pendingClueCount?: number;
@@ -93,11 +95,11 @@ export interface DashboardStatistics {
 }
 
 export interface CampusAlert {
-  alertId: number;
+  alertId: ApiId;
   alertTitle: string;
   alertContent?: string;
   alertSource?: string;
-  sourceObjectId?: number;
+  sourceObjectId?: ApiId;
   riskLevel: string;
   alertStatus: string;
   handleOpinion?: string;
@@ -123,8 +125,8 @@ export interface CampusMonitorOverview {
 }
 
 export interface CampusMonitorTask {
-  id?: number;
-  monitorTaskId?: number;
+  id?: ApiId;
+  monitorTaskId?: ApiId;
   taskName: string;
   monitorSubject: string;
   subjectAliases?: string;
@@ -142,7 +144,7 @@ export interface CampusMonitorTask {
   alertMode?: string;
   taskStatus?: string;
   lastRunTime?: string;
-  lastRunLogId?: number;
+  lastRunLogId?: ApiId;
   lastCollectTime?: string;
   lastMatchCount?: number;
   displayResultCount?: number;
@@ -158,10 +160,10 @@ export interface CampusMonitorTask {
 }
 
 export interface CampusMonitorResult {
-  id?: number;
-  monitorResultId?: number;
-  monitorTaskId?: number;
-  ingestRecordId?: number;
+  id?: ApiId;
+  monitorResultId?: ApiId;
+  monitorTaskId?: ApiId;
+  ingestRecordId?: ApiId;
   title?: string;
   content?: string;
   originalUrl?: string;
@@ -183,8 +185,8 @@ export interface CampusMonitorResult {
   topicSubCategory?: string;
   topicReason?: string;
   resultStatus?: string;
-  alertId?: number;
-  clueId?: number;
+  alertId?: ApiId;
+  clueId?: ApiId;
   likeCount?: number;
   commentCount?: number;
   shareCount?: number;
@@ -195,11 +197,11 @@ export interface CampusMonitorResult {
 
 export interface CampusMonitorInformation {
   infoType?: 'monitor_result' | 'clue';
-  infoId?: number;
-  monitorResultId?: number;
-  clueId?: number;
-  monitorTaskId?: number;
-  ingestRecordId?: number;
+  infoId?: ApiId;
+  monitorResultId?: ApiId;
+  clueId?: ApiId;
+  monitorTaskId?: ApiId;
+  ingestRecordId?: ApiId;
   title?: string;
   content?: string;
   summary?: string;
@@ -234,7 +236,7 @@ export interface CampusMonitorInformation {
   topicReason?: string;
   resultStatus?: string;
   clueStatus?: string;
-  alertId?: number;
+  alertId?: ApiId;
   riskMarked?: boolean;
   likeCount?: number;
   commentCount?: number;
@@ -244,17 +246,17 @@ export interface CampusMonitorInformation {
 }
 
 export interface CampusMonitorWatchTarget {
-  id?: number;
-  targetId?: number;
-  monitorTaskId?: number;
+  id?: ApiId;
+  targetId?: ApiId;
+  monitorTaskId?: ApiId;
   targetType: 'account' | 'link';
   platform?: string;
-  accountId?: number;
+  accountId?: ApiId;
   accountName?: string;
   accountUid?: string;
   linkUrl?: string;
   sourceObjectType?: string;
-  sourceObjectId?: number;
+  sourceObjectId?: ApiId;
   authorizationScope?: string;
   keywordScope?: string;
   targetStatus?: string;
@@ -264,9 +266,9 @@ export interface CampusMonitorWatchTarget {
 }
 
 export interface CampusMonitorRunLog {
-  id?: number;
-  runLogId?: number;
-  monitorTaskId?: number;
+  id?: ApiId;
+  runLogId?: ApiId;
+  monitorTaskId?: ApiId;
   runStatus?: string;
   triggerType?: string;
   startTime?: string;
@@ -362,7 +364,7 @@ export interface CampusDetectionRunLog {
 }
 
 export interface CampusClue {
-  clueId?: number;
+  clueId?: ApiId;
   clueTitle: string;
   clueContent?: string;
   clueSource?: string;
@@ -388,7 +390,7 @@ export interface CampusClue {
   articleStatus?: string;
   discoverTime?: string | Date;
   judgeOpinion?: string;
-  eventId?: number;
+  eventId?: ApiId;
   remark?: string;
   title?: string;
   summary?: string;

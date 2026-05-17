@@ -1,8 +1,8 @@
 import { apiGet } from './http';
-import type { PageResult, CampusClue } from '../types/api';
+import type { ApiId, PageResult, CampusClue } from '../types/api';
 
 export interface SearchResultItem {
-  id: number;
+  id: ApiId;
   title: string;
   summary: string;
   sentiment: 'positive' | 'neutral' | 'negative';

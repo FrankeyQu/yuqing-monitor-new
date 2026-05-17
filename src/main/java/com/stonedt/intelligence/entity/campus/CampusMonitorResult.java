@@ -1,5 +1,7 @@
 package com.stonedt.intelligence.entity.campus;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
 import java.util.Date;
@@ -7,9 +9,13 @@ import java.util.Date;
 @Data
 public class CampusMonitorResult {
 
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long id;
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long monitorResultId;
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long monitorTaskId;
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long ingestRecordId;
     private String title;
     private String content;
@@ -32,7 +38,9 @@ public class CampusMonitorResult {
     private String topicSubCategory;
     private String topicReason;
     private String resultStatus;
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long alertId;
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long clueId;
     private Long likeCount;
     private Long commentCount;

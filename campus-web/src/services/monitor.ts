@@ -1,5 +1,6 @@
 import { apiGet, apiPost } from './http';
 import type {
+  ApiId,
   CampusAlert,
   CampusClue,
   CampusMonitorInformation,
@@ -23,7 +24,7 @@ export interface MonitorTaskQuery {
 export interface MonitorResultQuery {
   pageNum: number;
   pageSize: number;
-  monitorTaskId?: number;
+  monitorTaskId?: ApiId;
   keyword?: string;
   riskLevel?: string;
   resultStatus?: string;
@@ -36,7 +37,7 @@ export interface MonitorInformationQuery extends Record<string, unknown> {
   pageNum?: number;
   pageSize?: number;
   keyword?: string;
-  monitorTaskId?: number;
+  monitorTaskId?: ApiId;
   sourcePlatform?: string;
   sourceSubPlatform?: string;
   riskLevel?: string;
@@ -57,7 +58,7 @@ export interface MonitorInformationQuery extends Record<string, unknown> {
 export interface MonitorAlertQuery {
   pageNum: number;
   pageSize: number;
-  monitorTaskId?: number;
+  monitorTaskId?: ApiId;
   keyword?: string;
   riskLevel?: string;
   alertStatus?: string;
@@ -75,29 +76,29 @@ export function saveMonitorTask(data: CampusMonitorTask) {
   return apiPost<CampusMonitorTask>('/campus/monitor/task/save', data);
 }
 
-export function updateMonitorTaskStatus(monitorTaskId: number, taskStatus: string) {
+export function updateMonitorTaskStatus(monitorTaskId: ApiId, taskStatus: string) {
   return apiPost<CampusMonitorTask>('/campus/monitor/task/update-status', undefined, {
     monitorTaskId,
     taskStatus
   });
 }
 
-export function updateMonitorTaskDisplay(monitorTaskId: number, displayEnabled: number) {
+export function updateMonitorTaskDisplay(monitorTaskId: ApiId, displayEnabled: number) {
   return apiPost<CampusMonitorTask>('/campus/monitor/task/update-display', undefined, {
     monitorTaskId,
     displayEnabled
   });
 }
 
-export function deleteMonitorTask(monitorTaskId: number) {
+export function deleteMonitorTask(monitorTaskId: ApiId) {
   return apiPost<void>('/campus/monitor/task/delete', undefined, { monitorTaskId });
 }
 
-export function runMonitorTask(monitorTaskId: number) {
+export function runMonitorTask(monitorTaskId: ApiId) {
   return apiPost<CampusMonitorRunLog>('/campus/monitor/task/run', undefined, { monitorTaskId });
 }
 
-export function listMonitorRunLogs(params: { pageNum: number; pageSize: number; monitorTaskId: number }) {
+export function listMonitorRunLogs(params: { pageNum: number; pageSize: number; monitorTaskId: ApiId }) {
   return apiGet<PageResult<CampusMonitorRunLog>>('/campus/monitor/task/run-log/list', params);
 }
 
@@ -117,22 +118,22 @@ export function fetchMonitorInformationSubPlatformCounts(params?: MonitorInforma
   return apiGet<Array<{ name: string; value: number }>>('/campus/monitor/information/count-by-sub-platform', params);
 }
 
-export function alertMonitorResult(monitorResultId: number) {
+export function alertMonitorResult(monitorResultId: ApiId) {
   return apiPost<CampusMonitorResult>('/campus/monitor/result/alert', undefined, { monitorResultId });
 }
 
-export function ignoreMonitorResult(monitorResultId: number) {
+export function ignoreMonitorResult(monitorResultId: ApiId) {
   return apiPost<CampusMonitorResult>('/campus/monitor/result/ignore', undefined, { monitorResultId });
 }
 
-export function convertMonitorResultToClue(monitorResultId: number) {
+export function convertMonitorResultToClue(monitorResultId: ApiId) {
   return apiPost<CampusClue>('/campus/monitor/result/convert-clue', undefined, { monitorResultId });
 }
 
 export function listMonitorWatchTargets(params: {
   pageNum: number;
   pageSize: number;
-  monitorTaskId?: number;
+  monitorTaskId?: ApiId;
   targetType?: string;
   platform?: string;
   keyword?: string;
@@ -145,7 +146,7 @@ export function saveMonitorWatchTarget(data: CampusMonitorWatchTarget) {
   return apiPost<CampusMonitorWatchTarget>('/campus/monitor/watch-target/save', data);
 }
 
-export function createMonitorWatchTargetFromResult(monitorResultId: number, monitorTaskId: number, targetType: 'account' | 'link') {
+export function createMonitorWatchTargetFromResult(monitorResultId: ApiId, monitorTaskId: ApiId, targetType: 'account' | 'link') {
   return apiPost<CampusMonitorWatchTarget>('/campus/monitor/watch-target/create-from-result', undefined, {
     monitorResultId,
     monitorTaskId,
@@ -153,7 +154,7 @@ export function createMonitorWatchTargetFromResult(monitorResultId: number, moni
   });
 }
 
-export function deleteMonitorWatchTarget(targetId: number) {
+export function deleteMonitorWatchTarget(targetId: ApiId) {
   return apiPost<void>('/campus/monitor/watch-target/delete', undefined, { targetId });
 }
 
@@ -161,7 +162,7 @@ export function listMonitorAlerts(params: MonitorAlertQuery) {
   return apiGet<PageResult<CampusAlert>>('/campus/monitor/alert/list', params);
 }
 
-export function handleMonitorAlert(alertId: number, alertStatus: string, handleOpinion?: string) {
+export function handleMonitorAlert(alertId: ApiId, alertStatus: string, handleOpinion?: string) {
   return apiPost<CampusAlert>('/campus/monitor/alert/handle', undefined, {
     alertId,
     alertStatus,

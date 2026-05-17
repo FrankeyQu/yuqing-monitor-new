@@ -705,10 +705,20 @@ service/minority/
 - **Git 提交与生产发布**：提交 `feat: unify monitor information workflow`；发布前备份 `/opt/yuqing/app` jar、`/opt/yuqing/web` 和 `campus_yuqing` 数据库，备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-122325-monitor-unified`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，重启 `yuqing` 并 reload `nginx`。
 - **线上验收**：`yuqing/nginx` active，后端监听 `8084`；Flyway 已应用 `1.43 CampusMonitorUnifiedGovernance` 且 success=1；`campus_permission_menu.ingest` 已为 `visible=0,status=0`；`https://yuqing.zhuoran.cc/`、`/monitor`、`/admin/ingest` 均返回前端 index 200，未登录访问 `/campus/monitor/information/list?...hitScope=all` 返回 302，符合鉴权预期。
 
+## 2026-05-17 监测信息操作 ID 精度修复
+
+- **工作分支 / worktree**：`claude/fix-campus-monitor-id-precision`，`D:\PRJ\yuqing`。
+- **问题定位**：线上审计日志确认“转线索/转预警/忽略/加入重点账号/加入指定链接”提交的 `monitorResultId` 被浏览器按 JS number 处理后发生精度丢失，例如提交 `2055870813135048700`，库中真实值为 `2055870813135048704`，导致后端 `selectByResultId` 报“监测结果不存在”。
+- **后端修复**：对校园监测操作链路会回传给前端再提交的 Long ID 增加 Jackson `ToStringSerializer`，覆盖 `CampusMonitorInformation`、`CampusMonitorResult`、`CampusMonitorTask`、`CampusMonitorWatchTarget`、`CampusMonitorRunLog`、`CampusAlert`，并同步覆盖监测信息中会用到的 `CampusClue` 关键 ID；Controller 入参仍保持 Long，由 Spring 兼容字符串绑定。
+- **前端修复**：新增 `ApiId = string | number`，监测服务层和相关页面按 `ApiId` 原样传参；搜索结果承接线索 ID 字符串；监测信息“更多”操作缺少结果/任务 ID 时显示明确提示，不再静默返回。
+- **契约同步**：更新 `docs/API_CONTRACT.md`，明确监测模块 Snowflake 业务 ID 响应按字符串序列化，接口入参仍兼容 Long 字符串。
+- **本地验证**：`CampusMonitorIdSerializationTest` 2 tests 通过；`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过，17 个测试类 59 tests；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`.\mvnw.cmd -DskipTests package` 通过；`git diff --check` 通过（仅换行提示）。
+
 ## 重要决策记录
 
 | 日期 | 决策 | 说明 |
 |------|------|------|
+| 2026-05-17 | 监测模块 Snowflake ID 响应按字符串返回 | 监测信息和相关操作链路避免浏览器 19 位 Long 精度丢失；后端接口入参继续使用 Long 并兼容字符串绑定 |
 | 2026-05-17 | 新版监测统一方案已落地并发布 | 监测命中、风险标记、时间排序、情感、人工线索、批量操作、数据接入隐藏和权限导航按统一方案完成，生产已应用 `V1.43` |
 | 2026-05-17 | 校园监测与新版页面统一实施方案已形成 | 融合 `docs/campus-monitor-implementation-plan.md` 与 `docs/new-ui-visible-feature-consolidation-plan.md`，新增 `docs/campus-monitor-unified-implementation-plan.md` 作为后续唯一综合执行口径 |
 | 2026-05-17 | 新版页面可见功能收口方案已固化为文档 | 在 `claude/batch33-monitor-admin` 分支、`D:\PRJ\yuqing` worktree 中新增 `docs/new-ui-visible-feature-consolidation-plan.md`，仅保存方案，不修改业务代码 |

@@ -407,6 +407,7 @@ import {
 } from '../services/monitor';
 import { getCurrentCampusUser } from '../services/permission';
 import type {
+  ApiId,
   CampusMonitorTask,
   CampusMonitorWatchTarget
 } from '../types/api';
@@ -492,7 +493,7 @@ const watchTargetTotal = ref(0);
 const watchTargetQuery = reactive({
   pageNum: 1,
   pageSize: 10,
-  monitorTaskId: undefined as number | undefined,
+  monitorTaskId: undefined as ApiId | undefined,
   targetType: '',
   platform: '',
   keyword: '',

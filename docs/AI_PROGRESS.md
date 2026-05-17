@@ -11,6 +11,17 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 监测语言与取消预警口径修复
+
+- **工作分支 / worktree**：`claude/monitor-language-cancel-alert`，`D:\PRJ\yuqing`。
+- **问题分析**：监测信息语言“未知”来自前端对空值兜底为未知，后端历史 `campus_monitor_result.language` 与接入记录 `language` 都为空时会返回空值；按业务口径，历史空语言统一按中文 `zh` 展示和过滤。
+- **后端调整**：`CampusMonitorResultMapper.xml` 对统一监测信息列表的 `language` 使用 `mr.language -> ir.language -> zh` 兜底；旧监测结果列表按语言筛选时也把空值视为 `zh`。
+- **取消预警口径**：保留历史接口路径 `/campus/monitor/result/ignore`，但业务语义改为“取消预警”。`CampusMonitorServiceImpl.ignoreResult` 改为事务操作：关联预警存在时同步置为 `ignored` 并写入处理意见“监测信息取消预警”，监测结果置为 `ignored`，清空结果侧 `alert_id`，同时把 `risk_level=normal/risk_score=0`。
+- **前端调整**：`MonitorView.vue` 中“忽略/已忽略/批量忽略”统一展示为“取消预警/已取消预警/批量取消预警”；语言空值和未识别值展示为“中文”；监测结果状态补充颜色区分，待处理为 warning、已预警为 danger、已取消预警为 info、已处理/已转线索为 success。
+- **文档同步**：`docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/PERMISSION_RULES.md`、`docs/TEST_CHECKLIST.md` 已同步监测语言默认中文和取消预警语义。
+- **本地验证**：使用 `.codex-tools/jdk8/jdk8u482-b08` 执行 `.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd clean -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 通过，仅保留 CRLF 提示。
+- **生产部署**：待合并 `main` 后执行。
+
 ## 2026-05-18 舆情态势图表数据源与运行任务底栏调整
 
 - **工作分支 / worktree**：`claude/dashboard-source-task-layout`，`D:\PRJ\yuqing`。

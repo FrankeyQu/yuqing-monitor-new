@@ -569,9 +569,13 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     }
 
     @Override
+    @Transactional
     public CampusMonitorResult ignoreResult(Long monitorResultId, Long operatorUserId) {
         CampusMonitorResult result = requireResult(monitorResultId);
-        campusMonitorResultDao.updateStatus(monitorResultId, RESULT_IGNORED, result.getAlertId(), operatorUserId);
+        if (result.getAlertId() != null) {
+            campusAlertDao.handle(result.getAlertId(), RESULT_IGNORED, "监测信息取消预警", operatorUserId, operatorUserId);
+        }
+        campusMonitorResultDao.updateStatusAndRisk(monitorResultId, RESULT_IGNORED, null, RISK_NORMAL, 0, operatorUserId);
         return campusMonitorResultDao.selectByResultId(monitorResultId);
     }
 

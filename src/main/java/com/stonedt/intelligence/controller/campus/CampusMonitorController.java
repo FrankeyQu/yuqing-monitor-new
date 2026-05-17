@@ -270,11 +270,11 @@ public class CampusMonitorController {
         try {
             User user = userUtil.getuser(request);
             CampusMonitorResult saved = campusMonitorService.ignoreResult(monitorResultId, user.getUser_id());
-            campusAuditLogService.record(request, "监测任务", "忽略监测结果", "campus_monitor_result",
+            campusAuditLogService.record(request, "监测任务", "取消监测预警", "campus_monitor_result",
                     String.valueOf(monitorResultId), params, true, null);
             return ResultVO.success(saved);
         } catch (Exception e) {
-            campusAuditLogService.record(request, "监测任务", "忽略监测结果", "campus_monitor_result",
+            campusAuditLogService.record(request, "监测任务", "取消监测预警", "campus_monitor_result",
                     String.valueOf(monitorResultId), params, false, e.getMessage());
             return ResultVO.error(400, e.getMessage());
         }

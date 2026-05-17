@@ -195,7 +195,7 @@ pending_judge / judged / converted → archived
 |-----------|------|------|
 | `result_status=pending` | 待处理 | 关键词命中后的默认处理状态 |
 | `result_status=alerted` | 已转预警 | 人工或规则转入 `campus_alert` |
-| `result_status=ignored` | 已忽略 | 人工确认无需继续处理 |
+| `result_status=ignored` | 已取消预警 | 人工确认取消预警；风险等级恢复 `normal`，风险分归 `0` |
 | `result_status=converted` | 已转线索 | 已沉淀到 `campus_clue` |
 | `riskMarked=true` | 风险标记 | 由负面词、非普通风险等级、已预警等条件推导，不是独立状态 |
 
@@ -289,7 +289,7 @@ completed → returned → completed
 |--------|------|
 | `pending` | 待处理 |
 | `handled` | 已处理 |
-| `ignored` | 已忽略 |
+| `ignored` | 已取消/已忽略 |
 
 **允许流转**：
 ```
@@ -297,6 +297,8 @@ completed → returned → completed
 pending → handled
 pending → ignored
 ```
+
+**监测信息取消预警口径**：`POST /campus/monitor/result/ignore` 保留历史路径名，但业务含义为“取消预警”。该操作将监测结果置为 `result_status=ignored`、清空结果侧 `alert_id`、恢复 `risk_level=normal/risk_score=0`；若存在关联预警，则同步把 `campus_alert.alert_status` 置为 `ignored`。
 
 **触发 API / Service**：
 - `POST /campus/alert/create`
@@ -424,7 +426,7 @@ running → failed
 |--------|------|
 | `pending` | 待研判 |
 | `alerted` | 已转预警 |
-| `ignored` | 已忽略 |
+| `ignored` | 已取消预警 |
 | `handled` | 对应预警已处理 |
 | `converted` | 已转入线索库 |
 
@@ -440,12 +442,12 @@ alerted → converted
 
 **触发 API / Service**：
 - `POST /campus/monitor/result/alert`
-- `POST /campus/monitor/result/ignore`
+- `POST /campus/monitor/result/ignore`（历史路径名，业务语义为取消预警）
 - `POST /campus/monitor/result/convert-clue`
 - `POST /campus/monitor/alert/handle`
 - `CampusMonitorServiceImpl.runTask(...)`：扫描接入记录并按任务规则自动生成 `pending` 或 `alerted`
 
-**说明**：监测结果是“命中条目”，不是报表分析的最终数据；只有转入 `campus_clue` 后才进入线索库和后续报表分析链路。
+**说明**：监测结果是“命中条目”，不是报表分析的最终数据；只有转入 `campus_clue` 后才进入线索库和后续报表分析链路。取消预警不是删除命中，而是把该命中从风险处理队列中退出，并同步回落风险等级。
 
 **结构化字段**：Batch41 起监测结果和线索保存 `schoolRelevanceScore/schoolRelevanceReason/matchedSchoolTerms/topicCategory/topicSubCategory/topicReason`，用于学校相关性解释、主题归类、预警依据和报表治理统计。
 
@@ -665,7 +667,7 @@ generation_log: running → success/failed
 
 ## 校园预警依据
 
-`campus_alert.evidence_json` 不是状态字段，但属于预警状态流转的解释性证据。新建预警时应记录来源对象、规则、风险等级、命中词、学校相关性、主题分类、风险分和原文链接等快照；后续处理/忽略只改变 `alert_status`，不得覆盖历史依据。
+`campus_alert.evidence_json` 不是状态字段，但属于预警状态流转的解释性证据。新建预警时应记录来源对象、规则、风险等级、命中词、学校相关性、主题分类、风险分和原文链接等快照；后续处理/取消预警只改变 `alert_status`，不得覆盖历史依据。
 
 ## 校园风险等级口径
 

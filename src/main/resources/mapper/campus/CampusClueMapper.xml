@@ -136,6 +136,7 @@
     <update id="updateAnalysisFromMonitor">
         UPDATE campus_clue
         SET sentiment = #{sentiment},
+            risk_level = #{riskLevel},
             school_relevance_score = #{schoolRelevanceScore},
             school_relevance_reason = #{schoolRelevanceReason},
             matched_school_terms = #{matchedSchoolTerms},

@@ -803,8 +803,11 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
                 + "\"matchedSchoolTerms\":\"命中的学校相关词\","
                 + "\"topicCategory\":\"校园主题大类\","
                 + "\"topicSubCategory\":\"校园主题小类\","
-                + "\"topicReason\":\"主题判断理由\"}]}"
-                + "。必须逐条保留输入中的monitorResultId。";
+                + "\"topicReason\":\"主题判断理由\","
+                + "\"riskLevel\":\"normal|concern\","
+                + "\"riskReason\":\"是否进入一般预警的理由\"}]}"
+                + "。必须逐条保留输入中的monitorResultId。普通关键词只判断是否属于任务，不能因为普通关键词命中就判为concern；"
+                + "只有负面词、风险词、原始风险、负面情感或内容本身存在明确校园舆情风险时，riskLevel才返回concern。";
     }
 
     private Map<String, JSONObject> parseMonitorResultAnalysisMap(String content) {
@@ -895,6 +898,12 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         analysis.topicCategory = StringUtils.left(json.getString("topicCategory"), 64);
         analysis.topicSubCategory = StringUtils.left(json.getString("topicSubCategory"), 64);
         analysis.topicReason = StringUtils.left(StringUtils.defaultIfBlank(json.getString("topicReason"), reason), 1024);
+        analysis.riskLevel = normalizeAiRiskLevel(StringUtils.defaultIfBlank(json.getString("riskLevel"),
+                StringUtils.defaultIfBlank(json.getString("warningLevel"), json.getString("alertLevel"))));
+        if (analysis.riskLevel == null && isAiAffirmative(json.getString("shouldWarn"))) {
+            analysis.riskLevel = RISK_CONCERN;
+        }
+        analysis.riskReason = StringUtils.left(StringUtils.defaultIfBlank(json.getString("riskReason"), reason), 512);
         return analysis;
     }
 
@@ -916,10 +925,15 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         final String topicReason = StringUtils.defaultIfBlank(analysis.topicReason, result.getTopicReason());
         final String sentiment = StringUtils.defaultIfBlank(analysis.sentiment,
                 CampusSentimentNormalizer.normalizeOrDefault(result.getSentiment(), "none"));
+        final CampusIngestRecord ingestRecord = result.getIngestRecordId() == null
+                ? null
+                : campusIngestRecordDao.selectByRecordId(result.getIngestRecordId());
+        final String riskLevel = resolveAiAnalysisRiskLevel(result, ingestRecord, analysis, sentiment);
+        final Integer riskScore = resolveAiAnalysisRiskScore(riskLevel, result);
 
         return transactionTemplate.execute(status -> {
             if (result.getClueId() != null) {
-                campusClueService.updateAnalysisFromMonitor(result.getClueId(), sentiment,
+                campusClueService.updateAnalysisFromMonitor(result.getClueId(), sentiment, riskLevel,
                         schoolScore, schoolReason, schoolTerms, excludedReason,
                         topicCategory, topicSubCategory, topicReason,
                         result.getMonitorResultId(), operatorUserId, operatorName);
@@ -933,6 +947,8 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
                     now,
                     StringUtils.left(analysis.providerCode, 64),
                     StringUtils.left(analysis.modelCode, 64),
+                    riskLevel,
+                    riskScore,
                     schoolScore,
                     StringUtils.left(schoolReason, 1024),
                     StringUtils.left(schoolTerms, 512),
@@ -964,6 +980,8 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             item.setAiHitRecommendation(saved.getAiHitRecommendation());
             item.setAiHitReason(saved.getAiHitReason());
             item.setAiConfidence(saved.getAiConfidence());
+            item.setRiskLevel(saved.getRiskLevel());
+            item.setRiskScore(saved.getRiskScore());
             item.setSchoolRelevanceScore(saved.getSchoolRelevanceScore());
             item.setTopicCategory(saved.getTopicCategory());
             item.setTopicSubCategory(saved.getTopicSubCategory());
@@ -1186,6 +1204,91 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private String normalizeAiRiskLevel(String value) {
+        String normalized = CampusRiskLevel.normalizeForQuery(value);
+        if (StringUtils.isBlank(normalized)) {
+            return null;
+        }
+        try {
+            return CampusRiskLevel.requireValid(normalized);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private boolean isAiAffirmative(String value) {
+        String normalized = StringUtils.lowerCase(StringUtils.trimToEmpty(value));
+        if (normalized.contains("不需要") || normalized.contains("无需") || normalized.contains("不应")) {
+            return false;
+        }
+        return "true".equals(normalized)
+                || "yes".equals(normalized)
+                || "y".equals(normalized)
+                || "1".equals(normalized)
+                || "concern".equals(normalized)
+                || "一般预警".equals(normalized)
+                || "需要".equals(normalized)
+                || normalized.contains("需要预警")
+                || normalized.contains("应预警");
+    }
+
+    private String resolveAiAnalysisRiskLevel(CampusMonitorResult result,
+                                              CampusIngestRecord ingestRecord,
+                                              AiResultAnalysis analysis,
+                                              String sentiment) {
+        String recordRiskLevel = ingestRecord == null ? null : normalizeValidRiskLevel(ingestRecord.getRiskLevel());
+        if (CampusRiskLevel.isNonNormal(recordRiskLevel)) {
+            return recordRiskLevel;
+        }
+        String existingRiskLevel = normalizeValidRiskLevel(result.getRiskLevel());
+        if (RISK_URGENT.equals(existingRiskLevel) || RISK_MAJOR.equals(existingRiskLevel)) {
+            return existingRiskLevel;
+        }
+        if (RISK_URGENT.equals(analysis.riskLevel) || RISK_MAJOR.equals(analysis.riskLevel)) {
+            return analysis.riskLevel;
+        }
+        if (RISK_CONCERN.equals(analysis.riskLevel)) {
+            return RISK_CONCERN;
+        }
+        if (StringUtils.isNotBlank(result.getMatchedNegativeWords())) {
+            return RISK_CONCERN;
+        }
+        if ("negative".equalsIgnoreCase(sentiment)) {
+            return RISK_CONCERN;
+        }
+        return RISK_NORMAL;
+    }
+
+    private String normalizeValidRiskLevel(String value) {
+        String normalized = CampusRiskLevel.normalizeForQuery(value);
+        if (StringUtils.isBlank(normalized)) {
+            return null;
+        }
+        try {
+            return CampusRiskLevel.requireValid(normalized);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private Integer resolveAiAnalysisRiskScore(String riskLevel, CampusMonitorResult result) {
+        String normalized = CampusRiskLevel.normalizeOrDefault(riskLevel);
+        if (RISK_URGENT.equals(normalized)) {
+            return 90;
+        }
+        if (RISK_MAJOR.equals(normalized)) {
+            return 70;
+        }
+        if (RISK_CONCERN.equals(normalized)) {
+            int score = 45;
+            if (StringUtils.isNotBlank(result.getMatchedNegativeWords())) {
+                score += Math.min(35, splitTokens(result.getMatchedNegativeWords()).size() * 10);
+            }
+            return Math.min(score, 69);
+        }
+        return 0;
     }
 
     private Integer clamp(Integer value, int min, int max) {
@@ -1424,7 +1527,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
                                             Set<String> matchedNegativeWords,
                                             boolean negative,
                                             Long operatorUserId) {
-        int riskScore = calculateRiskScore(record, matchedKeywords, matchedNegativeWords, negative);
+        int riskScore = calculateRiskScore(record, matchedNegativeWords, negative);
         CampusMonitorResult result = new CampusMonitorResult();
         result.setMonitorResultId(SnowflakeUtil.getId());
         result.setMonitorTaskId(task.getMonitorTaskId());
@@ -1547,25 +1650,25 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     }
 
     private int calculateRiskScore(CampusIngestRecord record,
-                                   Set<String> matchedKeywords,
                                    Set<String> matchedNegativeWords,
                                    boolean negative) {
-        int score = 30;
-        if (matchedKeywords != null && !matchedKeywords.isEmpty()) {
-            score += Math.min(20, matchedKeywords.size() * 8);
-        }
+        int score = 0;
         if (matchedNegativeWords != null && !matchedNegativeWords.isEmpty()) {
-            score += Math.min(35, matchedNegativeWords.size() * 12);
+            score += Math.min(60, matchedNegativeWords.size() * 20);
         }
         if ("negative".equalsIgnoreCase(StringUtils.defaultString(record.getSentiment()))) {
-            score += 20;
+            score += 30;
         }
-        int recordRiskRank = CampusRiskLevel.isNonNormal(record.getRiskLevel())
-                ? CampusRiskLevel.rank(record.getRiskLevel())
-                : 0;
-        score += recordRiskRank * 8;
+        String normalizedRecordRiskLevel = CampusRiskLevel.normalizeOrDefault(record.getRiskLevel());
+        if (RISK_URGENT.equals(normalizedRecordRiskLevel)) {
+            score = Math.max(score, 90);
+        } else if (RISK_MAJOR.equals(normalizedRecordRiskLevel)) {
+            score = Math.max(score, 70);
+        } else if (RISK_CONCERN.equals(normalizedRecordRiskLevel)) {
+            score = Math.max(score, 45);
+        }
         if (negative) {
-            score += 10;
+            score = Math.max(score, 45);
         }
         return Math.min(score, 100);
     }
@@ -2637,6 +2740,8 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         private String topicCategory;
         private String topicSubCategory;
         private String topicReason;
+        private String riskLevel;
+        private String riskReason;
         private String providerCode;
         private String modelCode;
     }

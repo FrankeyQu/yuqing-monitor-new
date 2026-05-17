@@ -38,6 +38,8 @@ public interface CampusMonitorResultDao {
                          @Param("aiAnalysisTime") Date aiAnalysisTime,
                          @Param("aiProviderCode") String aiProviderCode,
                          @Param("aiModelCode") String aiModelCode,
+                         @Param("riskLevel") String riskLevel,
+                         @Param("riskScore") Integer riskScore,
                          @Param("schoolRelevanceScore") Integer schoolRelevanceScore,
                          @Param("schoolRelevanceReason") String schoolRelevanceReason,
                          @Param("matchedSchoolTerms") String matchedSchoolTerms,

@@ -66,7 +66,8 @@
 - 监测信息情感值统一为 `positive/neutral/negative/none`，前后端兼容历史“疑似/确认”中文值但不得继续写入。
 - 监测信息页支持人工修改单条或批量监测命中情感；写入必须走 `/campus/monitor/result/sentiment`，已转线索时同步 `campus_clue.sentiment`，已归档线索关联的监测命中不得修改情感。
 - 后台 `/admin/monitor-tasks` 支持手动 AI 体检，接口 `/campus/monitor/task/ai-diagnose` 只返回任务配置建议，不写回任务、不展示具体采集内容。
-- 监测信息页支持单条、选中批量和当前页 AI 分析，接口 `/campus/monitor/result/ai-analyze` 最多一次处理 20 条；AI 可更新情感、一句话摘要、学校相关性和主题分类，但不得自动转预警、自动忽略、自动删除或改变风险等级/状态机。
+- 监测信息页支持单条、选中批量和当前页 AI 分析，接口 `/campus/monitor/result/ai-analyze` 最多一次处理 20 条；AI 可更新情感、一句话摘要、学校相关性、主题分类和辅助风险等级，但不得自动转预警、自动忽略、自动删除或改变结果状态机。
+- 风险等级口径：普通关键词只判断监测命中归属，不直接推高 `risk_level`；只有负面词/风险词、原始非普通风险、负面情感，或 AI 分析明确确认 `riskLevel=concern` 时，监测结果才进入“一般预警”风险等级。
 - AI 判断“不建议命中”必须只作为 `ai_hit_recommendation` 和理由展示，后续是否忽略由学校线下/人工判断后手动操作。
 - 已转未归档线索在监测命中 AI 分析成功后同步情感、学校相关性和主题字段；已归档线索关联的监测命中必须跳过写入并返回明确反馈。
 - `similarDedup=true` 必须按 `content_hash → 有效原文链接 → 标题+平台` 合并相似展示，并保持列表分页与平台统计口径一致。

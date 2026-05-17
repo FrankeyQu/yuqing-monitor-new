@@ -41,6 +41,8 @@ public class CampusMonitorAiAnalyzeResponse {
         private String aiHitRecommendation;
         private String aiHitReason;
         private Integer aiConfidence;
+        private String riskLevel;
+        private Integer riskScore;
         private Integer schoolRelevanceScore;
         private String topicCategory;
         private String topicSubCategory;

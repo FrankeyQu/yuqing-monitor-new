@@ -31,6 +31,7 @@ public interface CampusClueDao {
 
     int updateAnalysisFromMonitor(@Param("clueId") Long clueId,
                                   @Param("sentiment") String sentiment,
+                                  @Param("riskLevel") String riskLevel,
                                   @Param("schoolRelevanceScore") Integer schoolRelevanceScore,
                                   @Param("schoolRelevanceReason") String schoolRelevanceReason,
                                   @Param("matchedSchoolTerms") String matchedSchoolTerms,

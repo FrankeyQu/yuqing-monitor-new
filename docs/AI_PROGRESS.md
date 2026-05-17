@@ -39,6 +39,14 @@
 - **结论**：问题不是情感中性直接映射为一般预警，而是普通关键词/别名命中被纳入风险评分且阈值偏低；后续如要修业务口径，应调整风险评分和自动预警规则，只让负面词、原始风险、负面情感或明确风险词触发“一般预警”。
 - **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 
+## 2026-05-18 监测风险等级口径收紧
+
+- **用户目标**：普通关键词只判断“是否属于监测任务”，不得直接推高风险等级；只有负面词/风险词、原始风险等级、负面情感，或者 AI 分析确认需要进入一般预警时，才进入“一般预警”。
+- **后端调整**：`CampusMonitorServiceImpl.calculateRiskScore` 移除普通关键词加分和默认 30 分基线；风险分只来自负面词/风险词、原始非普通风险、负面情感。新命中如果只是普通关键词命中，将保持 `riskLevel=normal/riskScore=0`。
+- **AI 分析调整**：监测命中 AI 分析提示词新增 `riskLevel=normal/concern` 和 `riskReason` 合同；AI 写入时同步更新 `campus_monitor_result.risk_level/risk_score`，已转未归档线索同步 `campus_clue.risk_level`；但不自动修改 `resultStatus`、不自动生成/转预警、不改 `alertId`。
+- **业务影响**：后续新采集的中性普通命中不会因为学校名、简称、多语言别名命中较多而显示“一般预警”；存量旧数据不会批量迁移，除非重新扫描或手动 AI 分析写入。
+- **本地验证**：使用 JDK8 执行 `.\mvnw.cmd -DskipTests compile` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+
 ## 2026-05-17 多分支合并与生产部署收口
 
 - **用户目标**：把之前已完成的报告恢复、监测 AI 分析、工作台/大屏合并等改动合并到同一条可部署分支，并发布到服务器。

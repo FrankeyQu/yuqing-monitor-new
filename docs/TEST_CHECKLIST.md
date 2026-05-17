@@ -76,6 +76,13 @@ npm run build
 - 验收口径：`/admin/monitor-tasks` 主表每列可通过表头边界拖拽调整宽度，刷新后保留本地列宽；`/monitor` 监测信息主表支持相同列宽调整；存在 `aiSummary` 时摘要行显示蓝色“AI摘要：”前缀。
 - 风险等级排查：线上 `neutral + concern` 主要来自“新疆大学”任务；当前风险评分基础分 30，加普通关键词命中最高 20，导致普通中性命中也可达到 `riskScore >= 45` 并归为 `concern`。该项暂未修改业务评分，需单独确认风险口径后再调整。
 
+### 2026-05-18 监测风险等级口径收紧验证
+- 后端编译：使用 JDK8 执行 `.\mvnw.cmd -DskipTests compile` 通过。
+- 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- 验收口径：普通关键词命中、无负面词/风险词、原始风险普通、情感中性的新增监测结果应为 `riskLevel=normal/riskScore=0`，不因关键词数量进入“一般预警”。
+- 验收口径：命中负面词/风险词、原始风险非普通或负面情感的新增监测结果应至少为 `riskLevel=concern/riskScore>=45`。
+- 验收口径：手动 AI 分析返回 `riskLevel=concern` 或 `sentiment=negative` 时，应同步更新监测结果风险等级；已转未归档线索同步风险等级；不自动改变 `resultStatus`，不自动创建预警。
+
 ### 2026-05-18 日报月报旧生产分支合并验证
 - 分支处理：`claude/daily-monthly-reports` 与当前 `main` 无共同 merge-base，属于旧 `deploy-vps/main` 历史线；直接内容合并会回退当前监测 AI、舆情态势大屏和接入去重修复，因此本地先采用 `ours` merge 记录式并入验证。
 - GitHub 限制：带旧历史父节点的 merge commit 推送时，GitHub 远端因缺失旧对象 `718ba19b31214b77913b95b5860cd738d73acd8b` 拒收；当前保留本地保护分支 `codex/daily-history-merge-unpushable`，GitHub `main` 按当前代码树和文档记录完成等价吸收。

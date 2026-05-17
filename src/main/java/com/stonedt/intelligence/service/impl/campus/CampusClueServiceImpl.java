@@ -179,6 +179,7 @@ public class CampusClueServiceImpl implements CampusClueService {
     @Transactional
     public CampusClue updateAnalysisFromMonitor(Long clueId,
                                                 String sentiment,
+                                                String riskLevel,
                                                 Integer schoolRelevanceScore,
                                                 String schoolRelevanceReason,
                                                 String matchedSchoolTerms,
@@ -190,9 +191,11 @@ public class CampusClueServiceImpl implements CampusClueService {
                                                 Long operatorUserId,
                                                 String operatorName) {
         String normalized = requireSentiment(sentiment);
+        String normalizedRiskLevel = CampusRiskLevel.requireValid(riskLevel);
         CampusClue old = requireClue(clueId);
         ensureNotArchived(old, "同步AI分析");
         int updated = campusClueDao.updateAnalysisFromMonitor(clueId, normalized,
+                normalizedRiskLevel,
                 schoolRelevanceScore,
                 StringUtils.left(schoolRelevanceReason, 1024),
                 StringUtils.left(matchedSchoolTerms, 512),

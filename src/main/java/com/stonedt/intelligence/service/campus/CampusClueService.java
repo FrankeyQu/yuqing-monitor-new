@@ -54,6 +54,7 @@ public interface CampusClueService {
 
     CampusClue updateAnalysisFromMonitor(Long clueId,
                                          String sentiment,
+                                         String riskLevel,
                                          Integer schoolRelevanceScore,
                                          String schoolRelevanceReason,
                                          String matchedSchoolTerms,

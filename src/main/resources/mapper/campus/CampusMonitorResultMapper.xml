@@ -524,6 +524,8 @@
             ai_analysis_time = #{aiAnalysisTime},
             ai_provider_code = #{aiProviderCode},
             ai_model_code = #{aiModelCode},
+            risk_level = #{riskLevel},
+            risk_score = #{riskScore},
             school_relevance_score = #{schoolRelevanceScore},
             school_relevance_reason = #{schoolRelevanceReason},
             matched_school_terms = #{matchedSchoolTerms},

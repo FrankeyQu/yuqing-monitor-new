@@ -295,6 +295,8 @@ export interface CampusMonitorAiAnalyzeItem {
   aiHitRecommendation?: string;
   aiHitReason?: string;
   aiConfidence?: number;
+  riskLevel?: string;
+  riskScore?: number;
   schoolRelevanceScore?: number;
   topicCategory?: string;
   topicSubCategory?: string;

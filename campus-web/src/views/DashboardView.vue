@@ -71,27 +71,7 @@
         </article>
       </section>
 
-      <section class="screen-grid screen-grid-three">
-        <article class="screen-panel">
-          <div class="panel-header">
-            <h2>运行中的监测任务</h2>
-            <el-button link type="primary" @click="router.push('/monitor')">进入</el-button>
-          </div>
-          <div class="screen-list">
-            <div v-for="item in monitorTasks" :key="item.monitorTaskId || item.taskName" class="screen-list-row screen-feed-row">
-              <div class="screen-list-main">
-                <span>{{ item.taskName }}</span>
-                <small>{{ item.monitorSubject }} · {{ item.keywords || item.negativeWords || '未配置关键词' }}</small>
-              </div>
-              <div class="screen-list-tags">
-                <el-tag :type="taskStatusTagType(item.taskStatus)" effect="plain">{{ taskStatusLabel(item.taskStatus) }}</el-tag>
-                <el-tag effect="plain">{{ frequencyLabel(item.scanFrequencyMinutes) }}</el-tag>
-              </div>
-            </div>
-            <el-empty v-if="!monitorTasks.length && !loading" description="暂无运行任务" />
-          </div>
-        </article>
-
+      <section class="screen-grid dashboard-monitor-grid">
         <article class="screen-panel">
           <div class="panel-header">
             <div class="panel-title-line">
@@ -275,6 +255,27 @@
           </div>
         </article>
       </section>
+
+      <section class="screen-panel task-strip-panel">
+        <div class="panel-header">
+          <h2>运行中的监测任务</h2>
+          <el-button link type="primary" @click="router.push('/admin/monitor-tasks')">进入</el-button>
+        </div>
+        <div class="task-strip-list">
+          <div v-for="item in monitorTasks" :key="item.monitorTaskId || item.taskName" class="task-strip-row">
+            <div class="task-strip-main">
+              <span>{{ item.taskName }}</span>
+              <small>{{ item.monitorSubject || '未设置主体' }}</small>
+            </div>
+            <span class="task-strip-meta">{{ taskKeywordsLabel(item) }}</span>
+            <span class="task-strip-meta">{{ taskAiAnalysisLabel(item) }}</span>
+            <span class="task-strip-meta">{{ taskScheduleLabel(item) }}</span>
+            <span class="task-strip-meta task-match-count">近次命中：{{ item.lastMatchCount ?? 0 }}</span>
+            <el-tag :type="taskStatusTagType(item.taskStatus)" effect="plain">{{ taskStatusLabel(item.taskStatus) }}</el-tag>
+          </div>
+          <el-empty v-if="!monitorTasks.length && !loading" description="暂无运行任务" />
+        </div>
+      </section>
     </template>
 
     <template v-else>
@@ -363,22 +364,6 @@
         <div class="dashboard-screen-bottom">
           <article class="screen-panel">
             <div class="panel-header">
-              <h2>运行任务</h2>
-            </div>
-            <div class="screen-list compact-list">
-              <div v-for="item in monitorTasks.slice(0, 4)" :key="item.monitorTaskId || item.taskName" class="screen-list-row screen-feed-row">
-                <div class="screen-list-main">
-                  <span>{{ item.taskName }}</span>
-                  <small>{{ item.monitorSubject }} · {{ frequencyLabel(item.scanFrequencyMinutes) }}</small>
-                </div>
-                <el-tag :type="taskStatusTagType(item.taskStatus)" effect="plain">{{ taskStatusLabel(item.taskStatus) }}</el-tag>
-              </div>
-              <el-empty v-if="!monitorTasks.length && !loading" description="暂无运行任务" />
-            </div>
-          </article>
-
-          <article class="screen-panel">
-            <div class="panel-header">
               <h2>事件处置状态</h2>
             </div>
             <div ref="eventStatusChartRef" class="screen-chart screen-chart-sm" />
@@ -398,6 +383,26 @@
             <div ref="eventHeatChartRef" class="screen-chart screen-chart-sm" />
           </article>
         </div>
+
+        <article class="screen-panel task-strip-panel">
+          <div class="panel-header">
+            <h2>运行中的监测任务</h2>
+          </div>
+          <div class="task-strip-list">
+            <div v-for="item in monitorTasks.slice(0, 4)" :key="item.monitorTaskId || item.taskName" class="task-strip-row">
+              <div class="task-strip-main">
+                <span>{{ item.taskName }}</span>
+                <small>{{ item.monitorSubject || '未设置主体' }}</small>
+              </div>
+              <span class="task-strip-meta">{{ taskKeywordsLabel(item) }}</span>
+              <span class="task-strip-meta">{{ taskAiAnalysisLabel(item) }}</span>
+              <span class="task-strip-meta">{{ taskScheduleLabel(item) }}</span>
+              <span class="task-strip-meta task-match-count">近次命中：{{ item.lastMatchCount ?? 0 }}</span>
+              <el-tag :type="taskStatusTagType(item.taskStatus)" effect="plain">{{ taskStatusLabel(item.taskStatus) }}</el-tag>
+            </div>
+            <el-empty v-if="!monitorTasks.length && !loading" description="暂无运行任务" />
+          </div>
+        </article>
       </section>
     </template>
   </section>
@@ -426,7 +431,6 @@ import PlatformBadge from '../components/PlatformBadge.vue';
 import {
   alertSourceLabel,
   formatTime,
-  frequencyLabel,
   getDistributionValue,
   riskColors,
   riskLabel,
@@ -436,6 +440,9 @@ import {
   sourceLabel,
   statusLabel,
   sumValues,
+  taskAiAnalysisLabel,
+  taskKeywordsLabel,
+  taskScheduleLabel,
   taskStatusLabel,
   taskStatusTagType,
   toNumber,
@@ -1051,8 +1058,66 @@ function emptyGraphic(hasData: boolean) {
   grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.45fr);
 }
 
+.dashboard-monitor-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .dashboard-clue-table {
   width: 100%;
+}
+
+.task-strip-panel {
+  overflow: hidden;
+}
+
+.task-strip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-strip-row {
+  min-height: 42px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.5fr) minmax(90px, 0.55fr) minmax(92px, 0.55fr) minmax(92px, 0.5fr) auto;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5ebf2;
+  border-radius: 8px;
+}
+
+.task-strip-main,
+.task-strip-meta {
+  min-width: 0;
+}
+
+.task-strip-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-strip-main span,
+.task-strip-main small,
+.task-strip-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-strip-main span {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.task-strip-main small,
+.task-strip-meta {
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .sentiment-tag {
@@ -1155,7 +1220,7 @@ function emptyGraphic(hasData: boolean) {
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) 212px;
+  grid-template-rows: minmax(0, 1fr) 178px 108px;
   gap: 12px;
 }
 
@@ -1170,7 +1235,7 @@ function emptyGraphic(hasData: boolean) {
 .dashboard-screen-bottom {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1304,8 +1369,48 @@ function emptyGraphic(hasData: boolean) {
   line-height: 14px;
 }
 
+.is-screen-mode .task-strip-panel {
+  min-height: 0;
+  padding: 10px 12px;
+}
+
+.is-screen-mode .task-strip-list {
+  max-height: calc(100% - 34px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+  overflow: hidden;
+}
+
+.is-screen-mode .task-strip-row {
+  min-height: 30px;
+  padding: 5px 8px;
+  grid-template-columns: minmax(112px, 0.9fr) minmax(160px, 1.35fr) minmax(82px, 0.5fr) minmax(88px, 0.5fr) auto;
+  gap: 8px;
+  background: #10243a;
+  border-color: #1f3a56;
+  border-radius: 8px;
+}
+
+.is-screen-mode .task-strip-main span,
+.is-screen-mode .task-strip-main small,
+.is-screen-mode .task-strip-meta {
+  color: #9db2c7;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.is-screen-mode .task-strip-main span {
+  color: #f8fafc;
+}
+
+.is-screen-mode .task-match-count {
+  display: none;
+}
+
 @media (max-width: 1180px) {
   .dashboard-top-grid,
+  .dashboard-monitor-grid,
   .dashboard-screen-main,
   .dashboard-screen-bottom {
     grid-template-columns: 1fr;
@@ -1318,6 +1423,20 @@ function emptyGraphic(hasData: boolean) {
 
   .dashboard-screen-stage {
     grid-template-rows: auto;
+  }
+
+  .task-strip-row,
+  .is-screen-mode .task-strip-row {
+    grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.5fr) auto;
+  }
+
+  .task-strip-meta:nth-of-type(3),
+  .task-match-count {
+    display: none;
+  }
+
+  .is-screen-mode .task-strip-list {
+    grid-template-columns: 1fr;
   }
 }
 

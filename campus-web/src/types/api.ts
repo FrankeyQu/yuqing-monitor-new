@@ -91,6 +91,8 @@ export interface DashboardStatistics {
   detectionHitRiskDistribution?: DistributionItem[];
   sourceRiskDistribution?: SourceRiskDistributionItem[];
   topicRiskDistribution?: SourceRiskDistributionItem[];
+  sentimentDistribution?: DistributionItem[];
+  mediaDistribution?: DistributionItem[];
   governanceMetrics?: GovernanceMetrics;
 }
 

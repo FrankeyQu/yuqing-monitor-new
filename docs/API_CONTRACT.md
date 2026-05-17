@@ -397,7 +397,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | 方法 | 路径 | 参数 | 响应 | 权限 |
 |------|------|------|------|------|
 | GET | `/campus/dashboard/overview` | 无 | `ResultVO<Map>` | 登录 + API 权限 |
-| GET | `/campus/dashboard/statistics` | 无 | `ResultVO<Map>` | 登录 + API 权限；返回 `overview/monitorOverview/riskDistribution/sourceRiskDistribution/topicRiskDistribution/governanceMetrics` 等态势和治理指标 |
+| GET | `/campus/dashboard/statistics` | 无 | `ResultVO<Map>` | 登录 + API 权限；返回 `overview/monitorOverview/riskDistribution/sentimentDistribution/mediaDistribution/sourceRiskDistribution/topicRiskDistribution/governanceMetrics` 等态势和治理指标 |
 | GET | `/campus/dashboard/word-cloud` | [待补全] | `ResultVO<List>` | 登录 + API 权限 |
 | GET | `/campus/dashboard/trend` | [待补全] | `ResultVO<List>` | 登录 + API 权限 |
 | GET | `/campus/hot-rank/list` | `days` 等 [待确认] | `ResultVO<List>` | 登录 + API 权限 |

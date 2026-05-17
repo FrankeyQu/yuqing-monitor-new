@@ -11,6 +11,15 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 舆情态势图表数据源与运行任务底栏调整
+
+- **工作分支 / worktree**：`claude/dashboard-source-task-layout`，`D:\PRJ\yuqing`。
+- **数据源核查**：工作台/大屏图表主体仍复用 `/campus/dashboard/statistics`、`/campus/dashboard/word-cloud`、`/campus/dashboard/trend`、监测任务/监测信息/监测告警等真实接口；发现前端“情感分布”曾按当前页 `pendingClues` 临时汇总，“媒体来源分布”曾使用 `clueSourceDistribution`，均已调整为后端全量统计字段。
+- **前端修正**：`DashboardStatistics` 类型补齐 `sentimentDistribution/mediaDistribution`；情感分布读取 `sentimentDistribution`；媒体来源分布读取 `mediaDistribution`，并通过 `sourceLabel` 将微博、抖音、微信、新闻、网页、监测命中、人工线索等枚举统一中文化。
+- **布局调整**：普通工作台中“运行中的监测任务”移至页面最底部整行；大屏模式中运行任务改为底部横向任务条。任务单行展示任务名、主体、关键词/负面词、AI分析状态、调度频率、近次命中和状态。
+- **文档同步**：`docs/API_CONTRACT.md` 的 `/campus/dashboard/statistics` 响应说明补充 `sentimentDistribution/mediaDistribution`。
+- **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 通过（仅 CRLF 提示）；Playwright 本地 mock 数据打开 `/` 与 `/?mode=screen` 验证页面可渲染，媒体来源坐标显示为“微博/抖音/微信/新闻”，运行任务底栏显示关键词和“AI分析：可用”。
+
 ## 2026-05-17 多分支合并与生产部署收口
 
 - **用户目标**：把之前已完成的报告恢复、监测 AI 分析、工作台/大屏合并等改动合并到同一条可部署分支，并发布到服务器。

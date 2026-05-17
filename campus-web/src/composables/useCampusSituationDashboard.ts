@@ -63,15 +63,8 @@ export function useCampusSituationDashboard() {
   const alertRiskRows = computed(() => statistics.value.alertRiskDistribution || []);
   const detectionRiskRows = computed(() => statistics.value.detectionHitRiskDistribution || []);
   const sourceRiskRows = computed(() => statistics.value.sourceRiskDistribution || []);
-  const sourceRows = computed(() => statistics.value.clueSourceDistribution || []);
-  const sentimentRows = computed<DistributionItem[]>(() => {
-    const counts: Record<string, number> = {};
-    for (const clue of pendingClues.value) {
-      const key = clue.sentiment || 'unknown';
-      counts[key] = (counts[key] || 0) + 1;
-    }
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  });
+  const sourceRows = computed(() => statistics.value.mediaDistribution || []);
+  const sentimentRows = computed<DistributionItem[]>(() => statistics.value.sentimentDistribution || []);
 
   const monitorNegativeRate = computed(() => {
     const resultCount = toNumber(monitorOverview.value.todayResultCount);
@@ -162,7 +155,7 @@ export function useCampusSituationDashboard() {
         fetchPendingAlerts(),
         fetchPendingDetectionHits(),
         fetchActiveEvents(),
-        listMonitorTasks({ pageNum: 1, pageSize: 6, taskStatus: 'active' }),
+        listMonitorTasks({ pageNum: 1, pageSize: 8, taskStatus: 'active' }),
         listMonitorInformation({ pageNum: 1, pageSize: 8, hitScope: 'risk' }),
         listMonitorAlerts({ pageNum: 1, pageSize: 6, alertStatus: 'pending' })
       ]);
@@ -269,6 +262,8 @@ export function emptyStatistics(): DashboardStatistics {
     detectionHitRiskDistribution: [],
     sourceRiskDistribution: [],
     topicRiskDistribution: [],
+    sentimentDistribution: [],
+    mediaDistribution: [],
     governanceMetrics: {}
   };
 }
@@ -302,7 +297,70 @@ export function riskTagType(value?: string) {
 }
 
 export function sourceLabel(value?: string) {
-  return value && value !== 'unknown' ? value : '未知来源';
+  const text = (value || '').trim();
+  if (!text || text.toLowerCase() === 'unknown') {
+    return '未知来源';
+  }
+  const normalized = text.toLowerCase();
+  const exactLabels: Record<string, string> = {
+    article: '文章',
+    baidu: '百度',
+    baidu_news: '百度新闻',
+    baidu_web: '百度网页',
+    bilibili: 'B站',
+    crawler: '公开网页',
+    detection: '检测命中',
+    douyin: '抖音',
+    forum: '论坛',
+    ingest: '数据接入',
+    kuaishou: '快手',
+    manual: '人工线索',
+    monitor: '监测命中',
+    news: '新闻',
+    other: '其他',
+    public_web: '公开网页',
+    red: '小红书',
+    source_platform: '媒体平台',
+    tieba: '贴吧',
+    tikhub: '社媒接入',
+    toutiao: '今日头条',
+    unknown: '未知来源',
+    wechat: '微信',
+    weibo: '微博',
+    web: '网页',
+    webpage: '网页',
+    website: '网站',
+    xhs: '小红书',
+    xiaohongshu: '小红书',
+    zhihu: '知乎'
+  };
+  if (exactLabels[normalized]) {
+    return exactLabels[normalized];
+  }
+  const fuzzyLabels: Array<[string, string]> = [
+    ['weibo', '微博'],
+    ['微博', '微博'],
+    ['douyin', '抖音'],
+    ['抖音', '抖音'],
+    ['kuaishou', '快手'],
+    ['快手', '快手'],
+    ['wechat', '微信'],
+    ['微信', '微信'],
+    ['tieba', '贴吧'],
+    ['贴吧', '贴吧'],
+    ['toutiao', '今日头条'],
+    ['头条', '今日头条'],
+    ['xiaohongshu', '小红书'],
+    ['小红书', '小红书'],
+    ['zhihu', '知乎'],
+    ['知乎', '知乎'],
+    ['bilibili', 'B站'],
+    ['新闻', '新闻'],
+    ['news', '新闻'],
+    ['forum', '论坛'],
+    ['论坛', '论坛']
+  ];
+  return fuzzyLabels.find(([keyword]) => normalized.includes(keyword.toLowerCase()))?.[1] || text;
 }
 
 export function alertSourceLabel(value?: string) {
@@ -346,6 +404,36 @@ export function taskStatusTagType(value?: string) {
     return 'warning';
   }
   return 'info';
+}
+
+export function taskKeywordsLabel(task: CampusMonitorTask) {
+  const primary = normalizeKeywordText(task.keywords || task.keywordsI18n);
+  const negative = normalizeKeywordText(task.negativeWords || task.negativeWordsI18n);
+  const parts = [
+    primary ? `关键词：${primary}` : '',
+    negative ? `负面词：${negative}` : ''
+  ].filter(Boolean);
+  return truncateText(parts.join(' / ') || '关键词：未配置', 48);
+}
+
+export function taskAiAnalysisLabel(task: CampusMonitorTask) {
+  return task.monitorTaskId || task.id ? 'AI分析：可用' : 'AI分析：未绑定';
+}
+
+export function taskScheduleLabel(task: CampusMonitorTask) {
+  if (task.scheduleEnabled === 0) {
+    return '调度：手动';
+  }
+  return `调度：${frequencyLabel(task.scanFrequencyMinutes)}`;
+}
+
+function normalizeKeywordText(value?: string) {
+  return (value || '')
+    .split(/[,，;；、\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 6)
+    .join('、');
 }
 
 export function sentimentLabel(value?: string) {

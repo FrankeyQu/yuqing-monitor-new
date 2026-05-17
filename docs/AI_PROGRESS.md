@@ -11,6 +11,14 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 监测命中 AI 分析标题正文比较改造
+
+- **用户目标**：AI 对情感、摘要、风险等级、主题和学校相关性进行分析时，同时看标题和正文，比较哪个更包含任务、校园主体、关键词、负面词或具体事实；两者同样匹配时再按正文优先、标题兜底。
+- **后端调整**：`CampusMonitorServiceImpl` 在构造监测命中 AI 入参时新增标题/正文信号打分；可用正文和标题分别计算 `contentSignalScore/titleSignalScore`，分数高者进入 `primaryText`，并通过 `analysisBasisHint` 与 `textSelectionReason` 告诉 AI 为什么选择该段。
+- **提示词约束**：监测命中 AI 分析合同追加标题正文比较规则，要求先比较 `title` 与 `content` 哪个更匹配，再判断情感、摘要、风险等级、主题、学校相关性；如果 AI 认为系统预选不合理，可返回 `analysisBasis=content/title/mixed`。
+- **风险保护**：AI 返回标题兜底结果且未明确给出 `riskLevel=concern` 时，仅负面情感不再自动把监测结果升为“一般预警”；正文主导的负面情感、负面词、原始风险或 AI 明确风险判断仍按现有规则进入风险等级。
+- **本地验证**：新增 `CampusMonitorAiContentFirstTest`，覆盖正文更匹配、标题正文同分时正文优先、标题更匹配回复型正文、标题兜底、标题负面不自动升预警、正文负面仍升预警；`.\mvnw.cmd "-Dtest=CampusMonitorAiContentFirstTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过（6 tests）；`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd clean -DskipTests package` 通过。
+
 ## 2026-05-18 main 追平生产分支
 
 - **用户目标**：确认线上可用后，将 GitHub `main` 追平当前服务器实际运行代码，避免后续从 `main` 部署时回退大屏统一、监测 AI 或接入去重修复。

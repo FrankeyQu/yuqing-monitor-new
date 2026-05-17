@@ -121,6 +121,14 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     private static final int MAX_CLEANUP_BATCHES = 20;
     private static final int DEFAULT_AI_ANALYZE_LIMIT = 20;
     private static final int MAX_AI_ANALYZE_LIMIT = 20;
+    private static final String AI_ANALYSIS_BASIS_CONTENT = "content";
+    private static final String AI_ANALYSIS_BASIS_TITLE = "title";
+    private static final String AI_ANALYSIS_BASIS_NONE = "none";
+    private static final int MIN_AI_CONTENT_TEXT_LENGTH = 20;
+    private static final String[] AI_CONTENT_NOISE_TERMS = new String[]{
+            "打开app", "打开APP", "登录", "注册", "点击查看", "查看全文", "展开全文",
+            "评论", "转发", "点赞", "分享", "复制链接", "搜索", "关注", "发布于", "来自"
+    };
 
     private final CampusSchoolRelevanceService schoolRelevanceService = new CampusSchoolRelevanceService();
     private final CampusTopicClassifier topicClassifier = new CampusTopicClassifier();
@@ -644,6 +652,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             }
             try {
                 AiResultAnalysis parsed = normalizeAiResultAnalysis(analysis);
+                parsed.analysisBasis = StringUtils.defaultIfBlank(parsed.analysisBasis, inferAiAnalysisBasis(target));
                 parsed.providerCode = config == null ? null : config.getProviderCode();
                 parsed.modelCode = config == null ? null : config.getModelCode();
                 CampusMonitorResult saved = applyAiResultAnalysis(target, parsed, operatorUserId, operatorName);
@@ -741,11 +750,20 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             CampusIngestRecord record = result.getIngestRecordId() == null
                     ? null
                     : campusIngestRecordDao.selectByRecordId(result.getIngestRecordId());
+            AiAnalysisText analysisText = buildAiAnalysisText(result, record, task);
             JSONObject item = new JSONObject();
             item.put("monitorResultId", String.valueOf(result.getMonitorResultId()));
             item.put("task", buildMonitorResultTaskJson(task));
-            item.put("title", StringUtils.left(preferText(result.getTitle(), record == null ? null : record.getTitle()), 300));
-            item.put("content", StringUtils.left(preferLongerText(result.getContent(), record == null ? null : record.getContent()), 1200));
+            item.put("title", StringUtils.left(analysisText.title, 300));
+            item.put("content", StringUtils.left(analysisText.content, 1200));
+            item.put("primaryText", StringUtils.left(analysisText.primaryText, 1200));
+            item.put("secondaryTitle", StringUtils.left(analysisText.secondaryTitle, 300));
+            item.put("analysisBasisHint", analysisText.analysisBasis);
+            item.put("contentUsable", analysisText.contentUsable);
+            item.put("contentQualityReason", analysisText.contentQualityReason);
+            item.put("titleSignalScore", analysisText.titleSignalScore);
+            item.put("contentSignalScore", analysisText.contentSignalScore);
+            item.put("textSelectionReason", analysisText.selectionReason);
             item.put("platform", StringUtils.defaultIfBlank(result.getPlatform(), record == null ? null : record.getPlatform()));
             item.put("authorName", StringUtils.defaultIfBlank(result.getAuthorName(), record == null ? null : record.getAuthorName()));
             item.put("matchedSubjects", result.getMatchedSubjects());
@@ -755,6 +773,148 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             array.add(item);
         }
         return array;
+    }
+
+    private AiAnalysisText buildAiAnalysisText(CampusMonitorResult result,
+                                               CampusIngestRecord record,
+                                               CampusMonitorTask task) {
+        String title = cleanAiAnalysisText(preferText(result == null ? null : result.getTitle(),
+                record == null ? null : record.getTitle()));
+        String content = cleanAiAnalysisText(preferLongerText(result == null ? null : result.getContent(),
+                record == null ? null : record.getContent()));
+        int titleScore = calculateAiTextSignalScore(title, result, record, task);
+        int contentScore = calculateAiTextSignalScore(content, result, record, task);
+        boolean contentUsable = isUsableAiAnalysisContent(content, title);
+        boolean titleUsable = StringUtils.isNotBlank(title);
+        String basis;
+        if (contentUsable && (!titleUsable || contentScore >= titleScore)) {
+            basis = AI_ANALYSIS_BASIS_CONTENT;
+        } else if (titleUsable) {
+            basis = AI_ANALYSIS_BASIS_TITLE;
+        } else if (contentUsable) {
+            basis = AI_ANALYSIS_BASIS_CONTENT;
+        } else {
+            basis = AI_ANALYSIS_BASIS_NONE;
+        }
+        String primaryText = AI_ANALYSIS_BASIS_CONTENT.equals(basis) ? content
+                : AI_ANALYSIS_BASIS_TITLE.equals(basis) ? title : "";
+        String secondaryTitle = AI_ANALYSIS_BASIS_CONTENT.equals(basis) ? title
+                : AI_ANALYSIS_BASIS_TITLE.equals(basis) ? content : "";
+        String qualityReason = contentUsable ? "正文可用于比较判断"
+                : StringUtils.isBlank(content) ? "正文缺失，使用标题兜底"
+                : "正文过短、重复标题或疑似平台噪声，使用标题兜底";
+        String selectionReason = buildAiTextSelectionReason(basis, titleScore, contentScore, contentUsable);
+        return new AiAnalysisText(title, content, primaryText, secondaryTitle, basis, contentUsable,
+                qualityReason, titleScore, contentScore, selectionReason);
+    }
+
+    private String inferAiAnalysisBasis(CampusMonitorResult result) {
+        CampusIngestRecord record = result == null || result.getIngestRecordId() == null
+                ? null
+                : campusIngestRecordDao.selectByRecordId(result.getIngestRecordId());
+        CampusMonitorTask task = result == null || result.getMonitorTaskId() == null
+                ? null
+                : campusMonitorTaskDao.selectByTaskId(result.getMonitorTaskId());
+        return buildAiAnalysisText(result, record, task).analysisBasis;
+    }
+
+    private int calculateAiTextSignalScore(String text,
+                                           CampusMonitorResult result,
+                                           CampusIngestRecord record,
+                                           CampusMonitorTask task) {
+        if (StringUtils.isBlank(text)) {
+            return 0;
+        }
+        int score = 0;
+        score += scoreMatchedTokens(text, splitTokens(result == null ? null : result.getMatchedSubjects()), 35);
+        score += scoreMatchedTokens(text, splitTokens(joinTokens(task == null ? null : task.getMonitorSubject(),
+                task == null ? null : task.getSubjectAliases())), 25);
+        score += scoreMatchedTokens(text, splitTokens(result == null ? null : result.getMatchedNegativeWords()), 25);
+        score += scoreMatchedTokens(text, splitTokens(task == null ? null : task.getNegativeWords()), 20);
+        score += scoreMatchedTokens(text, splitTokens(result == null ? null : result.getMatchedKeywords()), 16);
+        score += scoreMatchedTokens(text, splitTokens(joinTokens(task == null ? null : task.getKeywords(),
+                record == null ? null : record.getKeywords())), 12);
+        score += scoreMatchedTokens(text, splitTokens(StringUtils.join(AI_CONTENT_NOISE_TERMS, ",")), -3);
+        return Math.max(score, 0);
+    }
+
+    private int scoreMatchedTokens(String text, Set<String> tokens, int weight) {
+        if (StringUtils.isBlank(text) || tokens == null || tokens.isEmpty() || weight == 0) {
+            return 0;
+        }
+        int count = 0;
+        for (String token : tokens) {
+            if (StringUtils.length(StringUtils.trimToEmpty(token)) >= 2
+                    && StringUtils.containsIgnoreCase(text, token)) {
+                count++;
+            }
+        }
+        return count * weight;
+    }
+
+    private String buildAiTextSelectionReason(String basis,
+                                              int titleScore,
+                                              int contentScore,
+                                              boolean contentUsable) {
+        if (AI_ANALYSIS_BASIS_CONTENT.equals(basis)) {
+            if (contentScore == titleScore) {
+                return "标题和正文匹配度相同，按正文优先";
+            }
+            return "正文包含更多任务或校园相关信息";
+        }
+        if (AI_ANALYSIS_BASIS_TITLE.equals(basis)) {
+            if (!contentUsable) {
+                return "正文不可用，标题作为主信息";
+            }
+            return "标题包含更多任务或校园相关信息，正文更像回复或补充";
+        }
+        return "标题和正文均缺少可分析信息";
+    }
+
+    private boolean isUsableAiAnalysisContent(String content, String title) {
+        String compactContent = compactAiAnalysisText(content);
+        if (StringUtils.isBlank(compactContent) || compactContent.length() < MIN_AI_CONTENT_TEXT_LENGTH) {
+            return false;
+        }
+        String compactTitle = compactAiAnalysisText(title);
+        if (StringUtils.isNotBlank(compactTitle) && StringUtils.equalsIgnoreCase(compactContent, compactTitle)) {
+            return false;
+        }
+        if (looksLikeUrlOnly(compactContent)) {
+            return false;
+        }
+        return !looksLikePlatformNoise(compactContent);
+    }
+
+    private String cleanAiAnalysisText(String text) {
+        String trimmed = StringUtils.trimToEmpty(text);
+        if (StringUtils.isBlank(trimmed)) {
+            return "";
+        }
+        return trimmed.replaceAll("[\\r\\n\\t ]+", " ");
+    }
+
+    private String compactAiAnalysisText(String text) {
+        return StringUtils.trimToEmpty(text).replaceAll("[\\s　]+", "");
+    }
+
+    private boolean looksLikeUrlOnly(String compactText) {
+        String lower = StringUtils.lowerCase(compactText);
+        return (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("www."))
+                && !StringUtils.containsAny(compactText, "。", "，", "！", "？", "、");
+    }
+
+    private boolean looksLikePlatformNoise(String compactText) {
+        if (StringUtils.length(compactText) > 80) {
+            return false;
+        }
+        int hits = 0;
+        for (String term : AI_CONTENT_NOISE_TERMS) {
+            if (StringUtils.containsIgnoreCase(compactText, term)) {
+                hits++;
+            }
+        }
+        return hits >= 3;
     }
 
     private JSONObject buildCommonTaskJson(List<CampusMonitorResult> targets) {
@@ -792,8 +952,15 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
 
     private String appendMonitorResultAnalysisContract(String prompt) {
         return StringUtils.defaultString(prompt)
+                + "\n\n分析依据要求：每条输入都包含title、content、primaryText、secondaryTitle、analysisBasisHint、contentUsable、titleSignalScore、contentSignalScore和textSelectionReason。"
+                + "你必须同时阅读title和content，先比较哪一段更包含监测任务、校园主体、关键词、负面词或具体事实，再判断情感、摘要、风险等级、主题和学校相关性。"
+                + "primaryText是系统按匹配度预选的主信息源：当analysisBasisHint=title时，标题更像主要内容，正文可能只是回复、评论或补充；当analysisBasisHint=content时，正文更像主要内容。"
+                + "如果你判断系统预选不合理，可以用另一段或综合两段，但必须在analysisBasis中返回content、title或mixed。"
+                + "当标题和正文同样匹配时，优先依据正文；正文仍不足时再依据标题。"
+                + "不能只因为标题负面就制造正文没有的风险；仅标题负面但没有明确校园风险事实时，riskLevel保持normal。"
                 + "\n\n返回格式必须是一个JSON对象，不要返回JSON数组，结构如下："
                 + "{\"results\":[{\"monitorResultId\":\"输入中的ID字符串\","
+                + "\"analysisBasis\":\"content|title|mixed\","
                 + "\"sentiment\":\"positive|neutral|negative|none\","
                 + "\"summary\":\"50字以内一句话\","
                 + "\"shouldHit\":\"hit|not_hit|uncertain\","
@@ -879,6 +1046,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
 
     private AiResultAnalysis normalizeAiResultAnalysis(JSONObject json) {
         AiResultAnalysis analysis = new AiResultAnalysis();
+        analysis.analysisBasis = normalizeAiAnalysisBasis(json.getString("analysisBasis"));
         String sentiment = CampusSentimentNormalizer.normalize(json.getString("sentiment"));
         analysis.sentiment = StringUtils.defaultIfBlank(sentiment, "none");
         analysis.summary = StringUtils.left(json.getString("summary"), 255);
@@ -905,6 +1073,23 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         }
         analysis.riskReason = StringUtils.left(StringUtils.defaultIfBlank(json.getString("riskReason"), reason), 512);
         return analysis;
+    }
+
+    private String normalizeAiAnalysisBasis(String value) {
+        String normalized = StringUtils.lowerCase(StringUtils.trimToEmpty(value));
+        if (StringUtils.isBlank(normalized)) {
+            return null;
+        }
+        if ("正文".equals(normalized) || "content".equals(normalized) || "body".equals(normalized)) {
+            return AI_ANALYSIS_BASIS_CONTENT;
+        }
+        if ("标题".equals(normalized) || "title".equals(normalized) || "headline".equals(normalized)) {
+            return AI_ANALYSIS_BASIS_TITLE;
+        }
+        if ("mixed".equals(normalized) || "both".equals(normalized) || "综合".equals(normalized)) {
+            return "mixed";
+        }
+        return null;
     }
 
     private CampusMonitorResult applyAiResultAnalysis(CampusMonitorResult result,
@@ -1255,7 +1440,8 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         if (StringUtils.isNotBlank(result.getMatchedNegativeWords())) {
             return RISK_CONCERN;
         }
-        if ("negative".equalsIgnoreCase(sentiment)) {
+        if ("negative".equalsIgnoreCase(sentiment)
+                && !AI_ANALYSIS_BASIS_TITLE.equals(analysis.analysisBasis)) {
             return RISK_CONCERN;
         }
         return RISK_NORMAL;
@@ -2729,6 +2915,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     }
 
     private static class AiResultAnalysis {
+        private String analysisBasis;
         private String sentiment;
         private String summary;
         private String hitRecommendation;
@@ -2744,6 +2931,41 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         private String riskReason;
         private String providerCode;
         private String modelCode;
+    }
+
+    private static class AiAnalysisText {
+        private final String title;
+        private final String content;
+        private final String primaryText;
+        private final String secondaryTitle;
+        private final String analysisBasis;
+        private final boolean contentUsable;
+        private final String contentQualityReason;
+        private final int titleSignalScore;
+        private final int contentSignalScore;
+        private final String selectionReason;
+
+        private AiAnalysisText(String title,
+                               String content,
+                               String primaryText,
+                               String secondaryTitle,
+                               String analysisBasis,
+                               boolean contentUsable,
+                               String contentQualityReason,
+                               int titleSignalScore,
+                               int contentSignalScore,
+                               String selectionReason) {
+            this.title = title;
+            this.content = content;
+            this.primaryText = primaryText;
+            this.secondaryTitle = secondaryTitle;
+            this.analysisBasis = analysisBasis;
+            this.contentUsable = contentUsable;
+            this.contentQualityReason = contentQualityReason;
+            this.titleSignalScore = titleSignalScore;
+            this.contentSignalScore = contentSignalScore;
+            this.selectionReason = selectionReason;
+        }
     }
 
     private static class MonitorCounter {

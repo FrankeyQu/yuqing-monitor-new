@@ -829,8 +829,8 @@ export interface CampusAnalysisResult {
 }
 
 export interface CampusReportTemplate {
-  id?: number;
-  templateId?: number;
+  id?: ApiId;
+  templateId?: ApiId;
   templateName: string;
   reportType?: string;
   templateContent?: string;
@@ -841,14 +841,22 @@ export interface CampusReportTemplate {
 }
 
 export interface CampusReport {
-  id?: number;
-  reportId?: number;
+  id?: ApiId;
+  reportId?: ApiId;
   reportTitle: string;
   reportType?: string;
   reportStatus?: string;
   generationMode?: 'template' | 'ai';
-  templateId?: number;
-  eventId?: number;
+  scopeType?: 'all' | 'keyword' | 'event' | 'department' | 'monitor_task' | 'custom';
+  scopeKeywords?: string;
+  excludeKeywords?: string;
+  platformScope?: string;
+  riskLevels?: string;
+  departmentScope?: string;
+  monitorTaskIds?: string;
+  analysisProfile?: 'brief' | 'risk' | 'disposal';
+  templateId?: ApiId;
+  eventId?: ApiId;
   periodStartTime?: string | Date;
   periodEndTime?: string | Date;
   reportSummary?: string;
@@ -856,9 +864,11 @@ export interface CampusReport {
   reportFormat?: string;
   fileName?: string;
   filePath?: string;
-  generatedBy?: number;
+  aiModel?: string;
+  aiPromptSnapshot?: string;
+  generatedBy?: ApiId;
   generateTime?: string;
-  archiveUserId?: number;
+  archiveUserId?: ApiId;
   archiveTime?: string;
   archiveOpinion?: string;
   createTime?: string;
@@ -866,42 +876,53 @@ export interface CampusReport {
 }
 
 export interface CampusReportEvent {
-  id?: number;
-  relationId?: number;
-  reportId?: number;
-  eventId?: number;
+  id?: ApiId;
+  relationId?: ApiId;
+  reportId?: ApiId;
+  eventId?: ApiId;
   createTime?: string;
 }
 
 export interface CampusReportJob {
-  id?: number;
-  reportJobId?: number;
+  id?: ApiId;
+  reportJobId?: ApiId;
   jobName: string;
   reportType?: string;
   generationMode?: 'template' | 'ai';
-  templateId?: number;
+  scopeType?: 'all' | 'keyword' | 'event' | 'department' | 'monitor_task' | 'custom';
+  scopeKeywords?: string;
+  excludeKeywords?: string;
+  platformScope?: string;
+  riskLevels?: string;
+  departmentScope?: string;
+  monitorTaskIds?: string;
+  analysisProfile?: 'brief' | 'risk' | 'disposal';
+  templateId?: ApiId;
   periodRule?: string;
   scheduleCron?: string;
   outputFormat?: string;
   jobStatus?: string;
   lastRunTime?: string;
   nextRunTime?: string;
-  reviewerUserId?: number;
+  scheduleLockUntil?: string;
+  reviewerUserId?: ApiId;
   description?: string;
   createTime?: string;
   updateTime?: string;
 }
 
 export interface CampusReportGenerationLog {
-  id?: number;
-  generationLogId?: number;
-  reportJobId?: number;
-  reportId?: number;
+  id?: ApiId;
+  generationLogId?: ApiId;
+  reportJobId?: ApiId;
+  reportId?: ApiId;
+  generationMode?: 'template' | 'ai';
   runStatus?: string;
   startTime?: string;
   endTime?: string;
+  durationMs?: number;
   errorMessage?: string;
-  createUserId?: number;
+  createUserId?: ApiId;
   createTime?: string;
 }
 

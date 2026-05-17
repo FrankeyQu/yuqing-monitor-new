@@ -200,12 +200,61 @@
         </div>
         <div class="form-grid">
           <el-form-item label="模板ID">
-            <el-input-number v-model="reportForm.templateId" :min="1" controls-position="right" />
+            <el-input v-model.trim="reportForm.templateId" />
           </el-form-item>
           <el-form-item label="关联事件ID">
-            <el-input-number v-model="reportForm.eventId" :min="1" controls-position="right" />
+            <el-input v-model.trim="reportForm.eventId" />
           </el-form-item>
         </div>
+        <div class="form-grid">
+          <el-form-item label="生成方式">
+            <el-radio-group v-model="reportForm.generationMode">
+              <el-radio-button value="template">传统模板</el-radio-button>
+              <el-radio-button value="ai">AI智能</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="分析档位">
+            <el-select v-model="reportForm.analysisProfile">
+              <el-option label="概览简报" value="brief" />
+              <el-option label="风险研判" value="risk" />
+              <el-option label="处置建议" value="disposal" />
+            </el-select>
+          </el-form-item>
+        </div>
+        <div class="form-grid">
+          <el-form-item label="统计范围">
+            <el-select v-model="reportForm.scopeType">
+              <el-option label="全量舆情" value="all" />
+              <el-option label="关键词范围" value="keyword" />
+              <el-option label="事件范围" value="event" />
+              <el-option label="部门范围" value="department" />
+              <el-option label="监测任务范围" value="monitor_task" />
+              <el-option label="自定义范围" value="custom" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="包含关键词">
+            <el-input v-model.trim="reportForm.scopeKeywords" />
+          </el-form-item>
+        </div>
+        <div class="form-grid">
+          <el-form-item label="排除关键词">
+            <el-input v-model.trim="reportForm.excludeKeywords" />
+          </el-form-item>
+          <el-form-item label="平台范围">
+            <el-input v-model.trim="reportForm.platformScope" />
+          </el-form-item>
+        </div>
+        <div class="form-grid">
+          <el-form-item label="风险等级">
+            <el-input v-model.trim="reportForm.riskLevels" />
+          </el-form-item>
+          <el-form-item label="部门ID范围">
+            <el-input v-model.trim="reportForm.departmentScope" />
+          </el-form-item>
+        </div>
+        <el-form-item label="监测任务ID范围">
+          <el-input v-model.trim="reportForm.monitorTaskIds" />
+        </el-form-item>
         <div class="form-grid">
           <el-form-item label="统计开始">
             <el-date-picker v-model="reportForm.periodStartTime" type="datetime" />
@@ -453,7 +502,7 @@ import {
   saveReport,
   saveReportTemplate
 } from '../services/analysisReport';
-import type { CampusReport, CampusReportTemplate } from '../types/api';
+import type { ApiId, CampusReport, CampusReportTemplate } from '../types/api';
 
 const activeTab = ref('reports');
 const saving = ref(false);
@@ -484,7 +533,7 @@ function insertVar(variable: string) {
 const genDialogVisible = ref(false);
 const genReport = ref<CampusReport>();
 const genMode = ref<'template' | 'ai'>('ai');
-const genTemplateId = ref<number>();
+const genTemplateId = ref<ApiId>();
 const genStreaming = ref(true);
 const genRunning = ref(false);
 const genCompleted = ref(false);
@@ -511,6 +560,15 @@ const reportForm = reactive<CampusReport>({
   reportTitle: '',
   reportType: 'daily',
   reportStatus: 'draft',
+  generationMode: 'template',
+  scopeType: 'all',
+  scopeKeywords: '',
+  excludeKeywords: '',
+  platformScope: '',
+  riskLevels: '',
+  departmentScope: '',
+  monitorTaskIds: '',
+  analysisProfile: 'brief',
   templateId: undefined,
   eventId: undefined,
   periodStartTime: undefined,
@@ -573,6 +631,15 @@ function openReportCreate() {
     reportTitle: '',
     reportType: 'daily',
     reportStatus: 'draft',
+    generationMode: 'template',
+    scopeType: 'all',
+    scopeKeywords: '',
+    excludeKeywords: '',
+    platformScope: '',
+    riskLevels: '',
+    departmentScope: '',
+    monitorTaskIds: '',
+    analysisProfile: 'brief',
     templateId: undefined,
     eventId: undefined,
     periodStartTime: undefined,
@@ -596,7 +663,9 @@ async function submitReport() {
   }
   saving.value = true;
   try {
-    await saveReport({ ...reportForm });
+    const payload = { ...reportForm };
+    normalizeReportIds(payload);
+    await saveReport(payload);
     ElMessage.success('报告已保存');
     reportDialogVisible.value = false;
     await loadReports();
@@ -604,6 +673,15 @@ async function submitReport() {
     ElMessage.error(error instanceof Error ? error.message : '保存失败');
   } finally {
     saving.value = false;
+  }
+}
+
+function normalizeReportIds(payload: CampusReport) {
+  if (payload.templateId === '') {
+    payload.templateId = undefined;
+  }
+  if (payload.eventId === '') {
+    payload.eventId = undefined;
   }
 }
 
@@ -646,6 +724,9 @@ async function startGenerate() {
   if (genMode.value === 'template') {
     genRunning.value = true;
     try {
+      if (genTemplateId.value && genReport.value.templateId !== genTemplateId.value) {
+        genReport.value = await saveReport({ ...genReport.value, templateId: genTemplateId.value, generationMode: 'template' });
+      }
       await generateReport(reportId);
       genResultContent.value = (await getReportDetail(reportId)).reportContent || '生成完成';
       genCompleted.value = true;
@@ -677,7 +758,7 @@ async function startGenerate() {
   }
 }
 
-function startStreamingGeneration(reportId: number) {
+function startStreamingGeneration(reportId: ApiId) {
   return new Promise<void>((resolve) => {
     genRunning.value = true;
     streamContent.value = '';
@@ -686,37 +767,44 @@ function startStreamingGeneration(reportId: number) {
     const url = getGenerateAiStreamUrl(reportId);
     eventSource = new EventSource(url);
 
+    const finish = async () => {
+      eventSource?.close();
+      eventSource = null;
+      genRunning.value = false;
+      genCompleted.value = true;
+      try {
+        const report = await getReportDetail(reportId);
+        genReport.value = report;
+        genResultContent.value = report.reportContent || streamContent.value;
+      } catch {
+        genResultContent.value = streamContent.value;
+      }
+      await loadReports();
+      ElMessage.success('AI 流式生成完成');
+      resolve();
+    };
+
     eventSource.onmessage = async (event) => {
       if (event.data === '[DONE]') {
-        eventSource?.close();
-        eventSource = null;
-        genRunning.value = false;
-        genCompleted.value = true;
-        try {
-          const report = await getReportDetail(reportId);
-          genReport.value = report;
-          genResultContent.value = report.reportContent || streamContent.value;
-        } catch {
-          genResultContent.value = streamContent.value;
-        }
-        await loadReports();
-        ElMessage.success('AI 流式生成完成');
-        resolve();
+        await finish();
         return;
       }
       streamContent.value += event.data;
     };
 
-    eventSource.onerror = () => {
+    eventSource.addEventListener('done', finish);
+
+    eventSource.onerror = (event) => {
       eventSource?.close();
       eventSource = null;
       genRunning.value = false;
+      const message = event instanceof MessageEvent && event.data ? String(event.data) : '';
       if (streamContent.value) {
         genCompleted.value = true;
         genResultContent.value = streamContent.value;
-        ElMessage.warning('AI 流式连接中断，已生成部分内容');
+        ElMessage.warning(message || 'AI 流式连接中断，已生成部分内容');
       } else {
-        ElMessage.error('AI 流式生成失败');
+        ElMessage.error(message || 'AI 流式生成失败');
       }
       resolve();
     };

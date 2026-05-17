@@ -1,5 +1,6 @@
 package com.stonedt.intelligence.service.campus;
 
+import com.stonedt.intelligence.entity.campus.CampusReport;
 import com.stonedt.intelligence.vo.ReportDataVO;
 
 import java.util.Date;
@@ -20,4 +21,9 @@ public interface CampusReportDataService {
      * 聚合报告数据，优先按事件精确收敛，再按关键词过滤。
      */
     ReportDataVO aggregateReportData(String keyword, Long eventId, Date startTime, Date endTime);
+
+    /**
+     * 按报告配置的 scope 聚合数据，供传统模板和 AI 生成共用同一统计口径。
+     */
+    ReportDataVO aggregateReportData(CampusReport report);
 }

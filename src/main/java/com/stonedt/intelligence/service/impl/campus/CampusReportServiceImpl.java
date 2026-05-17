@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 @Service
 public class CampusReportServiceImpl implements CampusReportService {
@@ -40,6 +41,10 @@ public class CampusReportServiceImpl implements CampusReportService {
     private static final String STATUS_DRAFT = "draft";
     private static final String STATUS_GENERATED = "generated";
     private static final String FORMAT_MARKDOWN = "markdown";
+    private static final String GENERATION_TEMPLATE = "template";
+    private static final String GENERATION_AI = "ai";
+    private static final String SCOPE_ALL = "all";
+    private static final String PROFILE_BRIEF = "brief";
 
     private final CampusReportTemplateDao campusReportTemplateDao;
     private final CampusReportDao campusReportDao;
@@ -141,11 +146,17 @@ public class CampusReportServiceImpl implements CampusReportService {
     public CampusReport generate(Long reportId, Long operatorUserId) {
         CampusReport report = requireReport(reportId);
         String content = StringUtils.isBlank(report.getReportContent()) ? buildReportContent(report) : report.getReportContent();
-        return saveGeneratedContent(report, content, operatorUserId);
+        return saveGeneratedContent(report, content, operatorUserId, GENERATION_TEMPLATE, null, null);
     }
 
     @Override
     public CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput) {
+        return generateAi(reportId, operatorUserId, streamOutput, null);
+    }
+
+    @Override
+    public CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput,
+                                   Consumer<String> chunkConsumer) {
         CampusReport report = requireReport(reportId);
         String dataJson = buildReportDataJson(report);
         String content = aiReportService.generateReport(
@@ -154,14 +165,16 @@ public class CampusReportServiceImpl implements CampusReportService {
                 dataJson,
                 formatDate(report.getPeriodStartTime()),
                 formatDate(report.getPeriodEndTime()),
-                streamOutput);
+                streamOutput,
+                chunkConsumer);
         if (StringUtils.isBlank(content) && streamOutput != null) {
             content = streamOutput.toString();
         }
         if (StringUtils.isBlank(content)) {
             throw new IllegalStateException("AI报告生成未返回有效内容");
         }
-        return saveGeneratedContent(report, content, operatorUserId);
+        return saveGeneratedContent(report, content, operatorUserId, GENERATION_AI,
+                "report_generate", StringUtils.left(dataJson, 60000));
     }
 
     @Override
@@ -231,17 +244,7 @@ public class CampusReportServiceImpl implements CampusReportService {
                 : campusReportTemplateDao.selectByTemplateId(report.getTemplateId());
         CampusEvent event = report.getEventId() == null ? null : campusEventDao.selectByEventId(report.getEventId());
 
-        // 确定关键词：优先使用关联事件的标题，其次使用报告标题
-        String keyword = null;
-        if (event != null && StringUtils.isNotBlank(event.getEventTitle())) {
-            keyword = event.getEventTitle();
-        }
-        if (keyword == null && StringUtils.isNotBlank(report.getReportTitle())) {
-            keyword = report.getReportTitle();
-        }
-
-        ReportDataVO reportData = campusReportDataService.aggregateReportData(
-                keyword, report.getEventId(), report.getPeriodStartTime(), report.getPeriodEndTime());
+        ReportDataVO reportData = campusReportDataService.aggregateReportData(report);
 
         if (template != null && StringUtils.isNotBlank(template.getTemplateContent())) {
             return applyTemplate(template.getTemplateContent(), report, event, reportData);
@@ -318,13 +321,21 @@ public class CampusReportServiceImpl implements CampusReportService {
         return b.toString();
     }
 
-    private CampusReport saveGeneratedContent(CampusReport report, String content, Long operatorUserId) {
+    private CampusReport saveGeneratedContent(CampusReport report,
+                                              String content,
+                                              Long operatorUserId,
+                                              String generationMode,
+                                              String aiModel,
+                                              String aiPromptSnapshot) {
         CampusReport update = new CampusReport();
         update.setReportId(report.getReportId());
         update.setReportStatus(STATUS_GENERATED);
+        update.setGenerationMode(StringUtils.defaultIfBlank(generationMode, report.getGenerationMode()));
         update.setReportFormat(FORMAT_MARKDOWN);
         update.setReportContent(content);
         update.setFileName(buildFileNameForFormat(report, FORMAT_MARKDOWN));
+        update.setAiModel(aiModel);
+        update.setAiPromptSnapshot(aiPromptSnapshot);
         update.setGeneratedBy(operatorUserId);
         update.setGenerateTime(new Date());
         update.setUpdateUserId(operatorUserId);
@@ -334,13 +345,20 @@ public class CampusReportServiceImpl implements CampusReportService {
 
     private String buildReportDataJson(CampusReport report) {
         CampusEvent event = report.getEventId() == null ? null : campusEventDao.selectByEventId(report.getEventId());
-        String keyword = resolveReportKeyword(report, event);
-        ReportDataVO reportData = campusReportDataService.aggregateReportData(
-                keyword, report.getEventId(), report.getPeriodStartTime(), report.getPeriodEndTime());
+        ReportDataVO reportData = campusReportDataService.aggregateReportData(report);
         JSONObject data = new JSONObject();
         data.put("reportId", report.getReportId());
         data.put("reportTitle", report.getReportTitle());
         data.put("reportType", report.getReportType());
+        data.put("generationMode", report.getGenerationMode());
+        data.put("scopeType", report.getScopeType());
+        data.put("scopeKeywords", report.getScopeKeywords());
+        data.put("excludeKeywords", report.getExcludeKeywords());
+        data.put("platformScope", report.getPlatformScope());
+        data.put("riskLevels", report.getRiskLevels());
+        data.put("departmentScope", report.getDepartmentScope());
+        data.put("monitorTaskIds", report.getMonitorTaskIds());
+        data.put("analysisProfile", report.getAnalysisProfile());
         data.put("reportSummary", StringUtils.defaultString(report.getReportSummary()));
         data.put("periodStart", formatDate(report.getPeriodStartTime()));
         data.put("periodEnd", formatDate(report.getPeriodEndTime()));
@@ -484,6 +502,15 @@ public class CampusReportServiceImpl implements CampusReportService {
     private void setReportDefaults(CampusReport report) {
         if (StringUtils.isBlank(report.getReportStatus())) {
             report.setReportStatus(STATUS_DRAFT);
+        }
+        if (StringUtils.isBlank(report.getGenerationMode())) {
+            report.setGenerationMode(GENERATION_TEMPLATE);
+        }
+        if (StringUtils.isBlank(report.getScopeType())) {
+            report.setScopeType(SCOPE_ALL);
+        }
+        if (StringUtils.isBlank(report.getAnalysisProfile())) {
+            report.setAnalysisProfile(PROFILE_BRIEF);
         }
         if (StringUtils.isBlank(report.getReportFormat())) {
             report.setReportFormat(FORMAT_MARKDOWN);

@@ -2,6 +2,7 @@ package com.stonedt.intelligence.service.impl.campus;
 
 import com.stonedt.intelligence.dao.campus.CampusClueDao;
 import com.stonedt.intelligence.entity.campus.CampusClue;
+import com.stonedt.intelligence.entity.campus.CampusReport;
 import com.stonedt.intelligence.service.campus.CampusReportDataService;
 import com.stonedt.intelligence.vo.ReportDataVO;
 import org.apache.commons.lang3.StringUtils;
@@ -34,6 +35,49 @@ public class CampusReportDataServiceImpl implements CampusReportDataService {
 
     @Override
     public ReportDataVO aggregateReportData(String keyword, Long eventId, Date startTime, Date endTime) {
+        return aggregateReportData(keyword, splitTokens(keyword), Collections.emptyList(), eventId,
+                Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
+                startTime, endTime);
+    }
+
+    @Override
+    public ReportDataVO aggregateReportData(CampusReport report) {
+        if (report == null) {
+            return aggregateReportData(null, null, null, null);
+        }
+        Long scopedEventId = "event".equals(report.getScopeType()) && report.getEventId() != null
+                ? report.getEventId()
+                : null;
+        if (scopedEventId == null && report.getEventId() != null) {
+            scopedEventId = report.getEventId();
+        }
+        String fallbackKeyword = null;
+        if (!"all".equals(StringUtils.defaultIfBlank(report.getScopeType(), "all"))
+                && StringUtils.isBlank(report.getScopeKeywords())) {
+            fallbackKeyword = StringUtils.trimToNull(report.getReportTitle());
+        }
+        return aggregateReportData(fallbackKeyword,
+                splitTokens(StringUtils.defaultIfBlank(report.getScopeKeywords(), fallbackKeyword)),
+                splitTokens(report.getExcludeKeywords()),
+                scopedEventId,
+                splitTokens(report.getPlatformScope()),
+                splitTokens(report.getRiskLevels()),
+                splitLongTokens(report.getDepartmentScope()),
+                splitLongTokens(report.getMonitorTaskIds()),
+                report.getPeriodStartTime(),
+                report.getPeriodEndTime());
+    }
+
+    private ReportDataVO aggregateReportData(String keyword,
+                                             List<String> keywords,
+                                             List<String> excludeKeywords,
+                                             Long eventId,
+                                             List<String> platforms,
+                                             List<String> riskLevels,
+                                             List<Long> departmentIds,
+                                             List<Long> monitorTaskIds,
+                                             Date startTime,
+                                             Date endTime) {
         ReportDataVO vo = new ReportDataVO();
 
         // 日期格式化
@@ -48,13 +92,17 @@ public class CampusReportDataServiceImpl implements CampusReportDataService {
         // 计算趋势天数：基于日期范围，最小 1 天，最大 30 天
         int days = computeDays(startTime, endTime);
         String scopedKeyword = eventId == null ? StringUtils.trimToNull(keyword) : null;
-        List<CampusClue> scopedClues = campusClueDao.listForReportScope(scopedKeyword, eventId, startTime, endTime);
+        List<CampusClue> scopedClues = campusClueDao.listForReportScope(scopedKeyword, safeList(keywords),
+                safeList(excludeKeywords), eventId, safeList(platforms), safeList(riskLevels),
+                safeList(departmentIds), safeList(monitorTaskIds), startTime, endTime);
         if (scopedClues == null) {
             scopedClues = Collections.emptyList();
         }
 
         // ---- 1. 舆情走势 (daily trend) ----
-        List<Map<String, Object>> trend = campusClueDao.getReportDailyTrend(scopedKeyword, eventId, startTime, endTime, days);
+        List<Map<String, Object>> trend = campusClueDao.getReportDailyTrend(scopedKeyword, safeList(keywords),
+                safeList(excludeKeywords), eventId, safeList(platforms), safeList(riskLevels),
+                safeList(departmentIds), safeList(monitorTaskIds), startTime, endTime, days);
         vo.setTrend(trend != null ? trend : Collections.<Map<String, Object>>emptyList());
 
         // ---- 2. 媒体分布 (platform distribution) ----
@@ -115,6 +163,39 @@ public class CampusReportDataServiceImpl implements CampusReportDataService {
         vo.setSummary(buildSummary(vo));
 
         return vo;
+    }
+
+    private List<String> splitTokens(String value) {
+        if (StringUtils.isBlank(value)) {
+            return Collections.emptyList();
+        }
+        List<String> tokens = new ArrayList<>();
+        for (String part : value.split("[,，;；、\\s]+")) {
+            String token = StringUtils.trimToNull(part);
+            if (token != null) {
+                tokens.add(token);
+            }
+        }
+        return tokens;
+    }
+
+    private List<Long> splitLongTokens(String value) {
+        List<String> tokens = splitTokens(value);
+        if (tokens.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> ids = new ArrayList<>();
+        for (String token : tokens) {
+            try {
+                ids.add(Long.parseLong(token));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return ids;
+    }
+
+    private <T> List<T> safeList(List<T> values) {
+        return values == null ? Collections.<T>emptyList() : values;
     }
 
     /**

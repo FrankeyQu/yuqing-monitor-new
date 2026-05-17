@@ -21,6 +21,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
 
 /**
  * AI report generation service implementation.
@@ -49,6 +50,13 @@ public class AiReportServiceImpl implements AiReportService {
     @Override
     public String generateReport(String reportType, String reportTitle, String dataJson,
                                   String periodStart, String periodEnd, StringBuilder streamOutput) {
+        return generateReport(reportType, reportTitle, dataJson, periodStart, periodEnd, streamOutput, null);
+    }
+
+    @Override
+    public String generateReport(String reportType, String reportTitle, String dataJson,
+                                  String periodStart, String periodEnd, StringBuilder streamOutput,
+                                  Consumer<String> chunkConsumer) {
         String prompt = buildPrompt(reportType, reportTitle, dataJson, periodStart, periodEnd);
         log.info("AiReportService generating {} report, title: {}", reportType, reportTitle);
 
@@ -63,17 +71,12 @@ public class AiReportServiceImpl implements AiReportService {
             request.setTemperature(new BigDecimal("0.70"));
             request.setStream(isStream);
             CampusAiChatResponse response = isStream
-                    ? campusAiChatService.chatStreaming(request, streamOutput)
+                    ? campusAiChatService.chatStreaming(request, streamOutput, chunkConsumer)
                     : campusAiChatService.chat(request);
             return response == null ? "" : response.getContent();
         } catch (Exception e) {
             log.error("DeepSeek API call failed for {} report", reportType, e);
-            String errorMsg = "## AI报告生成失败\n\n> 错误信息: " + e.getMessage()
-                    + "\n\n> 请检查DeepSeek API配置是否正确，或稍后重试。";
-            if (streamOutput != null) {
-                streamOutput.append(errorMsg);
-            }
-            return errorMsg;
+            throw new IllegalStateException("AI报告生成失败：" + e.getMessage(), e);
         }
     }
 
@@ -233,11 +236,29 @@ public class AiReportServiceImpl implements AiReportService {
                 break;
         }
 
+        String profilePrompt = buildProfilePrompt(dataJson);
         return typePrompt + "\n\n"
+                + profilePrompt + "\n\n"
                 + "报告标题：" + StringUtils.defaultString(reportTitle, typeLabel) + "\n"
                 + "报告类型：" + typeLabel + "\n"
                 + "统计周期：" + StringUtils.defaultString(periodStart, "") + " 至 "
                 + StringUtils.defaultString(periodEnd, "") + "\n\n"
                 + "数据如下：\n" + StringUtils.defaultString(dataJson, "{}");
+    }
+
+    private String buildProfilePrompt(String dataJson) {
+        String profile = "brief";
+        try {
+            JSONObject data = JSON.parseObject(StringUtils.defaultIfBlank(dataJson, "{}"));
+            profile = StringUtils.defaultIfBlank(data.getString("analysisProfile"), "brief");
+        } catch (Exception ignored) {
+        }
+        if ("risk".equals(profile)) {
+            return "分析档位：风险研判。请突出负面/预警线索、风险等级变化、传播扩散可能性和需重点盯防的问题。";
+        }
+        if ("disposal".equals(profile)) {
+            return "分析档位：处置建议。请突出责任分工、响应优先级、处置动作、复盘指标和后续跟踪建议。";
+        }
+        return "分析档位：概览简报。请突出总体态势、主要变化、关键数据和简明关注建议。";
     }
 }

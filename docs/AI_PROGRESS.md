@@ -4,12 +4,21 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：Batch41-B47 蓝图 MVP 已发布，继续进入线上验收与细节修正
+- **当前阶段**：报告功能恢复与 AI 生成优化实施中，优先修复 Snowflake ID 精度和自动报告生成链路
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`claude/batch33-monitor-admin` 分支，已推送到服务器远端 `deploy-vps`
-- **最近已发布功能提交**：commit `feat: unify monitor information workflow`
+- **当前 Git 状态**：`claude/report-ai-recovery` 分支，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
+- **最近已发布功能提交**：commit `feat: simplify campus event workflow`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
+
+## 2026-05-17 报告功能恢复与 AI 生成优化
+
+- **执行边界**：从生产最新代码点 `53f77f1` 创建独立分支 `claude/report-ai-recovery` 和 worktree，未混入原工作区其它模块改动；不修改 `pom.xml` 和核心配置，不删除旧报告链路。
+- **ID 精度修复**：报告、模板、报告事件、自动报告任务和生成日志的 Long 业务 ID 增加字符串序列化；前端报告相关 API 改用 `ApiId`，避免 19 位 Snowflake ID 被浏览器 number 精度截断。
+- **字段与链路补齐**：实体和 Mapper 接入 `generation_mode`、AI 审计字段、scope 字段、自动报告调度锁、生成日志 `generation_mode/duration_ms`；自动报告按任务 `generationMode` 调用传统或 AI 生成。
+- **针对性分析与 AI 输出**：报告数据聚合统一使用关键词、排除词、平台、风险等级、部门、监测任务和事件 scope；`analysisProfile` 控制 AI Prompt 侧重点；AI 失败不再保存失败 markdown 为正式报告内容。
+- **自动调度与 SSE**：新增自动报告调度扫描组件，默认关闭，按 `active + nextRunTime` 加锁执行；AI SSE 改为边生成边发送 `message`，完成发送 `done`，失败发送 `error`。
+- **本地验证**：使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过（18 个测试类，61 tests）；`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 
 ## 2026-05-17 校园事件单用户台账模式收敛
 

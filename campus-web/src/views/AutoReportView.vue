@@ -129,10 +129,53 @@
         </div>
         <div class="form-grid">
           <el-form-item label="模板ID">
-            <el-input-number v-model="form.templateId" :min="1" controls-position="right" />
+            <el-input v-model.trim="form.templateId" />
           </el-form-item>
           <el-form-item label="计划表达式">
             <el-input v-model.trim="form.scheduleCron" />
+          </el-form-item>
+        </div>
+        <div class="form-grid">
+          <el-form-item label="统计范围">
+            <el-select v-model="form.scopeType">
+              <el-option label="全量舆情" value="all" />
+              <el-option label="关键词范围" value="keyword" />
+              <el-option label="事件范围" value="event" />
+              <el-option label="部门范围" value="department" />
+              <el-option label="监测任务范围" value="monitor_task" />
+              <el-option label="自定义范围" value="custom" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="分析档位">
+            <el-select v-model="form.analysisProfile">
+              <el-option label="概览简报" value="brief" />
+              <el-option label="风险研判" value="risk" />
+              <el-option label="处置建议" value="disposal" />
+            </el-select>
+          </el-form-item>
+        </div>
+        <div class="form-grid">
+          <el-form-item label="包含关键词">
+            <el-input v-model.trim="form.scopeKeywords" />
+          </el-form-item>
+          <el-form-item label="排除关键词">
+            <el-input v-model.trim="form.excludeKeywords" />
+          </el-form-item>
+        </div>
+        <div class="form-grid">
+          <el-form-item label="平台范围">
+            <el-input v-model.trim="form.platformScope" />
+          </el-form-item>
+          <el-form-item label="风险等级">
+            <el-input v-model.trim="form.riskLevels" />
+          </el-form-item>
+        </div>
+        <div class="form-grid">
+          <el-form-item label="部门ID范围">
+            <el-input v-model.trim="form.departmentScope" />
+          </el-form-item>
+          <el-form-item label="监测任务ID范围">
+            <el-input v-model.trim="form.monitorTaskIds" />
           </el-form-item>
         </div>
         <div class="form-grid">
@@ -155,7 +198,7 @@
         </div>
         <div class="form-grid">
           <el-form-item label="默认审核人ID">
-            <el-input-number v-model="form.reviewerUserId" :min="1" controls-position="right" />
+            <el-input v-model.trim="form.reviewerUserId" />
           </el-form-item>
         </div>
         <el-form-item label="任务说明">
@@ -178,6 +221,10 @@
           </template>
         </el-table-column>
         <el-table-column prop="reportId" label="报告ID" width="150" show-overflow-tooltip />
+        <el-table-column prop="generationMode" label="方式" width="86">
+          <template #default="{ row }">{{ row.generationMode === 'ai' ? 'AI' : '传统' }}</template>
+        </el-table-column>
+        <el-table-column prop="durationMs" label="耗时(ms)" width="100" />
         <el-table-column prop="startTime" label="开始时间" width="168" show-overflow-tooltip />
         <el-table-column prop="endTime" label="结束时间" width="168" show-overflow-tooltip />
         <el-table-column prop="errorMessage" label="错误信息" min-width="210" show-overflow-tooltip />
@@ -220,6 +267,14 @@ const form = reactive<CampusReportJob>({
   jobName: '',
   reportType: 'daily',
   generationMode: 'template',
+  scopeType: 'all',
+  scopeKeywords: '',
+  excludeKeywords: '',
+  platformScope: '',
+  riskLevels: '',
+  departmentScope: '',
+  monitorTaskIds: '',
+  analysisProfile: 'brief',
   templateId: undefined,
   periodRule: 'daily',
   scheduleCron: '',
@@ -250,6 +305,14 @@ function resetForm() {
     jobName: '',
     reportType: 'daily',
     generationMode: 'template',
+    scopeType: 'all',
+    scopeKeywords: '',
+    excludeKeywords: '',
+    platformScope: '',
+    riskLevels: '',
+    departmentScope: '',
+    monitorTaskIds: '',
+    analysisProfile: 'brief',
     templateId: undefined,
     periodRule: 'daily',
     scheduleCron: '',
@@ -277,7 +340,9 @@ async function submitForm() {
   }
   saving.value = true;
   try {
-    await saveReportJob({ ...form });
+    const payload = { ...form };
+    normalizeJobIds(payload);
+    await saveReportJob(payload);
     ElMessage.success('自动报告任务已保存');
     formVisible.value = false;
     await loadJobs();
@@ -285,6 +350,15 @@ async function submitForm() {
     ElMessage.error(error instanceof Error ? error.message : '保存失败');
   } finally {
     saving.value = false;
+  }
+}
+
+function normalizeJobIds(payload: CampusReportJob) {
+  if (payload.templateId === '') {
+    payload.templateId = undefined;
+  }
+  if (payload.reviewerUserId === '') {
+    payload.reviewerUserId = undefined;
   }
 }
 

@@ -4,6 +4,7 @@ import com.stonedt.intelligence.entity.campus.CampusReportJob;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Date;
 import java.util.List;
 
 @Mapper
@@ -15,10 +16,20 @@ public interface CampusReportJobDao {
 
     int updateStatus(@Param("reportJobId") Long reportJobId,
                      @Param("jobStatus") String jobStatus,
+                     @Param("nextRunTime") Date nextRunTime,
                      @Param("updateUserId") Long updateUserId);
 
-    int updateLastRunTime(@Param("reportJobId") Long reportJobId,
-                          @Param("updateUserId") Long updateUserId);
+    int markRunFinished(@Param("reportJobId") Long reportJobId,
+                        @Param("nextRunTime") Date nextRunTime,
+                        @Param("updateUserId") Long updateUserId);
+
+    int acquireScheduleLock(@Param("reportJobId") Long reportJobId,
+                            @Param("now") Date now,
+                            @Param("lockUntil") Date lockUntil,
+                            @Param("updateUserId") Long updateUserId);
+
+    int releaseScheduleLock(@Param("reportJobId") Long reportJobId,
+                            @Param("updateUserId") Long updateUserId);
 
     int logicalDelete(@Param("reportJobId") Long reportJobId,
                       @Param("updateUserId") Long updateUserId);
@@ -28,4 +39,6 @@ public interface CampusReportJobDao {
     List<CampusReportJob> list(@Param("keyword") String keyword,
                                @Param("reportType") String reportType,
                                @Param("jobStatus") String jobStatus);
+
+    List<CampusReportJob> listDue(@Param("now") Date now, @Param("limit") int limit);
 }

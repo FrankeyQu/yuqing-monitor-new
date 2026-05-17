@@ -8,6 +8,15 @@
         <result column="report_job_id" property="reportJobId"/>
         <result column="job_name" property="jobName"/>
         <result column="report_type" property="reportType"/>
+        <result column="generation_mode" property="generationMode"/>
+        <result column="scope_type" property="scopeType"/>
+        <result column="scope_keywords" property="scopeKeywords"/>
+        <result column="exclude_keywords" property="excludeKeywords"/>
+        <result column="platform_scope" property="platformScope"/>
+        <result column="risk_levels" property="riskLevels"/>
+        <result column="department_scope" property="departmentScope"/>
+        <result column="monitor_task_ids" property="monitorTaskIds"/>
+        <result column="analysis_profile" property="analysisProfile"/>
         <result column="template_id" property="templateId"/>
         <result column="period_rule" property="periodRule"/>
         <result column="schedule_cron" property="scheduleCron"/>
@@ -15,6 +24,7 @@
         <result column="job_status" property="jobStatus"/>
         <result column="last_run_time" property="lastRunTime"/>
         <result column="next_run_time" property="nextRunTime"/>
+        <result column="schedule_lock_until" property="scheduleLockUntil"/>
         <result column="reviewer_user_id" property="reviewerUserId"/>
         <result column="description" property="description"/>
         <result column="deleted" property="deleted"/>
@@ -25,21 +35,27 @@
     </resultMap>
 
     <sql id="BaseColumns">
-        id, report_job_id, job_name, report_type, template_id, period_rule,
+        id, report_job_id, job_name, report_type, generation_mode,
+        scope_type, scope_keywords, exclude_keywords, platform_scope, risk_levels,
+        department_scope, monitor_task_ids, analysis_profile, template_id, period_rule,
         schedule_cron, output_format, job_status, last_run_time, next_run_time,
-        reviewer_user_id, description, deleted, create_user_id, update_user_id,
+        schedule_lock_until, reviewer_user_id, description, deleted, create_user_id, update_user_id,
         create_time, update_time
     </sql>
 
     <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusReportJob">
         INSERT INTO campus_report_job (
-            report_job_id, job_name, report_type, template_id, period_rule,
+            report_job_id, job_name, report_type, generation_mode,
+            scope_type, scope_keywords, exclude_keywords, platform_scope, risk_levels,
+            department_scope, monitor_task_ids, analysis_profile, template_id, period_rule,
             schedule_cron, output_format, job_status, last_run_time, next_run_time,
-            reviewer_user_id, description, deleted, create_user_id, update_user_id
+            schedule_lock_until, reviewer_user_id, description, deleted, create_user_id, update_user_id
         ) VALUES (
-            #{reportJobId}, #{jobName}, #{reportType}, #{templateId}, #{periodRule},
+            #{reportJobId}, #{jobName}, #{reportType}, #{generationMode},
+            #{scopeType}, #{scopeKeywords}, #{excludeKeywords}, #{platformScope}, #{riskLevels},
+            #{departmentScope}, #{monitorTaskIds}, #{analysisProfile}, #{templateId}, #{periodRule},
             #{scheduleCron}, #{outputFormat}, #{jobStatus}, #{lastRunTime}, #{nextRunTime},
-            #{reviewerUserId}, #{description}, #{deleted}, #{createUserId}, #{updateUserId}
+            #{scheduleLockUntil}, #{reviewerUserId}, #{description}, #{deleted}, #{createUserId}, #{updateUserId}
         )
     </insert>
 
@@ -48,6 +64,15 @@
         <set>
             <if test="jobName != null">job_name = #{jobName},</if>
             <if test="reportType != null">report_type = #{reportType},</if>
+            <if test="generationMode != null">generation_mode = #{generationMode},</if>
+            <if test="scopeType != null">scope_type = #{scopeType},</if>
+            <if test="scopeKeywords != null">scope_keywords = #{scopeKeywords},</if>
+            <if test="excludeKeywords != null">exclude_keywords = #{excludeKeywords},</if>
+            <if test="platformScope != null">platform_scope = #{platformScope},</if>
+            <if test="riskLevels != null">risk_levels = #{riskLevels},</if>
+            <if test="departmentScope != null">department_scope = #{departmentScope},</if>
+            <if test="monitorTaskIds != null">monitor_task_ids = #{monitorTaskIds},</if>
+            <if test="analysisProfile != null">analysis_profile = #{analysisProfile},</if>
             <if test="templateId != null">template_id = #{templateId},</if>
             <if test="periodRule != null">period_rule = #{periodRule},</if>
             <if test="scheduleCron != null">schedule_cron = #{scheduleCron},</if>
@@ -55,6 +80,8 @@
             <if test="jobStatus != null">job_status = #{jobStatus},</if>
             <if test="lastRunTime != null">last_run_time = #{lastRunTime},</if>
             <if test="nextRunTime != null">next_run_time = #{nextRunTime},</if>
+            <if test="jobStatus != null and jobStatus != 'active'">next_run_time = NULL, schedule_lock_until = NULL,</if>
+            <if test="scheduleLockUntil != null">schedule_lock_until = #{scheduleLockUntil},</if>
             <if test="reviewerUserId != null">reviewer_user_id = #{reviewerUserId},</if>
             <if test="description != null">description = #{description},</if>
             update_user_id = #{updateUserId}
@@ -66,17 +93,38 @@
     <update id="updateStatus">
         UPDATE campus_report_job
         SET job_status = #{jobStatus},
+            next_run_time = #{nextRunTime},
+            schedule_lock_until = NULL,
             update_user_id = #{updateUserId}
         WHERE report_job_id = #{reportJobId}
           AND deleted = 0
     </update>
 
-    <update id="updateLastRunTime">
+    <update id="markRunFinished">
         UPDATE campus_report_job
         SET last_run_time = NOW(),
+            next_run_time = #{nextRunTime},
+            schedule_lock_until = NULL,
             update_user_id = #{updateUserId}
         WHERE report_job_id = #{reportJobId}
           AND deleted = 0
+    </update>
+
+    <update id="releaseScheduleLock">
+        UPDATE campus_report_job
+        SET schedule_lock_until = NULL,
+            update_user_id = #{updateUserId}
+        WHERE report_job_id = #{reportJobId}
+          AND deleted = 0
+    </update>
+
+    <update id="acquireScheduleLock">
+        UPDATE campus_report_job
+        SET schedule_lock_until = #{lockUntil},
+            update_user_id = #{updateUserId}
+        WHERE report_job_id = #{reportJobId}
+          AND deleted = 0
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt;= #{now})
     </update>
 
     <update id="logicalDelete">
@@ -109,5 +157,17 @@
             AND job_status = #{jobStatus}
         </if>
         ORDER BY id DESC
+    </select>
+
+    <select id="listDue" resultMap="CampusReportJobResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_report_job
+        WHERE deleted = 0
+          AND job_status = 'active'
+          AND next_run_time IS NOT NULL
+          AND next_run_time &lt;= #{now}
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt;= #{now})
+        ORDER BY next_run_time ASC, id ASC
+        LIMIT #{limit}
     </select>
 </mapper>

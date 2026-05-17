@@ -221,23 +221,19 @@ public class CampusReportController {
         User user = userUtil.getuser(request);
         Long operatorUserId = user == null ? null : user.getUser_id();
 
-        campusAuditLogService.record(request, "报告归档", "AI流式生成报告", "campus_report",
-                String.valueOf(reportId), "reportId=" + reportId, true, null);
-
         new Thread(() -> {
             try {
                 StringBuilder streamOutput = new StringBuilder();
-                campusReportService.generateAi(reportId, operatorUserId, streamOutput);
-
-                int chunkSize = 50;
-                for (int i = 0; i < streamOutput.length(); i += chunkSize) {
-                    int end = Math.min(i + chunkSize, streamOutput.length());
-                    String chunk = streamOutput.substring(i, end);
-                    emitter.send(SseEmitter.event()
-                            .name("message")
-                            .data(chunk));
-                }
-                emitter.send(SseEmitter.event().name("message").data("[DONE]"));
+                campusReportService.generateAi(reportId, operatorUserId, streamOutput, chunk -> {
+                    try {
+                        emitter.send(SseEmitter.event().name("message").data(chunk));
+                    } catch (IOException ex) {
+                        throw new IllegalStateException("AI流式连接已中断", ex);
+                    }
+                });
+                campusAuditLogService.record(request, "报告归档", "AI流式生成报告", "campus_report",
+                        String.valueOf(reportId), "reportId=" + reportId, true, null);
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
             } catch (Exception e) {
                 try {
@@ -247,6 +243,8 @@ public class CampusReportController {
                 } catch (IOException ignored) {
                     // ignore
                 }
+                campusAuditLogService.record(request, "报告归档", "AI流式生成报告", "campus_report",
+                        String.valueOf(reportId), "reportId=" + reportId, false, e.getMessage());
                 emitter.completeWithError(e);
             }
         }).start();

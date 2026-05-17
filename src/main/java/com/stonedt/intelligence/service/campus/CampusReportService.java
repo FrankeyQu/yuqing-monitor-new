@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 
 import java.util.Date;
 import java.util.List;
+import java.util.function.Consumer;
 
 public interface CampusReportService {
 
@@ -37,6 +38,9 @@ public interface CampusReportService {
     CampusReport generate(Long reportId, Long operatorUserId);
 
     CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput);
+
+    CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput,
+                            Consumer<String> chunkConsumer);
 
     CampusReport archive(Long reportId, String archiveOpinion, Long operatorUserId);
 

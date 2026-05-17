@@ -713,6 +713,9 @@ service/minority/
 - **前端修复**：新增 `ApiId = string | number`，监测服务层和相关页面按 `ApiId` 原样传参；搜索结果承接线索 ID 字符串；监测信息“更多”操作缺少结果/任务 ID 时显示明确提示，不再静默返回。
 - **契约同步**：更新 `docs/API_CONTRACT.md`，明确监测模块 Snowflake 业务 ID 响应按字符串序列化，接口入参仍兼容 Long 字符串。
 - **本地验证**：`CampusMonitorIdSerializationTest` 2 tests 通过；`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过，17 个测试类 59 tests；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`.\mvnw.cmd -DskipTests package` 通过；`git diff --check` 通过（仅换行提示）。
+- **Git 与发布**：因 GitHub `origin/main` 为 snapshot 历史，本次修复从 `origin/main` cherry-pick 生成最终提交 `f7655c3 fix: preserve campus monitor id precision`，已推送 GitHub 分支 `claude/fix-campus-monitor-id-precision` 和 `deploy-vps/claude/fix-campus-monitor-id-precision`；保留本地备份分支 `claude/fix-campus-monitor-id-precision-local` 指向原部署分支同内容提交 `f623422`。
+- **生产部署**：已部署 jar 与 `campus-web/dist` 到服务器；发布前备份 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-131918-id-precision`；`yuqing` 重启成功，`nginx -t` 通过并 reload。
+- **线上验收**：`https://yuqing.zhuoran.cc/` 返回 200，`/monitor` 返回 200；未登录访问 `/campus/monitor/information/list?pageNum=1&pageSize=1` 返回 302，符合鉴权预期；线上静态资源已包含“当前记录缺少监测结果ID，请刷新后重试”提示。
 
 ## 重要决策记录
 

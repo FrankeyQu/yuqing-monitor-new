@@ -7,7 +7,7 @@
 - **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/大屏合并和接入去重修复已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收，监测命中 AI 分析返回格式兼容修复已发布
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
 - **当前 Git 状态**：`main` 已推送到 GitHub，旧生产线 `claude/daily-monthly-reports` 以功能等价吸收和本地保护分支方式留痕
-- **最近已发布功能提交**：commit `c863715 merge: monitor cancel alert semantics`
+- **最近已发布功能提交**：commit `85d37e0 fix: hide monitor dedup controls`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -18,6 +18,9 @@
 - **前端调整**：`MonitorView.vue` 隐藏“合并相似信息”和“匹配对象”筛选行，默认继续按不合并、不限定匹配范围查询。
 - **兼容策略**：后端 `/campus/monitor/information/**` 的 `similarDedup/matchScope` 参数和 SQL 能力保留，仅作为历史接口兼容和后续诊断能力，不再在客户页面直接暴露。
 - **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **Git 合并**：功能提交 `85d37e0 fix: hide monitor dedup controls` 已合并到 `main`。
+- **生产部署**：仅前端静态资源变更，未重启后端；前端包 SHA256 `558ab88fe0e12e3e91c2f096f8a848a2daf749c5cbc71f2af1e2c45859215e1a`，发布前备份 `/opt/yuqing/web` 到 `/home/ubuntu/yuqing-backups/deploy-20260518-032040-hide-monitor-dedup-controls/web.tar.gz`，已覆盖 `/opt/yuqing/web` 并 reload `nginx`。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`https://yuqing.zhuoran.cc/` 与 `/monitor` 返回 200；线上静态资源不再包含“合并相似信息”和“匹配对象”。
 
 ## 2026-05-18 监测语言与取消预警口径修复
 

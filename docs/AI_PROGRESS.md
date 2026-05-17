@@ -21,6 +21,8 @@
 - **GitHub / 服务器同步**：提交 `d1e7e41 feat: allow campus monitor sentiment edits` 已推送 GitHub `origin/claude/fix-campus-monitor-id-precision` 和服务器远端 `deploy-vps/claude/fix-campus-monitor-id-precision`。
 - **生产部署**：已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`；发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-193923-monitor-sentiment`，包含 `app.jar` 与 `web.tar.gz`。
 - **线上验收**：`yuqing/nginx/mariadb/redis-server` 均为 active，后端监听 `8084`；`https://yuqing.zhuoran.cc/monitor` 返回 200；未登录访问 `POST /campus/monitor/result/sentiment?monitorResultId=1&sentiment=negative` 返回 302，符合鉴权预期；线上静态资源已包含“批量修改情感”。
+- **样式修正**：按用户反馈将监测信息表格情感列从常驻下拉框恢复为原 `EmotionBadge` 标签样式，仅点击标签时弹出修改菜单；批量修改情感保留在批量操作弹窗内。
+- **样式修正验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 
 ## 2026-05-17 校园事件单用户台账模式收敛
 

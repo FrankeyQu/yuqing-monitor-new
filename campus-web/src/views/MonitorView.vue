@@ -261,21 +261,28 @@
           <template #default="{ row, $index }">
             <span v-if="col.key === 'index'">{{ rowIndex($index) }}</span>
             <div v-else-if="col.key === 'sentiment'" class="sentiment-edit-cell" :title="sentimentEditDisabledReason(row)">
-              <el-select
-                :model-value="normalizeSentimentValue(row.sentiment)"
-                size="small"
-                class="sentiment-select"
-                :disabled="!canEditMonitorSentiment(row)"
-                :loading="isSentimentUpdating(row)"
-                @change="onMonitorSentimentChange(row, $event)"
+              <el-dropdown
+                v-if="canEditMonitorSentiment(row)"
+                trigger="click"
+                @command="onMonitorSentimentCommand(row, $event)"
               >
-                <el-option
-                  v-for="option in sentimentEditOptions"
-                  :key="option.value"
-                  :label="option.label"
-                  :value="option.value"
-                />
-              </el-select>
+                <button class="sentiment-badge-trigger" type="button" :disabled="isSentimentUpdating(row)">
+                  <EmotionBadge :emotion="row.sentiment || ''" />
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="option in sentimentEditOptions"
+                      :key="option.value"
+                      :command="option.value"
+                      :disabled="normalizeSentimentValue(row.sentiment) === option.value"
+                    >
+                      {{ option.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <EmotionBadge v-else :emotion="row.sentiment || ''" />
             </div>
             <div v-else-if="col.key === 'title'" class="title-summary-cell">
               <div class="clue-title" v-html="highlightTitle(row.title || '')" />
@@ -851,6 +858,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowDown, Plus, RefreshCw, Settings2 } from 'lucide-vue-next';
 import * as echarts from 'echarts';
 import type { ECharts, EChartsOption } from 'echarts';
+import EmotionBadge from '../components/EmotionBadge.vue';
 import PlatformBadge from '../components/PlatformBadge.vue';
 import { CAMPUS_RISK_OPTIONS, campusRiskLabel, campusRiskTagType, campusTopicLabel } from '../config/campusTaxonomy';
 import {
@@ -992,7 +1000,7 @@ const draggedColumnKey = ref('');
 
 const infoColumns = ref<InfoColumn[]>([
   { key: 'index', label: '#', width: 55, align: 'center', visible: true, required: true },
-  { key: 'sentiment', label: '情感', width: 112, align: 'center', visible: true },
+  { key: 'sentiment', label: '情感', width: 80, align: 'center', visible: true },
   { key: 'title', label: '标题-摘要', minWidth: 380, tooltip: true, visible: true, required: true },
   { key: 'contentCapture', label: '正文', width: 94, align: 'center', visible: true },
   { key: 'publishTime', label: '发布时间', width: 150, align: 'center', visible: true },
@@ -1537,7 +1545,7 @@ function setSentimentUpdating(monitorResultId: ApiId, updating: boolean) {
   sentimentUpdatingIds.value = next;
 }
 
-function onMonitorSentimentChange(row: CampusMonitorInformation, value: string | number | boolean) {
+function onMonitorSentimentCommand(row: CampusMonitorInformation, value: string | number | boolean) {
   updateMonitorSentiment(row, String(value));
 }
 
@@ -3168,14 +3176,18 @@ function resizeTopicCharts() {
   min-width: 0;
 }
 
-.sentiment-select {
-  width: 92px;
+.sentiment-badge-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
-.sentiment-select :deep(.el-select__wrapper) {
-  min-height: 26px;
-  padding: 0 8px;
-  border-radius: 4px;
+.sentiment-badge-trigger:disabled {
+  cursor: wait;
 }
 
 .toolbar-right {

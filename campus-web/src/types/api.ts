@@ -52,6 +52,9 @@ export interface MonitorDashboardOverview {
   activeTaskCount?: number;
   scheduledTaskCount?: number;
   todayResultCount?: number;
+  todayAllResultCount?: number;
+  todayRiskResultCount?: number;
+  negativeRate?: number;
   pendingAlertCount?: number;
   todayAlertCount?: number;
 }
@@ -87,12 +90,17 @@ export interface DashboardStatistics {
   eventStatusDistribution: DistributionItem[];
   trendByDay?: DashboardTrendItem[];
   monitorTrendByDay?: MonitorTrendItem[];
+  monitorTrendAllByDay?: MonitorTrendItem[];
+  monitorTrendRiskByDay?: MonitorTrendItem[];
   alertRiskDistribution?: DistributionItem[];
   detectionHitRiskDistribution?: DistributionItem[];
   sourceRiskDistribution?: SourceRiskDistributionItem[];
   topicRiskDistribution?: SourceRiskDistributionItem[];
   sentimentDistribution?: DistributionItem[];
   mediaDistribution?: DistributionItem[];
+  monitorSourceDistribution?: DistributionItem[];
+  monitorSentimentDistribution?: DistributionItem[];
+  monitorTopicRiskDistribution?: SourceRiskDistributionItem[];
   governanceMetrics?: GovernanceMetrics;
 }
 

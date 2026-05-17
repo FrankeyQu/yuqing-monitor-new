@@ -135,6 +135,14 @@ public interface CampusMonitorResultDao {
     List<Map<String, Object>> monitorInformationTrendByDay(@Param("hitScope") String hitScope,
                                                            @Param("days") Integer days);
 
+    List<Map<String, Object>> monitorInformationSourceDistribution(@Param("hitScope") String hitScope,
+                                                                   @Param("limit") Integer limit);
+
+    List<Map<String, Object>> monitorInformationSentimentDistribution(@Param("hitScope") String hitScope);
+
+    List<Map<String, Object>> monitorInformationTopicRiskDistribution(@Param("hitScope") String hitScope,
+                                                                     @Param("limit") Integer limit);
+
     int countToday();
 
     int logicalDeleteBefore(@Param("expireBefore") Date expireBefore,

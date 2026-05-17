@@ -1,6 +1,6 @@
 package com.stonedt.intelligence.service.impl.campus;
 
-import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
@@ -146,7 +146,7 @@ public class CampusReportServiceImpl implements CampusReportService {
     public CampusReport generate(Long reportId, Long operatorUserId) {
         CampusReport report = requireReport(reportId);
         String content = StringUtils.isBlank(report.getReportContent()) ? buildReportContent(report) : report.getReportContent();
-        return saveGeneratedContent(report, content, operatorUserId, GENERATION_TEMPLATE, null, null);
+        return saveGeneratedContent(report, content, operatorUserId, GENERATION_TEMPLATE, null, null, null);
     }
 
     @Override
@@ -157,14 +157,22 @@ public class CampusReportServiceImpl implements CampusReportService {
     @Override
     public CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput,
                                    Consumer<String> chunkConsumer) {
+        return generateAi(reportId, operatorUserId, streamOutput, chunkConsumer, null);
+    }
+
+    @Override
+    public CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput,
+                                   Consumer<String> chunkConsumer, String aiUserPrompt) {
         CampusReport report = requireReport(reportId);
-        String dataJson = buildReportDataJson(report);
+        String effectivePrompt = StringUtils.defaultIfBlank(aiUserPrompt, report.getAiUserPrompt());
+        String dataJson = buildReportDataJson(report, effectivePrompt);
         String content = aiReportService.generateReport(
                 report.getReportType(),
                 report.getReportTitle(),
                 dataJson,
                 formatDate(report.getPeriodStartTime()),
                 formatDate(report.getPeriodEndTime()),
+                effectivePrompt,
                 streamOutput,
                 chunkConsumer);
         if (StringUtils.isBlank(content) && streamOutput != null) {
@@ -174,7 +182,7 @@ public class CampusReportServiceImpl implements CampusReportService {
             throw new IllegalStateException("AI报告生成未返回有效内容");
         }
         return saveGeneratedContent(report, content, operatorUserId, GENERATION_AI,
-                "report_generate", StringUtils.left(dataJson, 60000));
+                "report_generate", effectivePrompt, StringUtils.left(dataJson, 60000));
     }
 
     @Override
@@ -326,6 +334,7 @@ public class CampusReportServiceImpl implements CampusReportService {
                                               Long operatorUserId,
                                               String generationMode,
                                               String aiModel,
+                                              String aiUserPrompt,
                                               String aiPromptSnapshot) {
         CampusReport update = new CampusReport();
         update.setReportId(report.getReportId());
@@ -335,6 +344,7 @@ public class CampusReportServiceImpl implements CampusReportService {
         update.setReportContent(content);
         update.setFileName(buildFileNameForFormat(report, FORMAT_MARKDOWN));
         update.setAiModel(aiModel);
+        update.setAiUserPrompt(aiUserPrompt);
         update.setAiPromptSnapshot(aiPromptSnapshot);
         update.setGeneratedBy(operatorUserId);
         update.setGenerateTime(new Date());
@@ -344,6 +354,10 @@ public class CampusReportServiceImpl implements CampusReportService {
     }
 
     private String buildReportDataJson(CampusReport report) {
+        return buildReportDataJson(report, null);
+    }
+
+    String buildReportDataJson(CampusReport report, String aiUserPrompt) {
         CampusEvent event = report.getEventId() == null ? null : campusEventDao.selectByEventId(report.getEventId());
         ReportDataVO reportData = campusReportDataService.aggregateReportData(report);
         JSONObject data = new JSONObject();
@@ -359,6 +373,7 @@ public class CampusReportServiceImpl implements CampusReportService {
         data.put("departmentScope", report.getDepartmentScope());
         data.put("monitorTaskIds", report.getMonitorTaskIds());
         data.put("analysisProfile", report.getAnalysisProfile());
+        data.put("aiUserPrompt", StringUtils.defaultString(aiUserPrompt));
         data.put("reportSummary", StringUtils.defaultString(report.getReportSummary()));
         data.put("periodStart", formatDate(report.getPeriodStartTime()));
         data.put("periodEnd", formatDate(report.getPeriodEndTime()));
@@ -369,8 +384,57 @@ public class CampusReportServiceImpl implements CampusReportService {
             data.put("eventStatus", event.getEventStatus());
             data.put("riskLevel", event.getRiskLevel());
         }
-        data.put("reportData", JSON.toJSON(reportData));
+        data.put("reportData", reportDataSnapshot(reportData));
+        data.put("governance", governanceSnapshot());
         return data.toJSONString();
+    }
+
+    static JSONObject reportDataSnapshot(ReportDataVO reportData) {
+        JSONObject snapshot = new JSONObject();
+        if (reportData == null) {
+            return snapshot;
+        }
+        snapshot.put("totalCount", reportData.getTotalCount());
+        snapshot.put("negativeCount", reportData.getNegativeCount());
+        snapshot.put("neutralCount", reportData.getNeutralCount());
+        snapshot.put("positiveCount", reportData.getPositiveCount());
+        snapshot.put("periodStart", reportData.getPeriodStart());
+        snapshot.put("periodEnd", reportData.getPeriodEnd());
+        snapshot.put("summary", reportData.getSummary());
+        snapshot.put("trend", copyList(reportData.getTrend()));
+        snapshot.put("mediaDistribution", copyList(reportData.getMediaDistribution()));
+        snapshot.put("platformRanking", copyList(reportData.getPlatformRanking()));
+        snapshot.put("sentimentDistribution", copyList(reportData.getSentimentDistribution()));
+        snapshot.put("hotKeywords", copyList(reportData.getHotKeywords()));
+        snapshot.put("hotArticles", copyList(reportData.getHotArticles()));
+        return snapshot;
+    }
+
+    private JSONObject governanceSnapshot() {
+        JSONObject snapshot = new JSONObject();
+        if (campusDashboardDao == null) {
+            return snapshot;
+        }
+        try {
+            Map<String, Object> metrics = campusDashboardDao.governanceMetrics();
+            snapshot.put("metrics", metrics == null ? new JSONObject() : new JSONObject(metrics));
+            snapshot.put("topicRiskDistribution", copyList(campusDashboardDao.topicRiskDistribution()));
+        } catch (Exception ignored) {
+            snapshot.put("metrics", new JSONObject());
+            snapshot.put("topicRiskDistribution", new JSONArray());
+        }
+        return snapshot;
+    }
+
+    private static JSONArray copyList(List<Map<String, Object>> rows) {
+        JSONArray array = new JSONArray();
+        if (rows == null) {
+            return array;
+        }
+        for (Map<String, Object> row : rows) {
+            array.add(row == null ? new JSONObject() : new JSONObject(row));
+        }
+        return array;
     }
 
     private String resolveReportKeyword(CampusReport report, CampusEvent event) {

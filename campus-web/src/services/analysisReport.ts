@@ -105,13 +105,17 @@ export function generateReport(reportId: ApiId) {
   return apiPost<CampusReport>('/campus/report/generate', undefined, { reportId });
 }
 
-export function generateReportAi(reportId: ApiId) {
-  return apiPost<CampusReport>('/campus/report/generate-ai', undefined, { reportId });
+export function generateReportAi(reportId: ApiId, aiUserPrompt?: string) {
+  return apiPost<CampusReport>('/campus/report/generate-ai', undefined, { reportId, aiUserPrompt });
 }
 
-export function getGenerateAiStreamUrl(reportId: ApiId) {
+export function getGenerateAiStreamUrl(reportId: ApiId, aiUserPrompt?: string) {
   const base = http.defaults.baseURL || '';
-  return `${base}/campus/report/generate-ai-stream?reportId=${encodeURIComponent(String(reportId))}`;
+  const params = new URLSearchParams({ reportId: String(reportId) });
+  if (aiUserPrompt) {
+    params.set('aiUserPrompt', aiUserPrompt);
+  }
+  return `${base}/campus/report/generate-ai-stream?${params.toString()}`;
 }
 
 export async function downloadReportDocx(reportId: ApiId) {

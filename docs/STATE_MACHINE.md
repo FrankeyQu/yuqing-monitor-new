@@ -646,7 +646,7 @@ generation_log: running → success/failed
 
 **调度规则**：`job_status=active` 且 `next_run_time <= now` 的自动报告任务可被调度器扫描；执行前写入 `schedule_lock_until`，成功或失败后释放锁并刷新下一次运行时间。手动运行同样使用锁避免重复生成。
 
-**AI 失败规则**：AI 调用失败时生成日志进入 `failed`，报告保持草稿或原状态，不允许把失败说明 markdown 写入正式 `report_content` 并标记为 `generated`。
+**AI 失败规则**：AI 调用失败时生成日志进入 `failed`，报告保持草稿或原状态，不允许把失败说明 markdown 写入正式 `report_content` 并标记为 `generated`。AI 生成前会先生成规则统计快照，`ai_user_prompt` 仅作为输出侧补充要求，不改变状态流转。
 
 ## 校园权限与基础数据状态
 

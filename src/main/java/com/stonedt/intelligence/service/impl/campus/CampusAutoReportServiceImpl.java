@@ -145,7 +145,7 @@ public class CampusAutoReportServiceImpl implements CampusAutoReportService {
             CampusReport report = buildReport(job);
             CampusReport saved = campusReportService.saveReport(report, operatorUserId);
             CampusReport generated = GENERATION_AI.equals(job.getGenerationMode())
-                    ? campusReportService.generateAi(saved.getReportId(), operatorUserId, null)
+                    ? campusReportService.generateAi(saved.getReportId(), operatorUserId, null, null, job.getAiUserPrompt())
                     : campusReportService.generate(saved.getReportId(), operatorUserId);
             campusReportGenerationLogDao.finish(log.getGenerationLogId(), generated.getReportId(), RUN_SUCCESS,
                     elapsedMillis(startMillis), null);
@@ -192,6 +192,8 @@ public class CampusAutoReportServiceImpl implements CampusAutoReportService {
         report.setMonitorTaskIds(job.getMonitorTaskIds());
         report.setAnalysisProfile(StringUtils.defaultIfBlank(job.getAnalysisProfile(), PROFILE_BRIEF));
         report.setTemplateId(job.getTemplateId());
+        report.setEventId(job.getEventId());
+        report.setAiUserPrompt(job.getAiUserPrompt());
         report.setPeriodStartTime(period[0]);
         report.setPeriodEndTime(period[1]);
         report.setReportSummary("由自动报告任务生成，内容需人工复核后归档或发布。");

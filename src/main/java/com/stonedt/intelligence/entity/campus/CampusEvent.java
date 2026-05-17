@@ -1,5 +1,7 @@
 package com.stonedt.intelligence.entity.campus;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
 import java.util.Date;
@@ -7,7 +9,9 @@ import java.util.Date;
 @Data
 public class CampusEvent {
 
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long id;
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long eventId;
     private String eventTitle;
     private String eventType;

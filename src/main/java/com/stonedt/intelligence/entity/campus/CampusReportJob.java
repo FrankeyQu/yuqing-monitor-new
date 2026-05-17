@@ -26,6 +26,9 @@ public class CampusReportJob {
     private String analysisProfile;
     @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long templateId;
+    @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
+    private Long eventId;
+    private String aiUserPrompt;
     private String periodRule;
     private String scheduleCron;
     private String outputFormat;

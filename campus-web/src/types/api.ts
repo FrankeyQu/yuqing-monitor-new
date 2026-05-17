@@ -865,6 +865,7 @@ export interface CampusReport {
   fileName?: string;
   filePath?: string;
   aiModel?: string;
+  aiUserPrompt?: string;
   aiPromptSnapshot?: string;
   generatedBy?: ApiId;
   generateTime?: string;
@@ -898,6 +899,8 @@ export interface CampusReportJob {
   monitorTaskIds?: string;
   analysisProfile?: 'brief' | 'risk' | 'disposal';
   templateId?: ApiId;
+  eventId?: ApiId;
+  aiUserPrompt?: string;
   periodRule?: string;
   scheduleCron?: string;
   outputFormat?: string;
@@ -981,8 +984,8 @@ export interface CampusCurrentUser {
 }
 
 export interface CampusEvent {
-  id?: number;
-  eventId?: number;
+  id?: ApiId;
+  eventId?: ApiId;
   eventTitle: string;
   eventType?: string;
   eventSummary?: string;
@@ -1002,7 +1005,7 @@ export interface CampusEvent {
 export interface CampusDisposalTask {
   id?: number;
   disposalTaskId?: number;
-  eventId?: number;
+  eventId?: ApiId;
   taskTitle: string;
   assignedDepartmentId?: number;
   assignedUserId?: number;
@@ -1018,7 +1021,7 @@ export interface CampusDisposalRecord {
   id?: number;
   recordId?: number;
   disposalTaskId?: number;
-  eventId?: number;
+  eventId?: ApiId;
   recordType?: string;
   recordContent?: string;
   handlerName?: string;

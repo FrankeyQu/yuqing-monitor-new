@@ -42,6 +42,9 @@ public interface CampusReportService {
     CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput,
                             Consumer<String> chunkConsumer);
 
+    CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput,
+                            Consumer<String> chunkConsumer, String aiUserPrompt);
+
     CampusReport archive(Long reportId, String archiveOpinion, Long operatorUserId);
 
     void deleteReport(Long reportId, Long operatorUserId);

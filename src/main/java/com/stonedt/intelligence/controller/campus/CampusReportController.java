@@ -196,11 +196,13 @@ public class CampusReportController {
      * Returns the full AI-generated markdown content once complete.
      */
     @PostMapping("/generate-ai")
-    public ResultVO<CampusReport> generateAi(@RequestParam Long reportId, HttpServletRequest request) {
+    public ResultVO<CampusReport> generateAi(@RequestParam Long reportId,
+                                             @RequestParam(required = false) String aiUserPrompt,
+                                             HttpServletRequest request) {
         String params = "reportId=" + reportId;
         try {
             User user = userUtil.getuser(request);
-            CampusReport saved = campusReportService.generateAi(reportId, user.getUser_id(), null);
+            CampusReport saved = campusReportService.generateAi(reportId, user.getUser_id(), null, null, aiUserPrompt);
             campusAuditLogService.record(request, "报告归档", "AI生成报告", "campus_report",
                     String.valueOf(reportId), params, true, null);
             return ResultVO.success(saved);
@@ -216,7 +218,9 @@ public class CampusReportController {
      * Streams markdown chunks to the client in real time.
      */
     @GetMapping(value = "/generate-ai-stream", produces = "text/event-stream;charset=UTF-8")
-    public SseEmitter generateAiStream(@RequestParam Long reportId, HttpServletRequest request) {
+    public SseEmitter generateAiStream(@RequestParam Long reportId,
+                                       @RequestParam(required = false) String aiUserPrompt,
+                                       HttpServletRequest request) {
         SseEmitter emitter = new SseEmitter(300000L);
         User user = userUtil.getuser(request);
         Long operatorUserId = user == null ? null : user.getUser_id();
@@ -230,7 +234,7 @@ public class CampusReportController {
                     } catch (IOException ex) {
                         throw new IllegalStateException("AI流式连接已中断", ex);
                     }
-                });
+                }, aiUserPrompt);
                 campusAuditLogService.record(request, "报告归档", "AI流式生成报告", "campus_report",
                         String.valueOf(reportId), "reportId=" + reportId, true, null);
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));

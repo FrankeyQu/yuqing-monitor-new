@@ -1,195 +1,115 @@
 <template>
   <section class="business-page">
     <section class="panel">
-      <el-tabs v-model="activeTab">
-        <el-tab-pane label="报告归档" name="reports">
-          <div class="toolbar">
-            <div class="toolbar-filters">
-              <el-input v-model.trim="reportQuery.keyword" clearable placeholder="标题/摘要" @keyup.enter="loadReports">
-                <template #prefix><Search :size="16" /></template>
-              </el-input>
-              <el-select v-model="reportQuery.reportType" clearable placeholder="报告类型">
-                <el-option label="日报" value="daily" />
-                <el-option label="周报" value="weekly" />
-                <el-option label="月报" value="monthly" />
-                <el-option label="专报" value="special" />
-                <el-option label="事件报告" value="event" />
-              </el-select>
-              <el-select v-model="reportQuery.reportStatus" clearable placeholder="状态">
-                <el-option label="草稿" value="draft" />
-                <el-option label="已生成" value="generated" />
-                <el-option label="已归档" value="archived" />
-                <el-option label="已发布" value="published" />
-              </el-select>
-              <el-button @click="loadReports">
-                <Search :size="16" />
-                查询
-              </el-button>
-            </div>
-            <el-button type="primary" @click="openReportCreate">
-              <Plus :size="16" />
-              新建报告
+      <div class="toolbar">
+        <div class="toolbar-filters">
+          <el-input v-model.trim="reportQuery.keyword" clearable placeholder="标题/说明" @keyup.enter="loadReports">
+            <template #prefix><Search :size="16" /></template>
+          </el-input>
+          <el-select v-model="reportQuery.reportType" clearable placeholder="报告类型">
+            <el-option label="日报" value="daily" />
+            <el-option label="周报" value="weekly" />
+            <el-option label="月报" value="monthly" />
+            <el-option label="专报" value="special" />
+            <el-option label="事件报告" value="event" />
+          </el-select>
+          <el-select v-model="reportQuery.reportStatus" clearable placeholder="状态">
+            <el-option label="草稿" value="draft" />
+            <el-option label="已生成" value="generated" />
+            <el-option label="已归档" value="archived" />
+            <el-option label="已发布" value="published" />
+          </el-select>
+          <el-button @click="loadReports">
+            <Search :size="16" />
+            查询
+          </el-button>
+        </div>
+        <el-button type="primary" @click="openReportCreate">
+          <Plus :size="16" />
+          新建报告
+        </el-button>
+      </div>
+
+      <el-table :data="reports" v-loading="reportLoading" size="small" height="560">
+        <el-table-column prop="reportTitle" label="报告标题" min-width="210" show-overflow-tooltip />
+        <el-table-column prop="reportType" label="类型" width="102">
+          <template #default="{ row }">{{ reportTypeLabel(row.reportType) }}</template>
+        </el-table-column>
+        <el-table-column prop="reportStatus" label="状态" width="96">
+          <template #default="{ row }">
+            <el-tag :type="reportStatusTagType(row.reportStatus)" effect="plain">
+              {{ reportStatusLabel(row.reportStatus) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="generationMode" label="生成方式" width="96">
+          <template #default="{ row }">
+            <el-tag :type="row.generationMode === 'ai' ? '' : 'info'" effect="plain" size="small">
+              {{ row.generationMode === 'ai' ? 'AI智能' : '传统' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="eventId" label="关联事件" width="150" show-overflow-tooltip />
+        <el-table-column label="内容概览" min-width="190" show-overflow-tooltip>
+          <template #default="{ row }">{{ reportPreview(row) }}</template>
+        </el-table-column>
+        <el-table-column prop="generateTime" label="生成时间" width="168" show-overflow-tooltip />
+        <el-table-column label="操作" width="400" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="openReportEdit(row)">
+              <Pencil :size="15" />
+              编辑
             </el-button>
-          </div>
-
-          <el-table :data="reports" v-loading="reportLoading" size="small" height="560">
-            <el-table-column prop="reportTitle" label="报告标题" min-width="210" show-overflow-tooltip />
-            <el-table-column prop="reportType" label="类型" width="102">
-              <template #default="{ row }">{{ reportTypeLabel(row.reportType) }}</template>
-            </el-table-column>
-            <el-table-column prop="reportStatus" label="状态" width="96">
-              <template #default="{ row }">
-                <el-tag :type="reportStatusTagType(row.reportStatus)" effect="plain">
-                  {{ reportStatusLabel(row.reportStatus) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="reportFormat" label="格式" width="92">
-              <template #default="{ row }">{{ reportFormatLabel(row.reportFormat) }}</template>
-            </el-table-column>
-            <el-table-column prop="generationMode" label="生成方式" width="96">
-              <template #default="{ row }">
-                <el-tag :type="row.generationMode === 'ai' ? '' : 'info'" effect="plain" size="small">
-                  {{ row.generationMode === 'ai' ? 'AI智能' : '传统' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="eventId" label="事件ID" width="96" />
-            <el-table-column prop="reportSummary" label="摘要" min-width="160" show-overflow-tooltip />
-            <el-table-column prop="generateTime" label="生成时间" width="168" show-overflow-tooltip />
-            <el-table-column label="操作" width="400" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="openReportEdit(row)">
-                  <Pencil :size="15" />
-                  编辑
-                </el-button>
-                <el-button link type="success" @click="openGenerateDialog(row)">
-                  <Sparkles :size="15" />
-                  生成
-                </el-button>
-                <el-button link type="info" @click="openReportDetail(row)">
-                  <Eye :size="15" />
-                  详情
-                </el-button>
-                <el-dropdown trigger="click" @command="(fmt: string) => handleDownload(row, fmt)">
-                  <el-button link type="primary">
-                    <Download :size="15" />
-                    下载
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="md">
-                        <FileText :size="14" />&nbsp;Markdown
-                      </el-dropdown-item>
-                      <el-dropdown-item command="docx">
-                        <FileText :size="14" />&nbsp;Word
-                      </el-dropdown-item>
-                      <el-dropdown-item command="pptx">
-                        <FileText :size="14" />&nbsp;PPT
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-                <el-button link type="warning" @click="openArchive(row)">
-                  <Archive :size="15" />
-                  归档
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-
-          <div class="pagination-row">
-            <el-pagination
-              v-model:current-page="reportQuery.pageNum"
-              v-model:page-size="reportQuery.pageSize"
-              layout="total, sizes, prev, pager, next"
-              :page-sizes="[10, 20, 50]"
-              :total="reportTotal"
-              @size-change="loadReports"
-              @current-change="loadReports"
-            />
-          </div>
-        </el-tab-pane>
-
-        <el-tab-pane label="报告模板" name="templates">
-          <div class="toolbar">
-            <div class="toolbar-filters">
-              <el-input v-model.trim="templateQuery.keyword" clearable placeholder="模板名称/备注" @keyup.enter="loadTemplates">
-                <template #prefix><Search :size="16" /></template>
-              </el-input>
-              <el-select v-model="templateQuery.reportType" clearable placeholder="报告类型">
-                <el-option label="日报" value="daily" />
-                <el-option label="周报" value="weekly" />
-                <el-option label="月报" value="monthly" />
-                <el-option label="专报" value="special" />
-                <el-option label="事件报告" value="event" />
-              </el-select>
-              <el-select v-model="templateQuery.status" clearable placeholder="状态">
-                <el-option label="启用" :value="1" />
-                <el-option label="停用" :value="0" />
-              </el-select>
-              <el-button @click="loadTemplates">
-                <Search :size="16" />
-                查询
-              </el-button>
-            </div>
-            <el-button type="primary" @click="openTemplateCreate">
-              <Plus :size="16" />
-              新增模板
+            <el-button link type="success" @click="openGenerateDialog(row)">
+              <Sparkles :size="15" />
+              生成
             </el-button>
-          </div>
-
-          <el-table :data="templates" v-loading="templateLoading" size="small" height="560">
-            <el-table-column prop="templateName" label="模板名称" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="reportType" label="类型" width="102">
-              <template #default="{ row }">{{ reportTypeLabel(row.reportType) }}</template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="82">
-              <template #default="{ row }">
-                <el-tag :type="row.status === 0 ? 'info' : 'success'" effect="plain">
-                  {{ row.status === 0 ? '停用' : '启用' }}
-                </el-tag>
+            <el-button link type="info" @click="openReportDetail(row)">
+              <Eye :size="15" />
+              详情
+            </el-button>
+            <el-dropdown trigger="click" @command="(fmt: string) => handleDownload(row, fmt)">
+              <el-button link type="primary">
+                <Download :size="15" />
+                下载
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="md"><FileText :size="14" />&nbsp;Markdown</el-dropdown-item>
+                  <el-dropdown-item command="docx"><FileText :size="14" />&nbsp;Word</el-dropdown-item>
+                  <el-dropdown-item command="pptx"><FileText :size="14" />&nbsp;PPT</el-dropdown-item>
+                </el-dropdown-menu>
               </template>
-            </el-table-column>
-            <el-table-column prop="remark" label="备注" min-width="210" show-overflow-tooltip />
-            <el-table-column prop="updateTime" label="更新时间" width="168" show-overflow-tooltip />
-            <el-table-column label="操作" width="150" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="openTemplateEdit(row)">
-                  <Pencil :size="15" />
-                  编辑
-                </el-button>
-                <el-button link type="danger" @click="submitTemplateDelete(row)">
-                  <Trash2 :size="15" />
-                  删除
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+            </el-dropdown>
+            <el-button link type="warning" @click="openArchive(row)">
+              <Archive :size="15" />
+              归档
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-          <div class="pagination-row">
-            <el-pagination
-              v-model:current-page="templateQuery.pageNum"
-              v-model:page-size="templateQuery.pageSize"
-              layout="total, sizes, prev, pager, next"
-              :page-sizes="[10, 20, 50]"
-              :total="templateTotal"
-              @size-change="loadTemplates"
-              @current-change="loadTemplates"
-            />
-          </div>
-        </el-tab-pane>
-      </el-tabs>
+      <div class="pagination-row">
+        <el-pagination
+          v-model:current-page="reportQuery.pageNum"
+          v-model:page-size="reportQuery.pageSize"
+          layout="total, sizes, prev, pager, next"
+          :page-sizes="[10, 20, 50]"
+          :total="reportTotal"
+          @size-change="loadReports"
+          @current-change="loadReports"
+        />
+      </div>
     </section>
 
-    <el-dialog v-model="reportDialogVisible" :title="reportForm.reportId ? '编辑报告' : '新建报告'" width="820px">
+    <el-dialog v-model="reportDialogVisible" :title="reportForm.reportId ? '编辑报告' : '新建报告'" width="860px">
       <el-form label-position="top">
         <div class="form-grid">
           <el-form-item label="报告标题" required>
             <el-input v-model.trim="reportForm.reportTitle" />
           </el-form-item>
           <el-form-item label="报告类型" required>
-            <el-select v-model="reportForm.reportType">
+            <el-select v-model="reportForm.reportType" @change="handleReportTypeChange">
               <el-option label="日报" value="daily" />
               <el-option label="周报" value="weekly" />
               <el-option label="月报" value="monthly" />
@@ -199,11 +119,43 @@
           </el-form-item>
         </div>
         <div class="form-grid">
-          <el-form-item label="模板ID">
-            <el-input v-model.trim="reportForm.templateId" />
+          <el-form-item label="报告模板">
+            <el-select
+              v-model="reportForm.templateId"
+              filterable
+              remote
+              clearable
+              placeholder="搜索并选择模板"
+              :remote-method="loadReportTemplateOptions"
+              :loading="templateOptionLoading"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="tpl in reportTemplateOptions"
+                :key="tpl.templateId"
+                :label="templateOptionLabel(tpl)"
+                :value="tpl.templateId"
+              />
+            </el-select>
           </el-form-item>
-          <el-form-item label="关联事件ID">
-            <el-input v-model.trim="reportForm.eventId" />
+          <el-form-item label="关联事件">
+            <el-select
+              v-model="reportForm.eventId"
+              filterable
+              remote
+              clearable
+              placeholder="搜索并选择事件"
+              :remote-method="loadEventOptions"
+              :loading="eventOptionLoading"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="event in eventOptions"
+                :key="event.eventId"
+                :label="eventOptionLabel(event)"
+                :value="event.eventId"
+              />
+            </el-select>
           </el-form-item>
         </div>
         <div class="form-grid">
@@ -221,6 +173,12 @@
             </el-select>
           </el-form-item>
         </div>
+        <el-form-item v-if="reportForm.generationMode === 'ai'" label="AI 生成要求">
+          <el-input v-model.trim="reportForm.aiUserPrompt" type="textarea" :rows="4" />
+          <div class="form-tip">
+            可填写本次报告的补充要求，例如重点关注风险研判、处置建议、某类群体反馈或领导汇报口径；系统会先按规则统计数据，再让 AI 按该要求润色和分析。
+          </div>
+        </el-form-item>
         <div class="form-grid">
           <el-form-item label="统计范围">
             <el-select v-model="reportForm.scopeType">
@@ -280,11 +238,9 @@
             </el-select>
           </el-form-item>
         </div>
-        <el-form-item label="报告摘要">
+        <el-form-item label="报告说明">
           <el-input v-model.trim="reportForm.reportSummary" type="textarea" :rows="3" />
-        </el-form-item>
-        <el-form-item label="报告正文">
-          <el-input v-model="reportForm.reportContent" type="textarea" :rows="7" />
+          <div class="form-tip">报告说明用于记录人工备注或模板变量，不是最终正文；正文会在生成后进入详情页。</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -293,91 +249,18 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="templateDialogVisible" :title="templateForm.templateId ? '编辑报告模板' : '新增报告模板'" width="820px">
-      <el-form label-position="top">
-        <div class="form-grid">
-          <el-form-item label="模板名称" required>
-            <el-input v-model.trim="templateForm.templateName" />
-          </el-form-item>
-          <el-form-item label="报告类型" required>
-            <el-select v-model="templateForm.reportType">
-              <el-option label="日报" value="daily" />
-              <el-option label="周报" value="weekly" />
-              <el-option label="月报" value="monthly" />
-              <el-option label="专报" value="special" />
-              <el-option label="事件报告" value="event" />
-            </el-select>
-          </el-form-item>
+    <el-dialog v-model="detailDialogVisible" title="报告详情" width="900px">
+      <div class="detail-header">
+        <div>
+          <strong>{{ detailReport?.reportTitle }}</strong>
+          <span>{{ reportTypeLabel(detailReport?.reportType) }}</span>
         </div>
-        <el-form-item label="模板内容">
-          <el-input v-model="templateForm.templateContent" type="textarea" :rows="9" />
-        </el-form-item>
-        <el-collapse style="margin-bottom: 16px;">
-          <el-collapse-item title="可用变量参考" name="vars">
-            <div class="variable-reference">
-              <div class="var-group">
-                <div class="var-group-title">基础变量</div>
-                <el-tag size="small" v-for="v in baseVars" :key="v" effect="plain" @click="insertVar(v)">{{ v }}</el-tag>
-              </div>
-              <div class="var-group">
-                <div class="var-group-title">数据变量</div>
-                <el-tag size="small" v-for="v in dataVars" :key="v" effect="plain" @click="insertVar(v)">{{ v }}</el-tag>
-              </div>
-              <div class="var-group">
-                <div class="var-group-title">表格变量</div>
-                <el-tag size="small" v-for="v in tableVars" :key="v" effect="plain" @click="insertVar(v)">{{ v }}</el-tag>
-              </div>
-              <div class="var-group">
-                <div class="var-group-title">列表变量</div>
-                <el-tag size="small" v-for="v in listVars" :key="v" effect="plain" @click="insertVar(v)">{{ v }}</el-tag>
-              </div>
-              <div class="var-group">
-                <div class="var-group-title">事件变量</div>
-                <el-tag size="small" v-for="v in eventVars" :key="v" effect="plain" @click="insertVar(v)">{{ v }}</el-tag>
-              </div>
-            </div>
-          </el-collapse-item>
-        </el-collapse>
-        <div class="form-grid">
-          <el-form-item label="状态">
-            <el-switch v-model="templateEnabled" active-text="启用" inactive-text="停用" />
-          </el-form-item>
-          <el-form-item label="备注">
-            <el-input v-model.trim="templateForm.remark" />
-          </el-form-item>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="templateDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitTemplate">保存</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="detailDialogVisible" title="报告详情" width="860px">
-      <div class="report-detail">
-        <h2>{{ detailReport?.reportTitle }}</h2>
-        <div class="selected-line">
-          <span>{{ reportTypeLabel(detailReport?.reportType) }} · {{ reportStatusLabel(detailReport?.reportStatus) }}</span>
-          <strong>{{ detailReport?.fileName || reportFormatLabel(detailReport?.reportFormat) }}</strong>
-        </div>
-        <div class="markdown-body" v-html="renderMarkdown(detailReport?.reportContent || '')" v-if="detailReport?.reportContent"></div>
-        <pre v-else>{{ detailReport?.reportSummary || '暂无报告内容' }}</pre>
+        <el-tag :type="reportStatusTagType(detailReport?.reportStatus)" effect="plain">
+          {{ reportStatusLabel(detailReport?.reportStatus) }}
+        </el-tag>
       </div>
-      <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
-        <el-dropdown v-if="detailReport?.reportId" trigger="click" @command="(fmt: string) => handleDownload(detailReport!, fmt)" style="margin-left:8px;">
-          <el-button type="primary">
-            下载
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="md">Markdown</el-dropdown-item>
-              <el-dropdown-item command="docx">Word</el-dropdown-item>
-              <el-dropdown-item command="pptx">PPT</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </template>
+      <div class="markdown-body" v-html="renderMarkdown(detailReport?.reportContent || '')" v-if="detailReport?.reportContent"></div>
+      <pre v-else>{{ detailReport?.reportSummary || '暂无报告内容' }}</pre>
     </el-dialog>
 
     <el-dialog v-model="genDialogVisible" title="生成报告" width="760px" @close="closeGenDialog">
@@ -405,7 +288,7 @@
               <el-option
                 v-for="tpl in availableTemplates"
                 :key="tpl.templateId"
-                :label="tpl.templateName"
+                :label="templateOptionLabel(tpl)"
                 :value="tpl.templateId"
               />
             </el-select>
@@ -413,6 +296,12 @@
         </template>
 
         <template v-else>
+          <el-form-item label="AI 生成要求">
+            <el-input v-model.trim="genAiUserPrompt" type="textarea" :rows="4" :disabled="genRunning" />
+            <div class="form-tip">
+              可填写本次报告的补充要求，例如重点关注风险研判、处置建议、某类群体反馈或领导汇报口径；系统会先按规则统计数据，再让 AI 按该要求润色和分析。
+            </div>
+          </el-form-item>
           <el-form-item label="流式生成">
             <el-switch v-model="genStreaming" :disabled="genRunning" active-text="开启" inactive-text="关闭" />
           </el-form-item>
@@ -443,9 +332,7 @@
         </el-button>
         <template v-if="genCompleted">
           <el-dropdown trigger="click" @command="(fmt: string) => downloadGenResult(fmt)" style="margin-left:8px;">
-            <el-button type="primary">
-              下载 Markdown
-            </el-button>
+            <el-button type="primary">下载 Markdown</el-button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="md">Markdown</el-dropdown-item>
@@ -474,22 +361,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  Archive,
-  Download,
-  Eye,
-  FileText,
-  Pencil,
-  Plus,
-  Search,
-  Sparkles,
-  Trash2
-} from 'lucide-vue-next';
+import { onMounted, reactive, ref } from 'vue';
+import { ElMessage } from 'element-plus';
+import { Archive, Download, Eye, FileText, Pencil, Plus, Search, Sparkles } from 'lucide-vue-next';
 import {
   archiveReport,
-  deleteReportTemplate,
   downloadReport,
   downloadReportDocx,
   downloadReportPptx,
@@ -499,41 +375,31 @@ import {
   getReportDetail,
   listReportTemplates,
   listReports,
-  saveReport,
-  saveReportTemplate
+  saveReport
 } from '../services/analysisReport';
-import type { ApiId, CampusReport, CampusReportTemplate } from '../types/api';
+import { listEvents } from '../services/eventCenter';
+import type { ApiId, CampusEvent, CampusReport, CampusReportTemplate } from '../types/api';
 
-const activeTab = ref('reports');
 const saving = ref(false);
 const reportLoading = ref(false);
-const templateLoading = ref(false);
 const reportDialogVisible = ref(false);
-const templateDialogVisible = ref(false);
 const detailDialogVisible = ref(false);
 const archiveDialogVisible = ref(false);
 const reports = ref<CampusReport[]>([]);
-const templates = ref<CampusReportTemplate[]>([]);
 const detailReport = ref<CampusReport>();
 const currentReport = ref<CampusReport>();
 const archiveOpinion = ref('');
 const reportTotal = ref(0);
-const templateTotal = ref(0);
-
-const baseVars = ['${reportTitle}', '${reportType}', '${reportSummary}', '${periodStart}', '${periodEnd}'];
-const dataVars = ['${totalCount}', '${negativeCount}', '${neutralCount}', '${positiveCount}'];
-const tableVars = ['${trendTable}', '${mediaTable}', '${sentimentTable}', '${keywordTable}'];
-const listVars = ['${hotArticles}', '${platformRanking}'];
-const eventVars = ['${eventTitle}', '${eventSummary}', '${riskLevel}', '${eventStatus}'];
-
-function insertVar(variable: string) {
-  templateForm.templateContent = (templateForm.templateContent || '') + ' ' + variable;
-}
+const reportTemplateOptions = ref<CampusReportTemplate[]>([]);
+const eventOptions = ref<CampusEvent[]>([]);
+const templateOptionLoading = ref(false);
+const eventOptionLoading = ref(false);
 
 const genDialogVisible = ref(false);
 const genReport = ref<CampusReport>();
 const genMode = ref<'template' | 'ai'>('ai');
 const genTemplateId = ref<ApiId>();
+const genAiUserPrompt = ref('');
 const genStreaming = ref(true);
 const genRunning = ref(false);
 const genCompleted = ref(false);
@@ -549,13 +415,7 @@ const reportQuery = reactive({
   reportType: '',
   reportStatus: ''
 });
-const templateQuery = reactive({
-  pageNum: 1,
-  pageSize: 10,
-  keyword: '',
-  reportType: '',
-  status: undefined as number | undefined
-});
+
 const reportForm = reactive<CampusReport>({
   reportTitle: '',
   reportType: 'daily',
@@ -574,29 +434,14 @@ const reportForm = reactive<CampusReport>({
   periodStartTime: undefined,
   periodEndTime: undefined,
   reportSummary: '',
-  reportContent: '',
-  reportFormat: 'markdown'
-});
-const templateForm = reactive<CampusReportTemplate>({
-  templateName: '',
-  reportType: 'daily',
-  templateContent: defaultTemplateContent(),
-  status: 1,
-  remark: ''
+  reportFormat: 'markdown',
+  aiUserPrompt: ''
 });
 
-const templateEnabled = computed({
-  get: () => templateForm.status !== 0,
-  set: (value: boolean) => {
-    templateForm.status = value ? 1 : 0;
-  }
-});
-
-onMounted(loadReports);
-watch(activeTab, (tab) => {
-  if (tab === 'templates') {
-    loadTemplates();
-  }
+onMounted(() => {
+  loadReports();
+  loadReportTemplateOptions();
+  loadEventOptions();
 });
 
 async function loadReports() {
@@ -612,17 +457,43 @@ async function loadReports() {
   }
 }
 
-async function loadTemplates() {
-  templateLoading.value = true;
+async function loadReportTemplateOptions(keyword = '') {
+  templateOptionLoading.value = true;
   try {
-    const page = await listReportTemplates(templateQuery);
-    templates.value = page.list || [];
-    templateTotal.value = page.total || 0;
+    const page = await listReportTemplates({
+      pageNum: 1,
+      pageSize: 50,
+      keyword,
+      reportType: reportForm.reportType,
+      status: 1
+    });
+    reportTemplateOptions.value = page.list || [];
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '模板列表加载失败');
+    ElMessage.error(error instanceof Error ? error.message : '模板选项加载失败');
   } finally {
-    templateLoading.value = false;
+    templateOptionLoading.value = false;
   }
+}
+
+async function loadEventOptions(keyword = '') {
+  eventOptionLoading.value = true;
+  try {
+    const page = await listEvents({
+      pageNum: 1,
+      pageSize: 50,
+      keyword
+    });
+    eventOptions.value = page.list || [];
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '事件选项加载失败');
+  } finally {
+    eventOptionLoading.value = false;
+  }
+}
+
+async function handleReportTypeChange() {
+  reportForm.templateId = undefined;
+  await loadReportTemplateOptions();
 }
 
 function openReportCreate() {
@@ -645,14 +516,19 @@ function openReportCreate() {
     periodStartTime: undefined,
     periodEndTime: undefined,
     reportSummary: '',
-    reportContent: '',
-    reportFormat: 'markdown'
+    reportContent: undefined,
+    reportFormat: 'markdown',
+    aiUserPrompt: ''
   });
+  loadReportTemplateOptions();
+  loadEventOptions();
   reportDialogVisible.value = true;
 }
 
 function openReportEdit(row: CampusReport) {
   Object.assign(reportForm, row);
+  loadReportTemplateOptions();
+  loadEventOptions();
   reportDialogVisible.value = true;
 }
 
@@ -692,6 +568,7 @@ async function openGenerateDialog(row: CampusReport) {
   genReport.value = row;
   genMode.value = row.generationMode === 'ai' ? 'ai' : 'template';
   genTemplateId.value = row.templateId;
+  genAiUserPrompt.value = row.aiUserPrompt || '';
   genStreaming.value = true;
   genRunning.value = false;
   genCompleted.value = false;
@@ -737,23 +614,21 @@ async function startGenerate() {
     } finally {
       genRunning.value = false;
     }
+  } else if (genStreaming.value) {
+    await startStreamingGeneration(reportId);
   } else {
-    if (genStreaming.value) {
-      await startStreamingGeneration(reportId);
-    } else {
-      genRunning.value = true;
-      try {
-        const result = await generateReportAi(reportId);
-        genReport.value = result;
-        genResultContent.value = result.reportContent || '';
-        genCompleted.value = true;
-        ElMessage.success('AI 报告生成完成');
-        await loadReports();
-      } catch (error) {
-        ElMessage.error(error instanceof Error ? error.message : 'AI 生成失败');
-      } finally {
-        genRunning.value = false;
-      }
+    genRunning.value = true;
+    try {
+      const result = await generateReportAi(reportId, genAiUserPrompt.value);
+      genReport.value = result;
+      genResultContent.value = result.reportContent || '';
+      genCompleted.value = true;
+      ElMessage.success('AI 报告生成完成');
+      await loadReports();
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : 'AI 生成失败');
+    } finally {
+      genRunning.value = false;
     }
   }
 }
@@ -764,7 +639,7 @@ function startStreamingGeneration(reportId: ApiId) {
     streamContent.value = '';
     genCompleted.value = false;
 
-    const url = getGenerateAiStreamUrl(reportId);
+    const url = getGenerateAiStreamUrl(reportId, genAiUserPrompt.value);
     eventSource = new EventSource(url);
 
     const finish = async () => {
@@ -793,12 +668,11 @@ function startStreamingGeneration(reportId: ApiId) {
     };
 
     eventSource.addEventListener('done', finish);
-
-    eventSource.onerror = (event) => {
+    eventSource.addEventListener('error', (event) => {
+      const message = event instanceof MessageEvent && event.data ? String(event.data) : '';
       eventSource?.close();
       eventSource = null;
       genRunning.value = false;
-      const message = event instanceof MessageEvent && event.data ? String(event.data) : '';
       if (streamContent.value) {
         genCompleted.value = true;
         genResultContent.value = streamContent.value;
@@ -807,7 +681,7 @@ function startStreamingGeneration(reportId: ApiId) {
         ElMessage.error(message || 'AI 流式生成失败');
       }
       resolve();
-    };
+    });
   });
 }
 
@@ -826,7 +700,6 @@ function renderMarkdown(md: string): string {
     .replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
   html = html.replace(/^(\s*)- (.+)$/gm, '<li>$2</li>');
 
   let result = '';
@@ -952,64 +825,14 @@ async function submitArchive() {
   }
 }
 
-function openTemplateCreate() {
-  Object.assign(templateForm, {
-    templateId: undefined,
-    templateName: '',
-    reportType: 'daily',
-    templateContent: defaultTemplateContent(),
-    status: 1,
-    remark: ''
-  });
-  templateDialogVisible.value = true;
-}
-
-function openTemplateEdit(row: CampusReportTemplate) {
-  Object.assign(templateForm, row);
-  templateDialogVisible.value = true;
-}
-
-async function submitTemplate() {
-  if (!templateForm.templateName || !templateForm.reportType) {
-    ElMessage.warning('模板名称和报告类型不能为空');
-    return;
-  }
-  saving.value = true;
-  try {
-    await saveReportTemplate({ ...templateForm });
-    ElMessage.success('模板已保存');
-    templateDialogVisible.value = false;
-    await loadTemplates();
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '保存失败');
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function submitTemplateDelete(row: CampusReportTemplate) {
-  if (!row.templateId) {
-    return;
-  }
-  try {
-    await ElMessageBox.confirm('确认删除该报告模板？', '删除确认', { type: 'warning' });
-    await deleteReportTemplate(row.templateId);
-    ElMessage.success('模板已删除');
-    await loadTemplates();
-  } catch (error) {
-    if (error !== 'cancel') {
-      ElMessage.error(error instanceof Error ? error.message : '删除失败');
-    }
-  }
-}
-
 function reportTypeLabel(value?: string) {
   const labels: Record<string, string> = {
     daily: '日报',
     weekly: '周报',
     monthly: '月报',
     special: '专报',
-    event: '事件报告'
+    event: '事件报告',
+    event_review: '事件复盘'
   };
   return labels[value || 'daily'] || value || '日报';
 }
@@ -1029,51 +852,49 @@ function reportStatusTagType(value?: string) {
   return 'warning';
 }
 
-function reportFormatLabel(value?: string) {
-  const labels: Record<string, string> = { markdown: 'Markdown', html: 'HTML', text: '纯文本' };
-  return labels[value || 'markdown'] || value || 'Markdown';
+function reportPreview(row: CampusReport) {
+  const source = row.reportContent || row.reportSummary || '';
+  return source.replace(/[#*_`|>\-\n\r]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || '暂无内容';
 }
 
-function defaultTemplateContent() {
-  return [
-    '# ${reportTitle}',
-    '',
-    '## 一、基本情况',
-    '${reportSummary}',
-    '',
-    '## 二、统计周期',
-    '${periodStart} 至 ${periodEnd}',
-    '',
-    '## 三、事件情况',
-    '- 事件标题：${eventTitle}',
-    '- 当前状态：${eventStatus}',
-    '',
-    '## 四、处置建议',
-    '请结合人工研判和部门反馈形成最终意见。'
-  ].join('\n');
+function templateOptionLabel(template: CampusReportTemplate) {
+  return `${template.templateName}（${reportTypeLabel(template.reportType)}）`;
+}
+
+function eventOptionLabel(event: CampusEvent) {
+  const risk = event.riskLevel ? ` / ${event.riskLevel}` : '';
+  const status = event.eventStatus ? ` / ${event.eventStatus}` : '';
+  return `${event.eventTitle}${risk}${status}`;
 }
 </script>
 
 <style scoped>
-.variable-reference {
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.detail-header div {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
 }
-.var-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+.detail-header strong {
+  font-size: 16px;
+  color: #303133;
 }
-.var-group-title {
+.detail-header span {
+  font-size: 13px;
+  color: #909399;
+}
+
+.form-tip {
+  margin-top: 6px;
   font-size: 12px;
-  font-weight: 600;
-  color: #606266;
-  min-width: 64px;
-}
-.var-group .el-tag {
-  cursor: pointer;
+  line-height: 1.6;
+  color: #909399;
 }
 
 .generate-info {

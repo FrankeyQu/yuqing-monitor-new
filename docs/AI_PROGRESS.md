@@ -18,7 +18,8 @@
 - **字段与链路补齐**：实体和 Mapper 接入 `generation_mode`、AI 审计字段、scope 字段、自动报告调度锁、生成日志 `generation_mode/duration_ms`；自动报告按任务 `generationMode` 调用传统或 AI 生成。
 - **针对性分析与 AI 输出**：报告数据聚合统一使用关键词、排除词、平台、风险等级、部门、监测任务和事件 scope；`analysisProfile` 控制 AI Prompt 侧重点；AI 失败不再保存失败 markdown 为正式报告内容。
 - **自动调度与 SSE**：新增自动报告调度扫描组件，默认关闭，按 `active + nextRunTime` 加锁执行；AI SSE 改为边生成边发送 `message`，完成发送 `done`，失败发送 `error`。
-- **本地验证**：使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过（18 个测试类，61 tests）；`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **二次恢复与模板体验**：修复 AI 输入 JSON 快照中的 Fastjson `$ref` 问题；新增 `ai_user_prompt`、自动报告 `event_id`、事件下拉 ID 字符串序列化；报告/自动报告表单改为模板和事件下拉；模板管理拆为 `/report-templates` 独立列表与编辑页；新增高校日报、周报、月报、重大事件、招生就业、后勤服务、学生安全心理风险模板种子。
+- **本地验证**：使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过（19 个测试类，62 tests）；`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 
 ## 2026-05-17 校园事件单用户台账模式收敛
 

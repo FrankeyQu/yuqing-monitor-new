@@ -351,6 +351,7 @@ npm run build
 
 ## 最近验证记录
 
+- 2026-05-17：报告模块二次恢复与模板体验优化本地验证；使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过，`.\mvnw.cmd test -DskipTests=false` 通过（19 个测试类，62 tests，0 failures / 0 errors / 0 skipped），`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 - 2026-05-17：Batch41-B47 生产发布验证；`.\mvnw.cmd clean -DskipTests package` 通过，确认 jar 内仅包含 `V1.40__CampusReportTargetedScope.sql`、`V1.41__CampusBlueprintCompletion.sql`、`V1.42__CampusRiskTopicTaxonomy.sql`；服务器备份 `/home/ubuntu/yuqing-backups/deploy-20260517-021145-governance-full`，Flyway `1.41/1.42` 成功，`yuqing/nginx/mariadb/redis-server` active，后端监听 8084；`https://yuqing.zhuoran.cc/`、`/monitor`、`/admin/monitor-tasks`、`/settings/ai-management` 返回 200，未登录 `/campus/dashboard/overview`、`/campus/ai/overview`、`/campus/monitor/information/list` 返回 302。
 - 2026-05-17：Batch41-B47 蓝图 MVP 闭环本地验证；`git diff --check` 通过，`campus-web npm run build` 通过，`.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过，`.\mvnw.cmd test -DskipTests=false` 通过（16 个测试类，55 tests，0 failures / 0 errors / 0 skipped）。
 - 2026-05-17：报告功能恢复与 AI 生成优化本地验证；`.\mvnw.cmd -DskipTests compile` 通过，`.\mvnw.cmd test -DskipTests=false` 通过（18 个测试类，61 tests，0 failures / 0 errors / 0 skipped），`.\mvnw.cmd -DskipTests package` 通过，`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。

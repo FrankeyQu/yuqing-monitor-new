@@ -30,6 +30,7 @@ public class CampusReportIdSerializationTest {
         CampusReportJob job = new CampusReportJob();
         job.setReportJobId(2055913991108169728L);
         job.setTemplateId(2055914489227907072L);
+        job.setEventId(2055914489227907073L);
 
         CampusReportGenerationLog log = new CampusReportGenerationLog();
         log.setGenerationLogId(2055913991108169729L);
@@ -43,6 +44,7 @@ public class CampusReportIdSerializationTest {
         Assert.assertTrue(templateJson.contains("\"templateId\":\"2055914489227907072\""));
         Assert.assertTrue(jobJson.contains("\"reportJobId\":\"2055913991108169728\""));
         Assert.assertTrue(jobJson.contains("\"templateId\":\"2055914489227907072\""));
+        Assert.assertTrue(jobJson.contains("\"eventId\":\"2055914489227907073\""));
         Assert.assertTrue(logJson.contains("\"generationLogId\":\"2055913991108169729\""));
         Assert.assertTrue(logJson.contains("\"reportJobId\":\"2055913991108169728\""));
         Assert.assertTrue(logJson.contains("\"reportId\":\"2055914489227907072\""));

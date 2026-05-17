@@ -25,4 +25,8 @@ public interface AiReportService {
     String generateReport(String reportType, String reportTitle, String dataJson,
                           String periodStart, String periodEnd, StringBuilder streamOutput,
                           Consumer<String> chunkConsumer);
+
+    String generateReport(String reportType, String reportTitle, String dataJson,
+                          String periodStart, String periodEnd, String aiUserPrompt,
+                          StringBuilder streamOutput, Consumer<String> chunkConsumer);
 }

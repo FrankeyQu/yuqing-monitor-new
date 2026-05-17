@@ -15,6 +15,8 @@ import EducationView from '../views/EducationView.vue';
 import JudgmentView from '../views/JudgmentView.vue';
 import AnalysisView from '../views/AnalysisView.vue';
 import ReportView from '../views/ReportView.vue';
+import ReportTemplateView from '../views/ReportTemplateView.vue';
+import ReportTemplateEditorView from '../views/ReportTemplateEditorView.vue';
 import AutoReportView from '../views/AutoReportView.vue';
 import SearchView from '../views/SearchView.vue';
 import CompareView from '../views/CompareView.vue';
@@ -97,6 +99,24 @@ const routes: RouteRecordRaw[] = [
         name: 'reports',
         component: ReportView,
         meta: { title: '报告归档' }
+      },
+      {
+        path: 'report-templates',
+        name: 'report-templates',
+        component: ReportTemplateView,
+        meta: { title: '报告模板' }
+      },
+      {
+        path: 'report-templates/create',
+        name: 'report-template-create',
+        component: ReportTemplateEditorView,
+        meta: { title: '新增报告模板' }
+      },
+      {
+        path: 'report-templates/:templateId/edit',
+        name: 'report-template-edit',
+        component: ReportTemplateEditorView,
+        meta: { title: '编辑报告模板' }
       },
       {
         path: 'auto-reports',

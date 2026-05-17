@@ -1,4 +1,5 @@
 import { apiGet } from './http';
+import type { ApiId } from '../types/api';
 
 export interface SpreadData {
   source: { media: string; time: string; title: string };
@@ -8,6 +9,6 @@ export interface SpreadData {
   relationLinks: { source: number; target: number }[];
 }
 
-export async function fetchSpreadData(eventId: number): Promise<SpreadData> {
+export async function fetchSpreadData(eventId: ApiId): Promise<SpreadData> {
   return apiGet<SpreadData>('/campus/spread/data', { eventId });
 }

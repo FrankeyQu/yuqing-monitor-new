@@ -574,10 +574,10 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | 账号任务/内容 | `/campus/account/task/add/list`、`/campus/account/content/add/list` | 关注任务和公开动态 |
 | 分析任务 | `/campus/analysis/task/create/list/run`、`/campus/analysis/result/list/review` | 规则辅助研判任务和结果复核；当前默认 `modelProvider=local_heuristic` |
 | 线索搜索 | `/campus/clue/list` | 前端 `/search` 仅搜索线索库，不搜索未转线索的监测信息或原始接入记录 |
-| 报告模板 | `/campus/report/template/list/save/delete` | 报告模板 |
-| 报告生成 | `/campus/report/list/detail/events/save/generate/generate-ai/generate-ai-stream` | 报告保存、传统生成、AI 生成和 SSE 流；`generate-ai` 返回 `ResultVO<CampusReport>` 并持久化 `reportContent/reportStatus/fileName`；报告相关 Snowflake ID 响应按字符串序列化，入参兼容 Long 字符串 |
+| 报告模板 | `/campus/report/template/list/save/delete` | 报告模板；前端独立页面 `/report-templates`、`/report-templates/create`、`/report-templates/:templateId/edit` 复用该接口 |
+| 报告生成 | `/campus/report/list/detail/events/save/generate/generate-ai/generate-ai-stream` | 报告保存、传统生成、AI 生成和 SSE 流；`generate-ai`/`generate-ai-stream` 可选 `aiUserPrompt`，返回 `ResultVO<CampusReport>` 并持久化 `reportContent/reportStatus/fileName/aiUserPrompt`；报告相关 Snowflake ID 响应按字符串序列化，入参兼容 Long 字符串 |
 | 报告下载 | `/campus/report/download/download-docx/download-pptx` | Markdown/Word/PPT 导出 |
-| 自动报告 | `/campus/auto-report/job/list/save/update-status/delete/run`、`/log/list` | 定时报告任务；任务 ID 和生成日志 ID 按字符串序列化，`generationMode=template/ai` 决定传统或 AI 生成 |
+| 自动报告 | `/campus/auto-report/job/list/save/update-status/delete/run`、`/log/list` | 定时报告任务；任务 ID 和生成日志 ID 按字符串序列化，`generationMode=template/ai` 决定传统或 AI 生成；任务可保存 `eventId` 和长期 `aiUserPrompt` |
 | 组织部门 | `/campus/department/list/tree/detail/save/delete` | 部门维护 |
 | 字典 | `/campus/dict/type/list/save/delete`、`/item/list/enabled/save/delete` | 字典类型和条目 |
 | 审计日志 | `GET /campus/audit/list` | 校园操作审计 |
@@ -585,7 +585,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 
 AI 能力管理接口统一返回 `ResultVO<T>`。GET 查询使用 `campus:ai:read`，POST 保存、删除和供应商配置测试使用 `campus:ai:operate`；后台菜单权限为 `campus:ai:view`。P2 历史能力只做登记和启停管理，默认不写入当前校园主流程。
 
-报告生成补充：`/campus/report/generate` 和 `/campus/report/generate-ai` 均使用报告配置的统一 scope 聚合线索库数据，支持 `scopeType/scopeKeywords/excludeKeywords/platformScope/riskLevels/departmentScope/monitorTaskIds/analysisProfile`。关联事件报告优先按 `eventId` 统计。`/campus/report/generate-ai-stream` 通过 SSE `message` 事件实时返回内容块，完成发送 `done` 事件，失败发送 `error` 事件；前端完成后应重新读取报告详情，以数据库中已持久化的 `reportContent` 为准。
+报告生成补充：`/campus/report/generate` 和 `/campus/report/generate-ai` 均使用报告配置的统一 scope 聚合线索库数据，支持 `scopeType/scopeKeywords/excludeKeywords/platformScope/riskLevels/departmentScope/monitorTaskIds/analysisProfile`。关联事件报告优先按 `eventId` 统计，事件业务 ID 同样按字符串序列化。AI 输入必须使用无循环引用的结构化快照，`aiUserPrompt` 只改变输出重点和表达，不改变规则统计口径。`/campus/report/generate-ai-stream` 通过 SSE `message` 事件实时返回内容块，完成发送 `done` 事件，失败发送 `error` 事件；前端完成后应重新读取报告详情，以数据库中已持久化的 `reportContent` 为准。
 
 ### Breaking Change 补充规则（校园模块）
 

@@ -25,6 +25,7 @@
 - `/campus/report/list/detail/save/generate/generate-ai/generate-ai-stream/archive/download/download-docx/download-pptx/delete`
 - `/campus/report/event/list`
 - `/campus/auto-report/**`
+- 前端页面：`/reports` 报告归档，`/report-templates` 模板列表，`/report-templates/create` 和 `/report-templates/:templateId/edit` 模板维护，`/auto-reports` 自动报告。
 
 ## 权限
 
@@ -36,6 +37,8 @@
 - 报告生成不得直接统计未转线索的监测命中；周期、事件和关键词过滤必须共用同一个线索 scope。
 - AI 生成必须把内容持久化到 `campus_report.report_content`，并同步 `report_status=generated`、`report_format=markdown`、`file_name`、`generated_by` 和 `generate_time`。
 - 报告、模板、任务和日志的 Snowflake 业务 ID 必须对前端按字符串序列化；前端请求入参使用字符串 ID，服务端继续绑定为 Long。
+- 自动报告任务可保存 `event_id` 与 `ai_user_prompt`；执行任务时必须把事件和补充 AI 要求传递给生成出的 `campus_report`。
+- AI 输入快照必须复制平台分布、平台排名、趋势、情感、热词、热点文章和治理指标，禁止输出 Fastjson `$ref` 循环引用。
 - 报告 scope 字段必须共用同一线索口径：关键词、排除词、平台、风险等级、部门、监测任务、事件和周期不得分散实现。
 - AI 生成失败不得把失败说明保存为正式报告正文；失败原因应进入 AI 调用日志或自动报告生成日志。
 - 事件复盘模板应能展示事件标题、风险等级、状态、走势、媒体、情感、热词、热点文章和治理复盘。

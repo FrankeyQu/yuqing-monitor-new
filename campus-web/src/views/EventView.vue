@@ -314,7 +314,7 @@ import {
   saveEvent
 } from '../services/eventCenter';
 import { CAMPUS_RISK_OPTIONS, campusRiskLabel, campusRiskTagType } from '../config/campusTaxonomy';
-import type { CampusClue, CampusDisposalRecord, CampusEvent } from '../types/api';
+import type { ApiId, CampusClue, CampusDisposalRecord, CampusEvent } from '../types/api';
 
 const activeTab = ref('events');
 const eventLoading = ref(false);
@@ -332,7 +332,7 @@ const eventTotal = ref(0);
 const selectedEvent = ref<CampusEvent>();
 const archiveConclusion = ref('');
 // Spread analysis state
-const spreadEventId = ref<number | undefined>(undefined);
+const spreadEventId = ref<ApiId | undefined>(undefined);
 const spreadLoading = ref(false);
 const spreadData = ref<SpreadData | null>(null);
 const timelineChartRef = ref<HTMLElement | null>(null);

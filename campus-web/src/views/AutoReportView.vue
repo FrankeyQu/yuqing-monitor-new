@@ -44,6 +44,7 @@
         <el-table-column prop="periodRule" label="周期" width="82">
           <template #default="{ row }">{{ periodRuleLabel(row.periodRule) }}</template>
         </el-table-column>
+        <el-table-column prop="eventId" label="关联事件" width="150" show-overflow-tooltip />
         <el-table-column prop="outputFormat" label="格式" width="92">
           <template #default="{ row }">{{ outputFormatLabel(row.outputFormat) }}</template>
         </el-table-column>
@@ -103,7 +104,7 @@
             <el-input v-model.trim="form.jobName" />
           </el-form-item>
           <el-form-item label="报告类型" required>
-            <el-select v-model="form.reportType">
+            <el-select v-model="form.reportType" @change="handleReportTypeChange">
               <el-option label="日报" value="daily" />
               <el-option label="周报" value="weekly" />
               <el-option label="月报" value="monthly" />
@@ -128,13 +129,63 @@
           </el-form-item>
         </div>
         <div class="form-grid">
-          <el-form-item label="模板ID">
-            <el-input v-model.trim="form.templateId" />
+          <el-form-item label="报告模板">
+            <el-select
+              v-model="form.templateId"
+              filterable
+              remote
+              clearable
+              placeholder="搜索并选择模板"
+              :remote-method="loadTemplateOptions"
+              :loading="templateOptionLoading"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="tpl in templateOptions"
+                :key="tpl.templateId"
+                :label="templateOptionLabel(tpl)"
+                :value="tpl.templateId"
+              />
+            </el-select>
           </el-form-item>
           <el-form-item label="计划表达式">
             <el-input v-model.trim="form.scheduleCron" />
           </el-form-item>
         </div>
+        <div class="form-grid">
+          <el-form-item label="关联事件">
+            <el-select
+              v-model="form.eventId"
+              filterable
+              remote
+              clearable
+              placeholder="搜索并选择事件"
+              :remote-method="loadEventOptions"
+              :loading="eventOptionLoading"
+              style="width: 100%;"
+            >
+              <el-option
+                v-for="event in eventOptions"
+                :key="event.eventId"
+                :label="eventOptionLabel(event)"
+                :value="event.eventId"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="分析档位">
+            <el-select v-model="form.analysisProfile">
+              <el-option label="概览简报" value="brief" />
+              <el-option label="风险研判" value="risk" />
+              <el-option label="处置建议" value="disposal" />
+            </el-select>
+          </el-form-item>
+        </div>
+        <el-form-item v-if="form.generationMode === 'ai'" label="AI 生成要求">
+          <el-input v-model.trim="form.aiUserPrompt" type="textarea" :rows="4" />
+          <div class="form-tip">
+            可填写本任务每次 AI 生成时的补充要求，例如重点关注风险研判、处置建议、某类群体反馈或领导汇报口径；系统会先按规则统计数据，再让 AI 按该要求润色和分析。
+          </div>
+        </el-form-item>
         <div class="form-grid">
           <el-form-item label="统计范围">
             <el-select v-model="form.scopeType">
@@ -146,15 +197,6 @@
               <el-option label="自定义范围" value="custom" />
             </el-select>
           </el-form-item>
-          <el-form-item label="分析档位">
-            <el-select v-model="form.analysisProfile">
-              <el-option label="概览简报" value="brief" />
-              <el-option label="风险研判" value="risk" />
-              <el-option label="处置建议" value="disposal" />
-            </el-select>
-          </el-form-item>
-        </div>
-        <div class="form-grid">
           <el-form-item label="包含关键词">
             <el-input v-model.trim="form.scopeKeywords" />
           </el-form-item>
@@ -241,11 +283,13 @@ import {
   deleteReportJob,
   listReportGenerationLogs,
   listReportJobs,
+  listReportTemplates,
   runReportJob,
   saveReportJob,
   updateReportJobStatus
 } from '../services/analysisReport';
-import type { CampusReportGenerationLog, CampusReportJob } from '../types/api';
+import { listEvents } from '../services/eventCenter';
+import type { CampusEvent, CampusReportGenerationLog, CampusReportJob, CampusReportTemplate } from '../types/api';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -254,6 +298,10 @@ const formVisible = ref(false);
 const logVisible = ref(false);
 const rows = ref<CampusReportJob[]>([]);
 const logs = ref<CampusReportGenerationLog[]>([]);
+const templateOptions = ref<CampusReportTemplate[]>([]);
+const eventOptions = ref<CampusEvent[]>([]);
+const templateOptionLoading = ref(false);
+const eventOptionLoading = ref(false);
 const total = ref(0);
 
 const query = reactive({
@@ -276,6 +324,8 @@ const form = reactive<CampusReportJob>({
   monitorTaskIds: '',
   analysisProfile: 'brief',
   templateId: undefined,
+  eventId: undefined,
+  aiUserPrompt: '',
   periodRule: 'daily',
   scheduleCron: '',
   outputFormat: 'markdown',
@@ -284,7 +334,50 @@ const form = reactive<CampusReportJob>({
   description: ''
 });
 
-onMounted(loadJobs);
+onMounted(() => {
+  loadJobs();
+  loadTemplateOptions();
+  loadEventOptions();
+});
+
+async function loadTemplateOptions(keyword = '') {
+  templateOptionLoading.value = true;
+  try {
+    const page = await listReportTemplates({
+      pageNum: 1,
+      pageSize: 50,
+      keyword,
+      reportType: form.reportType,
+      status: 1
+    });
+    templateOptions.value = page.list || [];
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '模板选项加载失败');
+  } finally {
+    templateOptionLoading.value = false;
+  }
+}
+
+async function loadEventOptions(keyword = '') {
+  eventOptionLoading.value = true;
+  try {
+    const page = await listEvents({
+      pageNum: 1,
+      pageSize: 50,
+      keyword
+    });
+    eventOptions.value = page.list || [];
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '事件选项加载失败');
+  } finally {
+    eventOptionLoading.value = false;
+  }
+}
+
+async function handleReportTypeChange() {
+  form.templateId = undefined;
+  await loadTemplateOptions();
+}
 
 async function loadJobs() {
   loading.value = true;
@@ -314,6 +407,8 @@ function resetForm() {
     monitorTaskIds: '',
     analysisProfile: 'brief',
     templateId: undefined,
+    eventId: undefined,
+    aiUserPrompt: '',
     periodRule: 'daily',
     scheduleCron: '',
     outputFormat: 'markdown',
@@ -325,11 +420,15 @@ function resetForm() {
 
 function openCreate() {
   resetForm();
+  loadTemplateOptions();
+  loadEventOptions();
   formVisible.value = true;
 }
 
 function openEdit(row: CampusReportJob) {
   Object.assign(form, row);
+  loadTemplateOptions();
+  loadEventOptions();
   formVisible.value = true;
 }
 
@@ -356,6 +455,9 @@ async function submitForm() {
 function normalizeJobIds(payload: CampusReportJob) {
   if (payload.templateId === '') {
     payload.templateId = undefined;
+  }
+  if (payload.eventId === '') {
+    payload.eventId = undefined;
   }
   if (payload.reviewerUserId === '') {
     payload.reviewerUserId = undefined;
@@ -431,6 +533,16 @@ function reportTypeLabel(value?: string) {
   return labels[value || 'daily'] || value || '日报';
 }
 
+function templateOptionLabel(template: CampusReportTemplate) {
+  return `${template.templateName}（${reportTypeLabel(template.reportType)}）`;
+}
+
+function eventOptionLabel(event: CampusEvent) {
+  const risk = event.riskLevel ? ` / ${event.riskLevel}` : '';
+  const status = event.eventStatus ? ` / ${event.eventStatus}` : '';
+  return `${event.eventTitle}${risk}${status}`;
+}
+
 function periodRuleLabel(value?: string) {
   const labels: Record<string, string> = { daily: '日报周期', weekly: '周报周期', monthly: '月报周期' };
   return labels[value || 'daily'] || value || '日报周期';
@@ -461,3 +573,12 @@ function runStatusLabel(value?: string) {
   return labels[value || 'running'] || value || '运行中';
 }
 </script>
+
+<style scoped>
+.form-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #909399;
+}
+</style>

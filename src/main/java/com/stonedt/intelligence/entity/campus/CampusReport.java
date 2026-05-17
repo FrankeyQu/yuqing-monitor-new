@@ -37,6 +37,7 @@ public class CampusReport {
     private String fileName;
     private String filePath;
     private String aiModel;
+    private String aiUserPrompt;
     private String aiPromptSnapshot;
     @JsonSerialize(using = ToStringSerializer.class, as = Long.class)
     private Long generatedBy;

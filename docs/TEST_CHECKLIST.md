@@ -78,6 +78,8 @@ npm run build
 - 后端打包：`.\mvnw.cmd clean -DskipTests package` 通过。
 - 验收口径：手动 AI 分析情感、摘要、风险等级、主题、相关性时同时比较标题和正文，哪个更匹配任务和校园事实就优先使用哪个；分数相同时正文优先。
 - 验收口径：标题作为主要依据且 AI 未明确返回 `riskLevel=concern` 时，不因负面情感自动升为“一般预警”；正文主导的负面情感仍可进入一般预警。
+- 线上发布：merge commit `3b6b964` 已推送 GitHub `origin/main`；仅覆盖后端 jar，备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-024024-monitor-ai-title-content`，包 SHA256 `2fb3f748ddf6a251fca744c5b561e288ca60a996df94cf1a232f98401495f449`。
+- 线上冒烟：`yuqing/nginx/mariadb/redis-server` 均 active，后端监听 `8084`；`/`、`/monitor`、`/admin/monitor-tasks` 返回 200，未登录监测列表接口返回 302。
 
 ### 2026-05-18 监测表格列宽与 AI 摘要展示验证
 - 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。

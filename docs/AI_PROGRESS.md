@@ -18,6 +18,9 @@
 - **提示词约束**：监测命中 AI 分析合同追加标题正文比较规则，要求先比较 `title` 与 `content` 哪个更匹配，再判断情感、摘要、风险等级、主题、学校相关性；如果 AI 认为系统预选不合理，可返回 `analysisBasis=content/title/mixed`。
 - **风险保护**：AI 返回标题兜底结果且未明确给出 `riskLevel=concern` 时，仅负面情感不再自动把监测结果升为“一般预警”；正文主导的负面情感、负面词、原始风险或 AI 明确风险判断仍按现有规则进入风险等级。
 - **本地验证**：新增 `CampusMonitorAiContentFirstTest`，覆盖正文更匹配、标题正文同分时正文优先、标题更匹配回复型正文、标题兜底、标题负面不自动升预警、正文负面仍升预警；`.\mvnw.cmd "-Dtest=CampusMonitorAiContentFirstTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过（6 tests）；`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd clean -DskipTests package` 通过。
+- **Git 同步**：功能分支 `claude/monitor-ai-content-first` 已合并到 `main`，merge commit `3b6b964` 已推送 GitHub `origin/main`，并同步服务器裸仓库分支 `deploy-vps/claude/monitor-ai-title-content-main`。
+- **生产部署**：仅后端变更，已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 并重启 `yuqing`；发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-024024-monitor-ai-title-content`，后端包 SHA256 `2fb3f748ddf6a251fca744c5b561e288ca60a996df94cf1a232f98401495f449`。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0` 且监听 `8084`；`/`、`/monitor`、`/admin/monitor-tasks` 返回 200，未登录 `/campus/monitor/information/list?pageNum=1&pageSize=1` 返回 302。
 
 ## 2026-05-18 main 追平生产分支
 

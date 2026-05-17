@@ -20,7 +20,7 @@
 - **前端调整**：`MonitorView.vue` 中“忽略/已忽略/批量忽略”统一展示为“取消预警/已取消预警/批量取消预警”；语言空值和未识别值展示为“中文”；监测结果状态补充颜色区分，待处理为 warning、已预警为 danger、已取消预警为 info、已处理/已转线索为 success。
 - **文档同步**：`docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/PERMISSION_RULES.md`、`docs/TEST_CHECKLIST.md` 已同步监测语言默认中文和取消预警语义。
 - **本地验证**：使用 `.codex-tools/jdk8/jdk8u482-b08` 执行 `.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd clean -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 通过，仅保留 CRLF 提示。
-- **Git 合并**：功能提交 `280f705 fix: align monitor cancel alert semantics` 已通过 merge commit `c863715 merge: monitor cancel alert semantics` 合并到 `main`。
+- **Git 合并**：功能提交 `280f705 fix: align monitor cancel alert semantics` 已通过 merge commit `c863715 merge: monitor cancel alert semantics` 合并到 `main`，GitHub `origin/main` 已推送；服务器裸仓库因历史 `main` 非快进未强推，改同步留痕分支 `deploy-vps/claude/monitor-language-cancel-alert-main`。
 - **生产部署**：已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-030448-monitor-cancel-alert`；后端包 SHA256 `ff26d6b388ad49b6bafe00c29ef9659a14ce78cc3f60abec8c54fab655860cf0`，前端包 SHA256 `d6dd44cd0e06104bb8ecd1f75d8a7e5fbd57dcefffd6f2f9c3224d343fd19ad8`。
 - **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`https://yuqing.zhuoran.cc/` 与 `/monitor` 返回 200，未登录 `/campus/monitor/information/list?pageNum=1&pageSize=1` 返回 302；线上 jar 内 `CampusMonitorResultMapper.xml` 已包含 `updateStatusAndRisk` 与语言 `zh` 兜底，线上静态资源包含“取消预警”且不包含“未知语言”。
 

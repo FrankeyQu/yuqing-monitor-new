@@ -1,6 +1,6 @@
 # 测试检查清单 — 卓然舆情
 
-> 当前项目测试覆盖率仍然偏低，但已不再是“只有 1 个 stub 测试”。截至 2026-05-17，`src/test/java/` 下已有 19 个 Java 测试类；旧的 Spring 上下文测试已降级为轻量占位测试，`mvn test -DskipTests=false` 已可稳定结束。
+> 当前项目测试覆盖率仍然偏低，但已不再是“只有 1 个 stub 测试”。截至 2026-05-18，`src/test/java/` 下已有 20 个 Java 测试类；旧的 Spring 上下文测试已降级为轻量占位测试，`mvn test -DskipTests=false` 已可稳定结束。
 > `pom.xml` 仍配置了 `<skipTests>true</skipTests>`，日常最小门禁以编译和前端构建为准。
 
 ## 后端测试命令
@@ -12,13 +12,13 @@ $env:JAVA_HOME=$jdk
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\mvnw.cmd -DskipTests compile       # 最小后端门禁
 .\mvnw.cmd -DskipTests package       # 后端打包门禁
-.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test    # 启用后端测试，当前 62 个用例通过
+.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test    # 启用后端测试，当前至少 66 个用例通过
 ```
 
 ⚠️ **当前状态**：
 - `skipTests=true` 在 pom.xml 中硬编码
-- 测试目录 `src/test/java/` 当前有 19 个 Java 测试类
-- 接入模块、ID 序列化和报告 AI 快照测试共 62 个用例
+- 测试目录 `src/test/java/` 当前有 20 个 Java 测试类
+- 接入模块、ID 序列化、报告 AI 快照和监测 AI 正文优先测试共至少 66 个用例
 - `StonedtPortalApplicationTests` 已移除完整 Spring 上下文加载，避免测试门禁依赖数据库/Redis/外部配置
 - 最小可行验证命令：`.\mvnw.cmd -DskipTests compile`
 
@@ -42,6 +42,7 @@ npm run build  # 大屏 Vue 2 构建，仅修改 large_screen 时需要
 - [ ] 情感筛选只展示全部、正面、中性、负面、未知；接口参数使用 `positive/neutral/negative/none` 并兼容历史中文值。
 - [ ] 监测信息页单条和批量修改情感可用；未转线索只更新监测结果，已转未归档线索同步更新线索情感，已归档线索关联记录提示失败且不写入。
 - [ ] 监测信息页单条、选中批量和当前页 AI 分析可用；成功后刷新情感、AI摘要、AI建议、主题和相关性；失败、跳过、成功数量反馈清晰。
+- [ ] 监测命中 AI 分析优先依据正文判断情感、摘要、风险、主题和学校相关性；正文缺失/过短/重复标题/疑似平台噪声时才用标题兜底。
 - [ ] AI 判断“不建议命中”后只展示 AI 建议和理由，不自动忽略、不自动转预警、不改变风险等级和结果状态。
 - [ ] 已转未归档线索关联的监测命中 AI 分析成功后同步线索情感、学校相关性和主题；已归档线索关联记录跳过写入。
 - [ ] 后台监测任务管理页 AI 体检只展示任务配置建议，不写回任务配置，不展示具体采集内容。
@@ -70,6 +71,12 @@ npm run build
 ```
 
 ## 最近验证记录
+
+### 2026-05-18 监测命中 AI 分析正文优先验证
+- 后端单测：`.\mvnw.cmd "-Dtest=CampusMonitorAiContentFirstTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过（4 tests）。
+- 后端编译：`.\mvnw.cmd -DskipTests compile` 通过。
+- 验收口径：手动 AI 分析情感、摘要、风险等级、主题、相关性时优先使用正文；正文缺失、过短、重复标题或疑似平台噪声时才用标题兜底。
+- 验收口径：标题兜底且 AI 未明确返回 `riskLevel=concern` 时，不因负面情感自动升为“一般预警”；正文主导的负面情感仍可进入一般预警。
 
 ### 2026-05-18 监测表格列宽与 AI 摘要展示验证
 - 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。

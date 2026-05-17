@@ -11,6 +11,14 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 监测命中 AI 分析正文优先改造
+
+- **用户目标**：AI 对情感、摘要、风险等级、主题和学校相关性进行分析时，先使用正文内容，正文缺失或不可用时再使用标题，避免标题党或标题负面覆盖正文真实语义。
+- **后端调整**：`CampusMonitorServiceImpl` 在构造监测命中 AI 入参时新增主分析文本选择逻辑；可用正文进入 `primaryText` 并标记 `analysisBasisHint=content`，正文缺失、过短、重复标题或疑似平台噪声时才以标题兜底并标记 `analysisBasisHint=title`。
+- **提示词约束**：监测命中 AI 分析合同追加正文优先规则，要求情感、摘要、风险等级、主题、学校相关性均优先依据 `primaryText`；正文与标题冲突时以正文为准；标题兜底时需谨慎，不能仅凭标题负面制造正文没有的风险。
+- **风险保护**：AI 返回标题兜底结果且未明确给出 `riskLevel=concern` 时，仅负面情感不再自动把监测结果升为“一般预警”；正文主导的负面情感、负面词、原始风险或 AI 明确风险判断仍按现有规则进入风险等级。
+- **本地验证**：新增 `CampusMonitorAiContentFirstTest`，覆盖正文优先、标题兜底、标题负面不自动升预警、正文负面仍升预警；`.\mvnw.cmd "-Dtest=CampusMonitorAiContentFirstTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过（4 tests）；`.\mvnw.cmd -DskipTests compile` 通过。
+
 ## 2026-05-18 main 追平生产分支
 
 - **用户目标**：确认线上可用后，将 GitHub `main` 追平当前服务器实际运行代码，避免后续从 `main` 部署时回退大屏统一、监测 AI 或接入去重修复。

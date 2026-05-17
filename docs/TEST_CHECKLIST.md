@@ -71,6 +71,7 @@ npm run build
 - 后端编译：使用 `.codex-tools/jdk8` 设置 `JAVA_HOME` 后执行 `.\mvnw.cmd -DskipTests compile` 通过，编译 492 个 Java source files，仅有旧代码内部 API、deprecated、unchecked 警告。
 - 前端构建：`campus-web npm run build` 通过；仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 - 浏览器冒烟：Vite 本地服务启动于 `http://127.0.0.1:5173/`；未启动后端会按现有鉴权守卫跳转 `/login`，页面级登录后验收仍需连接本地或线上后端。
+- 生产部署：提交 `53f77f1` 已部署到服务器，备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-185919-event-single-user`；`yuqing/nginx/mariadb/redis-server` 均为 active；`https://yuqing.zhuoran.cc/events` 返回 200，未登录事件接口返回 302。
 - 验收口径：`/monitor` 的“加入事件”改为调用事件归集接口；`/events` 主流程改为事件台账、线下处置记录和直接归档；相似线索支持加入当前事件。
 
 ### 2026-05-17 Batch1-Batch6 报告/统计/接入/状态/搜索口径验证

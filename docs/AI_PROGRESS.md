@@ -18,6 +18,8 @@
 - **前端调整**：`/events` 从“处置任务”收敛为“处置记录”，主操作改为“记录线下处置”；相似线索增加“加入事件”按钮；`/monitor` 批量/单条“加入事件”改为调用事件归集接口，不再伪装成线索保存。
 - **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/TEST_CHECKLIST.md` 和 `docs/modules/campus_event/manifest.md`，记录单用户事件台账模式、接口、状态流转和验证结果。
 - **本地验证**：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd -DskipTests compile` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **GitHub / 服务器同步**：提交 `53f77f1 feat: simplify campus event workflow` 已推送 GitHub `origin/claude/fix-campus-monitor-id-precision` 和服务器远端 `deploy-vps/claude/fix-campus-monitor-id-precision`。
+- **生产部署**：本地 `.\mvnw.cmd -DskipTests package` 与 `campus-web npm run build` 通过后，已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`；发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-185919-event-single-user`；`yuqing/nginx/mariadb/redis-server` 均为 active，`https://yuqing.zhuoran.cc/events` 返回 200，未登录访问 `/campus/event/list?pageNum=1&pageSize=1` 返回 302，符合鉴权预期。
 
 ## 2026-05-17 Batch1-Batch6 新界面业务闭环修正
 

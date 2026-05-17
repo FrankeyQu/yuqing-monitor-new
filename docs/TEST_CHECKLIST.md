@@ -76,7 +76,7 @@ npm run build
 - XML 检查：`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` 可被 XML parser 正常解析。
 - 后端编译：使用 `.codex-tools/jdk8` 设置 `JAVA_HOME` 后执行 `.\mvnw.cmd -DskipTests compile` 通过，编译 495 个 Java source files，仅有旧代码内部 API、deprecated、unchecked 警告。
 - 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
-- 验收口径：`/admin/monitor-tasks` 的 AI 体检只读返回配置建议；`/monitor` 的 AI 分析手动触发，最多 20 条，写入监测命中的情感、AI摘要、AI建议、学校相关性和主题分类；不自动忽略、不自动转预警、不改变风险等级/状态；已归档线索关联记录跳过写入；合并发布时监测 AI 迁移使用 `V1.46__CampusMonitorAiAnalysis.sql`，避免与生产已执行的报告 `V1.44` 冲突。
+- 验收口径：`/admin/monitor-tasks` 的 AI 体检只读返回配置建议；`/monitor` 的 AI 分析手动触发，最多 20 条，写入监测命中的情感、AI摘要、AI建议、学校相关性和主题分类；不自动忽略、不自动转预警、不改变风险等级/状态；已归档线索关联记录跳过写入；合并发布时按生产 Flyway 历史保留监测 AI 迁移 `V1.45__CampusMonitorAiAnalysis.sql`，大屏菜单迁移顺延为 `V1.46__CampusDashboardScreenUnification.sql`。
 
 ### 2026-05-17 报告 AI 生成与模板体验发布验证
 - 代码检查：`git diff --check` 和 `git diff --cached --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。

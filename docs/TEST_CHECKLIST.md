@@ -71,6 +71,15 @@ npm run build
 
 ## 最近验证记录
 
+### 2026-05-17 多分支合并生产发布验证
+- 后端打包：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd clean -DskipTests package` 通过，编译 497 个 Java source files，仅保留旧代码内部 API、deprecated、unchecked 警告。
+- 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- 迁移包检查：最终 jar 内包含 `V1.44__CampusReportPromptAndTemplates.sql`、`V1.45__CampusMonitorAiAnalysis.sql`、`V1.46__CampusDashboardScreenUnification.sql`，没有旧版重复监测 AI 迁移残留。
+- GitHub / 服务器远端：`6027506 merge: combine report dashboard monitor ai changes`、`765a4f5 fix: align campus migration order with production` 已推送 `origin/claude/merge-all-deploy-20260517` 和 `deploy-vps/claude/merge-all-deploy-20260517`。
+- 生产发布：备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-232619-merge-all-flyway-align`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`。
+- 线上验收：`yuqing` active，监听 `8084`；Flyway `1.44` 报告模板、`1.45` 监测 AI、`1.46` 工作台/大屏菜单均 success=1；`workbench` 菜单为“舆情态势”且 `situation` 隐藏；`/`、`/situation`、`/monitor`、`/reports`、`/report-templates`、`/auto-reports` 返回 200；未登录 dashboard、监测 AI、报告列表接口返回 302。
+- 观察项：启动后接入调度出现重复 `external_id` 告警，未影响服务启动和本次页面/API 冒烟，建议后续单独纳入接入去重问题排查。
+
 ### 2026-05-17 监测任务与监测信息 AI 分析验证
 - 代码检查：`git diff --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。
 - XML 检查：`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` 可被 XML parser 正常解析。

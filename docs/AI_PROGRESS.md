@@ -4,12 +4,23 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告功能恢复与 AI 生成优化已发布，后续进入线上联调和细节体验回归
+- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/大屏合并已在合并部署分支发布到生产
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`main` 已合并 `claude/report-ai-recovery`，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
-- **最近已发布功能提交**：commit `e06d5ae feat: restore AI report generation`
+- **当前 Git 状态**：合并部署分支 `claude/merge-all-deploy-20260517` 已推送 GitHub 和服务器远端；`main` 保持 `claude/report-ai-recovery` 发布点
+- **最近已发布功能提交**：commit `765a4f5 fix: align campus migration order with production`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
+
+## 2026-05-17 多分支合并与生产部署收口
+
+- **用户目标**：把之前已完成的报告恢复、监测 AI 分析、工作台/大屏合并等改动合并到同一条可部署分支，并发布到服务器。
+- **执行分支 / Worktree**：本地 worktree `D:\PRJ\yuqing`，分支 `claude/merge-all-deploy-20260517`；合并 `claude/unify-dashboard-screen` 与 `main` 报告恢复线，保留监测情感、ID 精度、报告模板和大屏入口等前序改动。
+- **迁移对齐**：生产库已执行 `V1.44__CampusReportPromptAndTemplates.sql` 和一次 `V1.45__CampusMonitorAiAnalysis.sql`，因此源码最终对齐为 `V1.44` 报告模板、`V1.45` 监测 AI、`V1.46` 工作台/大屏菜单，避免 Flyway checksum 和版本复用冲突。
+- **本地验证**：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd clean -DskipTests package` 通过，jar 内迁移确认只包含 `V1.44__CampusReportPromptAndTemplates.sql`、`V1.45__CampusMonitorAiAnalysis.sql`、`V1.46__CampusDashboardScreenUnification.sql`；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **Git 同步**：提交 `6027506 merge: combine report dashboard monitor ai changes` 与 `765a4f5 fix: align campus migration order with production` 已推送到 GitHub `origin/claude/merge-all-deploy-20260517` 和服务器远端 `deploy-vps/claude/merge-all-deploy-20260517`。
+- **生产发布**：发布包 SHA256 已与服务器 `/tmp` 上传包一致；发布前备份 jar、web 和数据库到 `/home/ubuntu/yuqing-backups/deploy-20260517-232619-merge-all-flyway-align`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`。
+- **线上验收**：`yuqing` 为 active，后端监听 `8084`；Flyway `1.44 CampusReportPromptAndTemplates`、`1.45 CampusMonitorAiAnalysis`、`1.46 CampusDashboardScreenUnification` 均 success=1；菜单 `workbench` 已改为“舆情态势”且 `situation` 已隐藏；`/`、`/situation`、`/monitor`、`/reports`、`/report-templates`、`/auto-reports` 返回 200，未登录 dashboard、监测 AI、报告列表接口返回 302；线上静态资源包含“大屏模式”“AI分析”“报告模板”。
+- **遗留观察**：启动后接入调度出现重复 `external_id` 的业务告警，属于接入去重数据问题，不影响本次发布启动和页面/API 冒烟，后续可单独排查。
 
 ## 2026-05-17 监测任务与监测信息 AI 分析
 

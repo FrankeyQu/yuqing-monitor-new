@@ -1,5 +1,5 @@
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'is-screen-mode': screenMode }">
     <aside class="app-aside" :class="{ 'is-collapsed': collapsed }">
       <div class="brand-row">
         <img class="brand-mark" src="../assets/campus-mark.svg" alt="" />
@@ -114,19 +114,26 @@ import { computed, onMounted, reactive, ref, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import {
-  Bell,
+  BookOpenText,
   BrainCircuit,
+  CalendarClock,
   ClipboardList,
+  Database,
   FileText,
   Gauge,
+  LayoutDashboard,
   LockKeyhole,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Radar,
   Scale,
   Search,
   Settings,
   ShieldAlert,
+  ShieldCheck,
+  Siren,
+  UsersRound,
 } from 'lucide-vue-next';
 import { clearLoginState, currentLoginName, setNewPassword } from '../services/auth';
 import { COMPANY_NAME, PRODUCT_EN_NAME, PRODUCT_NAME } from '../config/brand';
@@ -154,14 +161,22 @@ interface MenuItem {
 }
 
 const iconMap: Record<string, Component> = {
-  Bell,
+  Bell: Siren,
+  BookOpenText,
   BrainCircuit,
+  CalendarClock,
   ClipboardList,
+  Database,
   FileText,
   Gauge,
+  LayoutDashboard,
+  Radar,
   Scale,
   Settings,
   ShieldAlert,
+  ShieldCheck,
+  Siren,
+  UsersRound,
 };
 
 const menuItems = ref<MenuItem[]>([]);
@@ -181,6 +196,7 @@ const activePath = computed(() => {
   return `/${route.path.split('/')[1]}`;
 });
 const pageTitle = computed(() => String(route.meta.title || '工作台'));
+const screenMode = computed(() => route.path === '/situation' || route.query.mode === 'screen');
 const loginName = computed(() => currentLoginName());
 const searchQuery = ref('');
 
@@ -255,7 +271,6 @@ async function submitNewPassword() {
 
 const FRONT_MENU_PATHS = new Set([
   '/',
-  '/situation',
   '/monitor',
   '/judgment',
   '/events',

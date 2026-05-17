@@ -4,39 +4,59 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告功能恢复与监测任务/监测信息 AI 分析均已发布，后续进入线上验收和细节体验回归
+- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/大屏合并和接入去重修复已发布，正在将 GitHub `main` 追平生产代码
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`main` 已合并 `claude/monitor-ai-analysis`，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
-- **最近已发布功能提交**：commit `9f4726f Merge monitor AI analysis`
+- **当前 Git 状态**：`main` 合并 `claude/fix-ingest-deleted-dedup`，用于对齐当前线上生产代码
+- **最近已发布功能提交**：commit `d5f03ca docs: record ingest dedup deployment`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
-## 2026-05-17 报告功能恢复与 AI 生成优化
+## 2026-05-18 main 追平生产分支
 
-- **执行边界**：从生产最新代码点 `53f77f1` 创建独立分支 `claude/report-ai-recovery` 和 worktree，未混入原工作区其它模块改动；不修改 `pom.xml` 和核心配置，不删除旧报告链路。
-- **ID 精度修复**：报告、模板、报告事件、自动报告任务和生成日志的 Long 业务 ID 增加字符串序列化；前端报告相关 API 改用 `ApiId`，避免 19 位 Snowflake ID 被浏览器 number 精度截断。
-- **字段与链路补齐**：实体和 Mapper 接入 `generation_mode`、AI 审计字段、scope 字段、自动报告调度锁、生成日志 `generation_mode/duration_ms`；自动报告按任务 `generationMode` 调用传统或 AI 生成。
-- **针对性分析与 AI 输出**：报告数据聚合统一使用关键词、排除词、平台、风险等级、部门、监测任务和事件 scope；`analysisProfile` 控制 AI Prompt 侧重点；AI 失败不再保存失败 markdown 为正式报告内容。
-- **自动调度与 SSE**：新增自动报告调度扫描组件，默认关闭，按 `active + nextRunTime` 加锁执行；AI SSE 改为边生成边发送 `message`，完成发送 `done`，失败发送 `error`。
-- **二次恢复与模板体验**：修复 AI 输入 JSON 快照中的 Fastjson `$ref` 问题；新增 `ai_user_prompt`、自动报告 `event_id`、事件下拉 ID 字符串序列化；报告/自动报告表单改为模板和事件下拉；模板管理拆为 `/report-templates` 独立列表与编辑页；新增高校日报、周报、月报、重大事件、招生就业、后勤服务、学生安全心理风险模板种子。
-- **本地验证**：使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过（19 个测试类，62 tests）；`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
-- **GitHub 合并**：提交 `e06d5ae feat: restore AI report generation` 已推送到 GitHub `origin/claude/report-ai-recovery`，并 fast-forward 合并推送到 `origin/main`；服务器裸仓库已同步 `deploy-vps/claude/report-ai-recovery`，`deploy-vps/main` 与 GitHub 快照历史无共同祖先，本次未强推覆盖。
-- **生产发布**：发布前备份线上 jar、前端 web 和数据库到 `/home/ubuntu/yuqing-backups/deploy-20260517-214310-report-ai-template`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，重启 `yuqing` 并 reload `nginx`。
-- **线上验收**：Flyway 已从 `1.43` 迁移到 `1.44 CampusReportPromptAndTemplates` 且 success=1，7 个高校场景模板种子已落库；`yuqing/nginx/mariadb/redis-server` 均 active，后端监听 `8084`；`https://yuqing.zhuoran.cc/`、`/reports`、`/report-templates`、`/auto-reports` 返回 200，未登录 `/campus/report/list?pageNum=1&pageSize=1` 返回 302。
+- **用户目标**：确认线上可用后，将 GitHub `main` 追平当前服务器实际运行代码，避免后续从 `main` 部署时回退大屏统一、监测 AI 或接入去重修复。
+- **合并范围**：在 `D:\PRJ\yuqing-report-ai-recovery` 的 `main` worktree 合并 `claude/fix-ingest-deleted-dedup`；纳入舆情态势工作台/大屏合并、`V1.46__CampusDashboardScreenUnification.sql`、接入软删除记录去重修复和对应文档。
+- **生产现状核验**：线上 jar 已包含 `V1.44__CampusReportPromptAndTemplates.sql`、`V1.45__CampusMonitorAiAnalysis.sql`、`V1.46__CampusDashboardScreenUnification.sql` 与接入去重修复；`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`。
+- **发布策略**：本轮是 Git 主线追平生产代码，不重新覆盖服务器；后续发布应以合并后的 `main` 为准。
+
+## 2026-05-17 多分支合并与生产部署收口
+
+- **用户目标**：把之前已完成的报告恢复、监测 AI 分析、工作台/大屏合并等改动合并到同一条可部署分支，并发布到服务器。
+- **执行分支 / Worktree**：本地 worktree `D:\PRJ\yuqing`，分支 `claude/merge-all-deploy-20260517`；合并 `claude/unify-dashboard-screen` 与 `main` 报告恢复线，保留监测情感、ID 精度、报告模板和大屏入口等前序改动。
+- **迁移对齐**：生产库已执行 `V1.44__CampusReportPromptAndTemplates.sql` 和一次 `V1.45__CampusMonitorAiAnalysis.sql`，因此源码最终对齐为 `V1.44` 报告模板、`V1.45` 监测 AI、`V1.46` 工作台/大屏菜单，避免 Flyway checksum 和版本复用冲突。
+- **本地验证**：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd clean -DskipTests package` 通过，jar 内迁移确认只包含 `V1.44__CampusReportPromptAndTemplates.sql`、`V1.45__CampusMonitorAiAnalysis.sql`、`V1.46__CampusDashboardScreenUnification.sql`；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **Git 同步**：提交 `6027506 merge: combine report dashboard monitor ai changes` 与 `765a4f5 fix: align campus migration order with production` 已推送到 GitHub `origin/claude/merge-all-deploy-20260517` 和服务器远端 `deploy-vps/claude/merge-all-deploy-20260517`。
+- **生产发布**：发布包 SHA256 已与服务器 `/tmp` 上传包一致；发布前备份 jar、web 和数据库到 `/home/ubuntu/yuqing-backups/deploy-20260517-232619-merge-all-flyway-align`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`。
+- **线上验收**：`yuqing` 为 active，后端监听 `8084`；Flyway `1.44 CampusReportPromptAndTemplates`、`1.45 CampusMonitorAiAnalysis`、`1.46 CampusDashboardScreenUnification` 均 success=1；菜单 `workbench` 已改为“舆情态势”且 `situation` 已隐藏；`/`、`/situation`、`/monitor`、`/reports`、`/report-templates`、`/auto-reports` 返回 200，未登录 dashboard、监测 AI、报告列表接口返回 302；线上静态资源包含“大屏模式”“AI分析”“报告模板”。
+- **遗留观察**：启动后接入调度出现重复 `external_id` 的业务告警，属于接入去重数据问题，不影响本次发布启动和页面/API 冒烟，后续可单独排查。
+
+## 2026-05-17 接入软删除记录去重修复
+
+- **用户目标**：修复生产接入调度里 `Duplicate entry ... uk_campus_ingest_record_external` 告警，避免软删除历史记录导致同一来源外部 ID 重复插入失败。
+- **根因确认**：`campus_ingest_record` 数据库唯一索引 `uk_campus_ingest_record_external(source_id, external_id)` 和 `uk_campus_ingest_record_hash(source_id, content_hash)` 不区分 `deleted`；应用层查重却过滤 `deleted=0`，导致历史清理软删除记录仍占用唯一键，但新接入无法识别为重复。
+- **后端修复**：`CampusIngestRecordMapper` 中唯一键对应的 `selectDuplicate`、`selectDuplicateByExternalId`、`selectDuplicateByContentHash` 不再过滤 `deleted=0`；软删除历史记录会被判为 duplicate，不恢复显示、不重新插入，保持历史清理结果。
+- **测试补充**：新增 `CampusIngestRecordMapperContractTest`，锁定外部 ID / 内容哈希查重必须覆盖软删除记录，同时保留平台标题近似去重只查可见记录。
+- **本地验证**：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd "-Dtest=CampusIngestRecordMapperContractTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过；`.\mvnw.cmd clean -DskipTests package` 通过。
+- **生产发布**：提交 `7dda184 fix: deduplicate soft deleted ingest records` 已推送 GitHub `origin/claude/fix-ingest-deleted-dedup` 和服务器远端；发布前备份 jar 到 `/home/ubuntu/yuqing-backups/deploy-20260517-234447-ingest-deleted-dedup`，已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 并重启 `yuqing`。
+- **线上验证**：`yuqing` active，后端监听 `8084`；`/`、`/monitor` 返回 200，未登录 `/campus/ingest/runs` 返回 302；手动将问题任务 `2054608482077904896` 的 `next_run_time` 拨到当前时间触发一次调度，最新 run `2056039386365169664` 为 `success`，`fetched_count=20/duplicate_count=20/fail_count=0/error_type=NULL`，任务 `consecutive_fail_count` 清零且 `last_error_type=NULL`。
 
 ## 2026-05-17 监测任务与监测信息 AI 分析
 
-- **用户目标**：在监测任务页增加 AI 体检，在监测信息页增加手动 AI 分析；AI 可辅助判断情感、摘要、是否建议命中、校园主题和学校相关性，但不自动忽略、不自动转预警、不改变事件流程。
-- **后端调整**：新增 `POST /campus/monitor/task/ai-diagnose` 和 `POST /campus/monitor/result/ai-analyze`；新增监测 AI DTO、监测结果 AI 字段、`V1.45__CampusMonitorAiAnalysis.sql` 和 AI 功能绑定/提示词；AI 分析最多处理 20 条，失败不写入结果。
-- **同步口径**：AI 分析写入 `campus_monitor_result` 的情感、AI 摘要、AI 建议、学校相关性和主题分类；已转未归档线索同步情感、学校相关性和主题；已归档线索关联记录跳过写入。
-- **前端调整**：`/admin/monitor-tasks` 每行增加“AI体检”；`/monitor` 增加当前页 AI 分析、单条 AI 分析、批量 AI 分析、AI 建议列，并优先展示 AI 摘要。
-- **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/TEST_CHECKLIST.md`、`docs/modules/campus_monitor/manifest.md`、`docs/modules/campus_ai/manifest.md` 和 `docs/modules/campus_clue/manifest.md`。
-- **本地验证**：`git diff --check` / `git diff --cached --check` 通过（仅换行提示）；`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` XML 解析通过；合并后 `.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过，编译 497 个 Java source files；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
-- **Git 整理**：原提交曾误挂在 `claude/unify-dashboard-screen`；已 cherry-pick 为 `bf2c263 feat: add campus monitor ai analysis` 到 `claude/monitor-ai-analysis`，避免把大屏统一提交混入主线。
-- **主线合并与推送**：`main` merge commit `9f4726f Merge monitor AI analysis` 已推送 GitHub `origin/main`；服务器裸仓库 `deploy-vps/main` 非同源快进，未强推，另同步 `deploy-vps/claude/monitor-ai-analysis-main`。
-- **生产部署**：本地先执行 `.\mvnw.cmd clean -DskipTests package` 生成干净 jar，避免 Maven target 残留迁移文件；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-231343-monitor-ai-analysis`，包含 `app.jar`、`web.tar.gz` 和 `campus_yuqing.sql`。
-- **Flyway 修复**：首次发布因未 clean 打包混入旧 target 迁移残留，导致 `1.45` checksum mismatch；已用干净 jar 重新发布，并对 `flyway_schema_history` 的 `1.45 CampusMonitorAiAnalysis` 执行等价 repair，将 checksum 修正为 `1664895571`。
-- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；Flyway `1.44 CampusReportPromptAndTemplates` 与 `1.45 CampusMonitorAiAnalysis` 均 success；`https://yuqing.zhuoran.cc/monitor` 和 `/admin/monitor-tasks` 返回 200，未登录 `/campus/monitor/information/list?pageNum=1&pageSize=1` 返回 302。
+- **用户目标**：监测任务页增加 AI 体检；监测信息页支持手动单条/批量 AI 分析，给每条命中重新判断情感、生成一句话摘要、判断是否建议命中并归类校园主题。
+- **后端调整**：新增 `POST /campus/monitor/task/ai-diagnose` 和 `POST /campus/monitor/result/ai-analyze`；新增 `campus_monitor_result` AI 辅助字段 `ai_summary/ai_hit_recommendation/ai_hit_reason/ai_confidence/ai_analysis_time/ai_provider_code/ai_model_code`；监测命中 AI 分析成功后更新情感、AI摘要、AI建议、学校相关性和主题分类，已转未归档线索同步相关字段，已归档线索关联记录跳过写入。
+- **AI 能力配置**：新增功能绑定和提示词 `monitor_result_analysis`、`monitor_task_diagnosis`，继续通过 `campus_ai` 统一读取模型配置和记录脱敏调用日志；合并发布过程中生产库已执行 `V1.45__CampusMonitorAiAnalysis.sql`，源码按线上 Flyway 历史保留该版本，避免校验冲突。
+- **前端调整**：`/admin/monitor-tasks` 增加“AI体检”操作和只读结果弹窗；`/monitor` 增加当前页 AI 分析、单条“更多 → AI分析”、批量 AI 分析和 AI 建议列，标题摘要优先展示 AI 摘要。
+- **业务边界**：AI 判断“不建议命中”只作为辅助建议展示，不自动忽略、不删除、不转预警、不改变风险等级或结果状态；任务 AI 体检不写回配置、不展示具体采集内容。
+- **本地验证**：`git diff --check` 通过（仅保留既有 CRLF 工作区提示）；`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` XML 解析通过；`.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+
+## 2026-05-17 舆情态势工作台与大屏模式合并
+
+- **用户目标**：消除客户侧“工作台 / 态势大屏”重复入口，将普通排列式工作台和一屏大屏整合到同一业务页面内，通过“大屏模式”切换展示。
+- **执行分支 / Worktree**：本地 `D:\PRJ\yuqing`，分支 `claude/unify-dashboard-screen`；实施前 worktree 已存在另一组监测 AI 分析相关未提交改动，本轮仅暂存和提交本任务文件。
+- **前端调整**：`/` 统一为“舆情态势工作台”，右上新增“大屏模式 / 退出大屏”；`/situation` 复用同一 `DashboardView` 并直接进入大屏模式；大屏状态隐藏侧边栏和顶栏，使用 100vh 一屏网格展示核心指标、监测趋势、风险压力、最新命中、告警、任务和事件图表。
+- **数据与图标**：新增 `useCampusSituationDashboard` 统一态势数据加载和统计计算，移除首页默认 mock 兜底数据；导航和指标图标更新为 `LayoutDashboard / Radar / Siren / RadioTower / ScanSearch / Target / BellRing / Gauge` 等更贴近业务的 Lucide 图标；`PlatformBadge` 在 `showIcon=true` 时补齐平台图标。
+- **菜单与兼容**：新增 Flyway `V1.46__CampusDashboardScreenUnification.sql`，将 `workbench` 菜单展示名调整为“舆情态势”并隐藏 `situation` 菜单；历史 `/situation` 路由和权限保留，避免直达链接失效。
+- **文档同步**：更新 `docs/ARCHITECTURE.md`、`docs/PERMISSION_RULES.md`、`docs/campus-web-runbook.md` 和 `docs/campus-acceptance-runbook.md`，记录页面入口和菜单权限变化。
+- **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 针对本任务文件通过，仅有 CRLF 换行提示；使用本地 Vite + 临时 mock 后端浏览器验收 `/` 普通模式和 `/situation` 大屏模式，确认侧边栏/顶栏在大屏模式隐藏、图表渲染、核心文案和菜单入口正确。
 
 ## 2026-05-17 监测信息情感人工校正
 
@@ -51,6 +71,19 @@
 - **样式修正**：按用户反馈将监测信息表格情感列从常驻下拉框恢复为原 `EmotionBadge` 标签样式，仅点击标签时弹出修改菜单；批量修改情感保留在批量操作弹窗内。
 - **样式修正验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 - **样式修正发布**：提交 `81b6aa6 fix: restore monitor sentiment badge style` 已推送 GitHub 和服务器远端；仅覆盖 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-195451-monitor-sentiment-style`；`https://yuqing.zhuoran.cc/monitor` 返回 200，线上静态资源已包含 `sentiment-badge-trigger` 且不再包含 `sentiment-select`。
+
+## 2026-05-17 报告功能恢复与 AI 生成优化
+
+- **执行边界**：从生产最新代码点 `53f77f1` 创建独立分支 `claude/report-ai-recovery` 和 worktree，未混入原工作区其它模块改动；不修改 `pom.xml` 和核心配置，不删除旧报告链路。
+- **ID 精度修复**：报告、模板、报告事件、自动报告任务和生成日志的 Long 业务 ID 增加字符串序列化；前端报告相关 API 改用 `ApiId`，避免 19 位 Snowflake ID 被浏览器 number 精度截断。
+- **字段与链路补齐**：实体和 Mapper 接入 `generation_mode`、AI 审计字段、scope 字段、自动报告调度锁、生成日志 `generation_mode/duration_ms`；自动报告按任务 `generationMode` 调用传统或 AI 生成。
+- **针对性分析与 AI 输出**：报告数据聚合统一使用关键词、排除词、平台、风险等级、部门、监测任务和事件 scope；`analysisProfile` 控制 AI Prompt 侧重点；AI 失败不再保存失败 markdown 为正式报告内容。
+- **自动调度与 SSE**：新增自动报告调度扫描组件，默认关闭，按 `active + nextRunTime` 加锁执行；AI SSE 改为边生成边发送 `message`，完成发送 `done`，失败发送 `error`。
+- **二次恢复与模板体验**：修复 AI 输入 JSON 快照中的 Fastjson `$ref` 问题；新增 `ai_user_prompt`、自动报告 `event_id`、事件下拉 ID 字符串序列化；报告/自动报告表单改为模板和事件下拉；模板管理拆为 `/report-templates` 独立列表与编辑页；新增高校日报、周报、月报、重大事件、招生就业、后勤服务、学生安全心理风险模板种子。
+- **本地验证**：使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过（19 个测试类，62 tests）；`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **GitHub 合并**：提交 `e06d5ae feat: restore AI report generation` 已推送到 GitHub `origin/claude/report-ai-recovery`，并 fast-forward 合并推送到 `origin/main`；服务器裸仓库已同步 `deploy-vps/claude/report-ai-recovery`，`deploy-vps/main` 与 GitHub 快照历史无共同祖先，本次未强推覆盖。
+- **生产发布**：发布前备份线上 jar、前端 web 和数据库到 `/home/ubuntu/yuqing-backups/deploy-20260517-214310-report-ai-template`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，重启 `yuqing` 并 reload `nginx`。
+- **线上验收**：Flyway 已从 `1.43` 迁移到 `1.44 CampusReportPromptAndTemplates` 且 success=1，7 个高校场景模板种子已落库；`yuqing/nginx/mariadb/redis-server` 均 active，后端监听 `8084`；`https://yuqing.zhuoran.cc/`、`/reports`、`/report-templates`、`/auto-reports` 返回 200，未登录 `/campus/report/list?pageNum=1&pageSize=1` 返回 302。
 
 ## 2026-05-17 校园事件单用户台账模式收敛
 

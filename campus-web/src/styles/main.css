@@ -188,10 +188,24 @@ textarea {
   padding: 18px;
 }
 
-.workbench {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.app-shell.is-screen-mode {
+  display: block;
+  min-height: 100vh;
+  background: #07111f;
+}
+
+.app-shell.is-screen-mode .app-aside,
+.app-shell.is-screen-mode .topbar {
+  display: none;
+}
+
+.app-shell.is-screen-mode .app-main,
+.app-shell.is-screen-mode .content-area {
+  min-height: 100vh;
+}
+
+.app-shell.is-screen-mode .content-area {
+  padding: 0;
 }
 
 .screen-page {
@@ -710,36 +724,6 @@ textarea {
   border-radius: var(--radius);
   background: #f8fafc;
   font-size: 13px;
-}
-
-.workbench-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.workbench-summary-grid > div {
-  min-height: 104px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background: #f8fafc;
-  border: 1px solid #e5ebf2;
-  border-radius: var(--radius);
-}
-
-.workbench-summary-grid span {
-  color: var(--color-muted);
-  font-size: 13px;
-  line-height: 18px;
-}
-
-.workbench-summary-grid strong {
-  margin-top: 6px;
-  color: #0f172a;
-  font-size: 28px;
-  line-height: 34px;
 }
 
 .data-alert {
@@ -1420,7 +1404,6 @@ textarea {
   .screen-monitor-board,
   .screen-grid-three,
   .screen-source-grid,
-  .workbench-summary-grid,
   .ingest-overview-grid {
     grid-template-columns: 1fr;
   }

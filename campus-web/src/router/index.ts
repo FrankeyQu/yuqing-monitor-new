@@ -4,7 +4,6 @@ import MainLayout from '../layouts/MainLayout.vue';
 import AdminLayout from '../layouts/AdminLayout.vue';
 import LoginView from '../views/LoginView.vue';
 import DashboardView from '../views/DashboardView.vue';
-import SituationView from '../views/SituationView.vue';
 import MonitorView from '../views/MonitorView.vue';
 import ArticleDetailView from '../views/ArticleDetailView.vue';
 import AccountView from '../views/AccountView.vue';
@@ -47,7 +46,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'situation',
         name: 'situation',
-        component: SituationView,
+        component: DashboardView,
         meta: { title: '态势大屏' }
       },
       {

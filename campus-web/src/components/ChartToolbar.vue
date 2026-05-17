@@ -7,7 +7,7 @@
     </el-tooltip>
     <el-tooltip content="全屏显示" placement="top">
       <el-button text bg size="small" @click="handleFullscreen">
-        <Expand :size="14" />
+        <Maximize2 :size="14" />
       </el-button>
     </el-tooltip>
     <el-tooltip content="刷新" placement="top">
@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { Copy, Expand, RefreshCw } from 'lucide-vue-next';
+import { Copy, Maximize2, RefreshCw } from 'lucide-vue-next';
 import { ElMessage } from 'element-plus';
 
 const props = defineProps<{

@@ -1,6 +1,6 @@
 # 测试检查清单 — 卓然舆情
 
-> 当前项目测试覆盖率仍然偏低，但已不再是“只有 1 个 stub 测试”。截至 2026-05-17，`src/test/java/` 下已有 16 个 Java 测试类；旧的 Spring 上下文测试已降级为轻量占位测试，`mvn test -DskipTests=false` 已可稳定结束。
+> 当前项目测试覆盖率仍然偏低，但已不再是“只有 1 个 stub 测试”。截至 2026-05-17，`src/test/java/` 下已有 19 个 Java 测试类；旧的 Spring 上下文测试已降级为轻量占位测试，`mvn test -DskipTests=false` 已可稳定结束。
 > `pom.xml` 仍配置了 `<skipTests>true</skipTests>`，日常最小门禁以编译和前端构建为准。
 
 ## 后端测试命令
@@ -12,13 +12,13 @@ $env:JAVA_HOME=$jdk
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\mvnw.cmd -DskipTests compile       # 最小后端门禁
 .\mvnw.cmd -DskipTests package       # 后端打包门禁
-.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test    # 启用后端测试，当前 55 个用例通过
+.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test    # 启用后端测试，当前 62 个用例通过
 ```
 
 ⚠️ **当前状态**：
 - `skipTests=true` 在 pom.xml 中硬编码
-- 测试目录 `src/test/java/` 当前有 16 个 Java 测试类
-- 接入模块和轻量占位测试共 55 个用例
+- 测试目录 `src/test/java/` 当前有 19 个 Java 测试类
+- 接入模块、ID 序列化和报告 AI 快照测试共 62 个用例
 - `StonedtPortalApplicationTests` 已移除完整 Spring 上下文加载，避免测试门禁依赖数据库/Redis/外部配置
 - 最小可行验证命令：`.\mvnw.cmd -DskipTests compile`
 
@@ -65,6 +65,14 @@ npm run build
 ```
 
 ## 最近验证记录
+
+### 2026-05-17 报告 AI 生成与模板体验发布验证
+- 代码检查：`git diff --check` 和 `git diff --cached --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。
+- 后端验证：使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过，19 个测试类共 62 tests；`.\mvnw.cmd -DskipTests package` 通过。
+- 前端验证：`campus-web npm run build` 通过；仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- GitHub：`e06d5ae feat: restore AI report generation` 已推送 `origin/claude/report-ai-recovery`，并 fast-forward 合并推送到 `origin/main`。
+- 线上发布：备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-214310-report-ai-template`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`，`yuqing/nginx/mariadb/redis-server` 均 active。
+- 线上验收：Flyway `1.44 CampusReportPromptAndTemplates` success=1，7 个高校场景模板种子已落库；`/`、`/reports`、`/report-templates`、`/auto-reports` 返回 200；未登录 `/campus/report/list?pageNum=1&pageSize=1` 返回 302。
 
 ### 2026-05-17 校园事件单用户台账模式验证
 - 代码检查：`git diff --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。

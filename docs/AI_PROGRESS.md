@@ -4,10 +4,10 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告功能恢复与 AI 生成优化实施中，优先修复 Snowflake ID 精度和自动报告生成链路
+- **当前阶段**：报告功能恢复与 AI 生成优化已发布，后续进入线上联调和细节体验回归
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`claude/report-ai-recovery` 分支，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
-- **最近已发布功能提交**：commit `feat: simplify campus event workflow`
+- **当前 Git 状态**：`main` 已合并 `claude/report-ai-recovery`，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
+- **最近已发布功能提交**：commit `e06d5ae feat: restore AI report generation`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -20,6 +20,9 @@
 - **自动调度与 SSE**：新增自动报告调度扫描组件，默认关闭，按 `active + nextRunTime` 加锁执行；AI SSE 改为边生成边发送 `message`，完成发送 `done`，失败发送 `error`。
 - **二次恢复与模板体验**：修复 AI 输入 JSON 快照中的 Fastjson `$ref` 问题；新增 `ai_user_prompt`、自动报告 `event_id`、事件下拉 ID 字符串序列化；报告/自动报告表单改为模板和事件下拉；模板管理拆为 `/report-templates` 独立列表与编辑页；新增高校日报、周报、月报、重大事件、招生就业、后勤服务、学生安全心理风险模板种子。
 - **本地验证**：使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过（19 个测试类，62 tests）；`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **GitHub 合并**：提交 `e06d5ae feat: restore AI report generation` 已推送到 GitHub `origin/claude/report-ai-recovery`，并 fast-forward 合并推送到 `origin/main`；服务器裸仓库已同步 `deploy-vps/claude/report-ai-recovery`，`deploy-vps/main` 与 GitHub 快照历史无共同祖先，本次未强推覆盖。
+- **生产发布**：发布前备份线上 jar、前端 web 和数据库到 `/home/ubuntu/yuqing-backups/deploy-20260517-214310-report-ai-template`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，重启 `yuqing` 并 reload `nginx`。
+- **线上验收**：Flyway 已从 `1.43` 迁移到 `1.44 CampusReportPromptAndTemplates` 且 success=1，7 个高校场景模板种子已落库；`yuqing/nginx/mariadb/redis-server` 均 active，后端监听 `8084`；`https://yuqing.zhuoran.cc/`、`/reports`、`/report-templates`、`/auto-reports` 返回 200，未登录 `/campus/report/list?pageNum=1&pageSize=1` 返回 302。
 
 ## 2026-05-17 校园事件单用户台账模式收敛
 

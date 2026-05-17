@@ -19,6 +19,9 @@
 - **布局调整**：普通工作台中“运行中的监测任务”移至页面最底部整行；大屏模式中运行任务改为底部横向任务条。任务单行展示任务名、主体、关键词/负面词、AI分析状态、调度频率、近次命中和状态。
 - **文档同步**：`docs/API_CONTRACT.md` 的 `/campus/dashboard/statistics` 响应说明补充 `sentimentDistribution/mediaDistribution`。
 - **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 通过（仅 CRLF 提示）；Playwright 本地 mock 数据打开 `/` 与 `/?mode=screen` 验证页面可渲染，媒体来源坐标显示为“微博/抖音/微信/新闻”，运行任务底栏显示关键词和“AI分析：可用”。
+- **Git 合并**：功能提交 `c90a56d fix: align dashboard data source layout` 已通过 merge commit `8bc3807 merge: align dashboard data source layout` 合并到 `main`。
+- **生产部署**：仅前端静态资源变更，未重启后端；前端包 SHA256 `c75175eb812c37d71c903e7f102e28f72db38ddbcac96b6bbbd617858453a3f2`，发布前备份 `/opt/yuqing/web` 到 `/home/ubuntu/yuqing-backups/deploy-20260518-024536-dashboard-source-layout/web.tar.gz`，已覆盖 `/opt/yuqing/web` 并 reload `nginx`。
+- **线上验收**：`nginx` 与 `yuqing` 均为 active，`yuqing` 当前 `NRestarts=0`；`https://yuqing.zhuoran.cc/` 与 `/situation` 返回 200；线上静态资源 `index-BKD9prxr.js` 已包含 `task-strip`、`mediaDistribution`、`sentimentDistribution` 和“AI分析”。
 
 ## 2026-05-18 监测命中 AI 分析标题正文比较改造
 

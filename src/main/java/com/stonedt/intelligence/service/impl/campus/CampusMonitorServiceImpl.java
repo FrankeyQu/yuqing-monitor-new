@@ -714,6 +714,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         String userPrompt = applyPromptTemplate(StringUtils.defaultIfBlank(prompt == null ? null : prompt.getUserPrompt(),
                 "请分析以下监测命中列表。任务信息：${taskJson}。命中列表：${itemsJson}。逐条判断情感、一句话摘要、是否应该算作该任务命中、学校相关性、主题分类和理由。"),
                 variables);
+        userPrompt = appendMonitorResultAnalysisContract(userPrompt);
 
         CampusAiChatRequest chatRequest = new CampusAiChatRequest();
         chatRequest.setFeatureCode(FEATURE_MONITOR_RESULT_ANALYSIS);
@@ -789,9 +790,25 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         return json;
     }
 
+    private String appendMonitorResultAnalysisContract(String prompt) {
+        return StringUtils.defaultString(prompt)
+                + "\n\n返回格式必须是一个JSON对象，不要返回JSON数组，结构如下："
+                + "{\"results\":[{\"monitorResultId\":\"输入中的ID字符串\","
+                + "\"sentiment\":\"positive|neutral|negative|none\","
+                + "\"summary\":\"50字以内一句话\","
+                + "\"shouldHit\":\"hit|not_hit|uncertain\","
+                + "\"hitReason\":\"80字以内\","
+                + "\"confidence\":0,"
+                + "\"schoolRelevanceScore\":0,"
+                + "\"matchedSchoolTerms\":\"命中的学校相关词\","
+                + "\"topicCategory\":\"校园主题大类\","
+                + "\"topicSubCategory\":\"校园主题小类\","
+                + "\"topicReason\":\"主题判断理由\"}]}"
+                + "。必须逐条保留输入中的monitorResultId。";
+    }
+
     private Map<String, JSONObject> parseMonitorResultAnalysisMap(String content) {
-        JSONObject root = parseAiObject(content);
-        JSONArray results = root == null ? null : root.getJSONArray("results");
+        JSONArray results = parseAiResultsArray(content);
         if (results == null || results.isEmpty()) {
             throw new IllegalArgumentException("AI响应缺少results数组");
         }
@@ -812,22 +829,72 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         return map;
     }
 
+    private JSONArray parseAiResultsArray(String content) {
+        JSONObject root = parseAiObject(content);
+        if (root != null) {
+            JSONArray results = root.getJSONArray("results");
+            if (results != null) {
+                return results;
+            }
+            JSONArray data = root.getJSONArray("data");
+            if (data != null) {
+                return data;
+            }
+        }
+        return parseAiArray(content);
+    }
+
+    private JSONArray parseAiArray(String content) {
+        if (StringUtils.isBlank(content)) {
+            return null;
+        }
+        String json = content.trim();
+        if (json.startsWith("```")) {
+            int start = json.indexOf('\n');
+            if (start >= 0 && start < json.length() - 1) {
+                json = json.substring(start + 1);
+            }
+            int end = json.lastIndexOf("```");
+            if (end > 0) {
+                json = json.substring(0, end);
+            }
+            json = json.trim();
+        }
+        if (!json.startsWith("[")) {
+            int start = json.indexOf('[');
+            int end = json.lastIndexOf(']');
+            if (start >= 0 && end > start) {
+                json = json.substring(start, end + 1);
+            }
+        }
+        try {
+            return JSON.parseArray(json);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     private AiResultAnalysis normalizeAiResultAnalysis(JSONObject json) {
         AiResultAnalysis analysis = new AiResultAnalysis();
         String sentiment = CampusSentimentNormalizer.normalize(json.getString("sentiment"));
         analysis.sentiment = StringUtils.defaultIfBlank(sentiment, "none");
         analysis.summary = StringUtils.left(json.getString("summary"), 255);
         analysis.hitRecommendation = normalizeAiHitRecommendation(StringUtils.defaultIfBlank(
-                json.getString("shouldHit"), json.getString("aiHitRecommendation")));
-        analysis.hitReason = StringUtils.left(json.getString("hitReason"), 512);
+                json.getString("shouldHit"), StringUtils.defaultIfBlank(
+                        json.getString("aiHitRecommendation"), json.getString("hitAdvice"))));
+        String reason = StringUtils.defaultIfBlank(json.getString("hitReason"), json.getString("reason"));
+        analysis.hitReason = StringUtils.left(reason, 512);
         analysis.confidence = clamp(json.getInteger("confidence"), 0, 100);
         analysis.schoolRelevanceScore = clamp(json.getInteger("schoolRelevanceScore"), 0, 100);
+        if (analysis.schoolRelevanceScore == null) {
+            analysis.schoolRelevanceScore = normalizeSchoolRelevanceScore(json.getString("schoolRelevance"));
+        }
         analysis.matchedSchoolTerms = StringUtils.left(json.getString("matchedSchoolTerms"), 512);
         analysis.schoolRelevanceReason = StringUtils.left(StringUtils.defaultIfBlank(
-                json.getString("schoolRelevanceReason"), analysis.hitReason), 1024);
+                json.getString("schoolRelevanceReason"), reason), 1024);
         analysis.topicCategory = StringUtils.left(json.getString("topicCategory"), 64);
         analysis.topicSubCategory = StringUtils.left(json.getString("topicSubCategory"), 64);
-        analysis.topicReason = StringUtils.left(json.getString("topicReason"), 1024);
+        analysis.topicReason = StringUtils.left(StringUtils.defaultIfBlank(json.getString("topicReason"), reason), 1024);
         return analysis;
     }
 
@@ -1094,6 +1161,31 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             return "not_hit";
         }
         return "uncertain";
+    }
+
+    private Integer normalizeSchoolRelevanceScore(String value) {
+        String normalized = StringUtils.lowerCase(StringUtils.trimToEmpty(value));
+        if (StringUtils.isBlank(normalized)) {
+            return null;
+        }
+        if ("high".equals(normalized) || normalized.contains("高")) {
+            return 90;
+        }
+        if ("medium".equals(normalized) || "mid".equals(normalized) || normalized.contains("中")) {
+            return 60;
+        }
+        if ("low".equals(normalized) || normalized.contains("低")) {
+            return 30;
+        }
+        if ("none".equals(normalized) || "no".equals(normalized)
+                || normalized.contains("无") || normalized.contains("不相关")) {
+            return 0;
+        }
+        try {
+            return clamp(new BigDecimal(normalized).intValue(), 0, 100);
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private Integer clamp(Integer value, int min, int max) {

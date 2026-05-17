@@ -71,6 +71,15 @@ npm run build
 
 ## 最近验证记录
 
+### 2026-05-18 日报月报旧生产分支合并验证
+- 分支处理：`claude/daily-monthly-reports` 与当前 `main` 无共同 merge-base，属于旧 `deploy-vps/main` 历史线；直接内容合并会回退当前监测 AI、舆情态势大屏和接入去重修复，因此本地先采用 `ours` merge 记录式并入验证。
+- GitHub 限制：带旧历史父节点的 merge commit 推送时，GitHub 远端因缺失旧对象 `718ba19b31214b77913b95b5860cd738d73acd8b` 拒收；当前保留本地保护分支 `codex/daily-history-merge-unpushable`，GitHub `main` 按当前代码树和文档记录完成等价吸收。
+- 功能核对：当前 `main` 已包含日报/月报、自动报告、报告 scope、`analysisProfile`、周期统计和报告模板维护能力，保留当前主线实现作为生产口径。
+- AI 分析失败排查：线上 AI 调用日志显示 DeepSeek 返回成功，但返回体为根级 JSON 数组且字段名为 `hitAdvice/schoolRelevance/reason`；后端旧解析只接受 `{results:[...]}`，因此 20 条被批量标记为解析失败。
+- 兼容修复验证：`CampusMonitorServiceImpl` 已兼容根级数组、`results/data` 包装和旧字段别名，并在运行时追加监测命中 AI 分析 JSON 合同；执行 `.\mvnw.cmd -DskipTests compile` 通过。
+- 门禁验证：使用 JDK8 执行 `.\mvnw.cmd -DskipTests compile` 与 `.\mvnw.cmd clean -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- 待执行事项：部署当前 `main` 文件树到服务器并完成线上健康检查。
+
 ### 2026-05-18 main 追平生产代码验证
 - 合并目标：`main` 合并 `claude/fix-ingest-deleted-dedup`，使 GitHub 主线包含当前生产已部署的报告恢复、监测 AI、舆情态势工作台/大屏合并、`V1.46` 菜单迁移和接入软删除去重修复。
 - 线上现状：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`/monitor`、`/admin/monitor-tasks` 返回 200，未登录监测接口返回 302。

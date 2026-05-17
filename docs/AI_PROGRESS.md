@@ -4,10 +4,10 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/大屏合并和接入去重修复已发布，正在将 GitHub `main` 追平生产代码
+- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/大屏合并和接入去重修复已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收，正在修复监测命中 AI 分析返回格式兼容问题并部署
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`main` 合并 `claude/fix-ingest-deleted-dedup`，用于对齐当前线上生产代码
-- **最近已发布功能提交**：commit `d5f03ca docs: record ingest dedup deployment`
+- **当前 Git 状态**：`main` 以记录式合并纳入旧生产线 `claude/daily-monthly-reports`，文件内容保持当前生产代码
+- **最近已发布功能提交**：commit `6b30d00 Merge production ingest dedup and dashboard sync`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -17,6 +17,15 @@
 - **合并范围**：在 `D:\PRJ\yuqing-report-ai-recovery` 的 `main` worktree 合并 `claude/fix-ingest-deleted-dedup`；纳入舆情态势工作台/大屏合并、`V1.46__CampusDashboardScreenUnification.sql`、接入软删除记录去重修复和对应文档。
 - **生产现状核验**：线上 jar 已包含 `V1.44__CampusReportPromptAndTemplates.sql`、`V1.45__CampusMonitorAiAnalysis.sql`、`V1.46__CampusDashboardScreenUnification.sql` 与接入去重修复；`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`。
 - **发布策略**：本轮是 Git 主线追平生产代码，不重新覆盖服务器；后续发布应以合并后的 `main` 为准。
+
+## 2026-05-18 日报月报旧生产分支并入 main
+
+- **用户目标**：将本地 `claude/daily-monthly-reports` 全部 merge 到 `main` 并部署上线，同时排查监测任务 AI 分析失败 20 条的原因。
+- **分支判断**：`claude/daily-monthly-reports` 指向旧 `deploy-vps/main` 历史线，与当前 GitHub `main` 无共同 merge-base；其日报/月报、报告 scope 和自动报告能力已在当前 `main` 中通过报告恢复线、`V1.40__CampusReportTargetedScope.sql`、报告模板和自动报告模块等价吸收。
+- **合并策略**：本地尝试采用 `ours` merge 记录式并入旧历史，避免把旧生产线文件内容覆盖到当前 `main`，从而回退监测 AI、舆情态势大屏、AI 管理和接入去重修复；GitHub 远端因旧历史缺失对象 `718ba19b31214b77913b95b5860cd738d73acd8b` 拒收带旧父节点的 merge commit，因此最终以当前 `main` 代码树和文档记录完成等价吸收，保留本地保护分支 `codex/daily-history-merge-unpushable` 便于追溯。
+- **部署策略**：仍以当前 `main` 文件树打包并覆盖服务器；此次部署是确认 `main` 与生产代码保持一致，而不是回滚到旧日报/月报分支内容。
+- **AI 分析失败 20 条根因**：线上 `campus_ai_call_log` 显示 DeepSeek 调用 HTTP 200 且状态为 success，失败发生在应用层解析。AI 实际返回了根级 JSON 数组，并使用 `hitAdvice/schoolRelevance/reason` 等旧字段；后端只接受 `{ "results": [...] }` 且期望 `shouldHit/schoolRelevanceScore/hitReason/topicReason`，因此抛出“AI响应缺少results数组”，本次选择的 20 条被统一标记失败。
+- **兼容修复**：`CampusMonitorServiceImpl` 对监测命中 AI 分析追加运行时 JSON 合同约束；解析端兼容根级数组和 `data/results` 包装；字段归一兼容 `hitAdvice -> shouldHit`、`reason -> hitReason/topicReason`、`schoolRelevance(high/medium/low) -> schoolRelevanceScore`，避免同类模型输出导致整批失败。
 
 ## 2026-05-17 多分支合并与生产部署收口
 

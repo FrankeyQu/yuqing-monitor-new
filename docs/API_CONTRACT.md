@@ -429,18 +429,22 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | GET | `/campus/event/detail` | `eventId` | `ResultVO<CampusEvent>` | 事件详情 |
 | POST | `/campus/event/save` | `CampusEvent` JSON | `ResultVO<CampusEvent>` | 新增/保存事件 |
 | POST | `/campus/event/create-from-clue` | `clueId` + 可选 `CampusEvent` JSON | `ResultVO<CampusEvent>` | 线索转事件 |
+| POST | `/campus/event/clue/add` | `eventId,clueId` | `ResultVO<CampusEvent>` | 将已有线索加入已有事件，并写入 `campus_event_clue` 与 `campus_clue.event_id` |
 | POST | `/campus/event/rate` | `eventId,riskLevel,disposalRequirement?` | `ResultVO<CampusEvent>` | 风险定级 |
 | POST | `/campus/event/account/add` | `eventId,accountId` | `ResultVO<CampusEventAccount>` | 关联账号 |
 | POST | `/campus/event/assign` | `CampusDisposalTask` JSON | `ResultVO<CampusDisposalTask>` | 分派处置 |
 | POST | `/campus/event/feedback` | `disposalTaskId,recordContent,attachmentDesc?` | `ResultVO<CampusDisposalRecord>` | 处置反馈 |
 | POST | `/campus/event/return` | `disposalTaskId,recordContent` | `ResultVO<CampusDisposalRecord>` | 退回重办 |
 | POST | `/campus/event/confirm` | `disposalTaskId,recordContent` | `ResultVO<CampusDisposalRecord>` | 复核确认 |
-| POST | `/campus/event/archive` | `eventId,archiveConclusion` | `ResultVO<CampusEvent>` | 事件归档 |
+| POST | `/campus/event/record/add` | `eventId,recordContent,attachmentDesc?` | `ResultVO<CampusDisposalRecord>` | 单用户模式记录线下处置；服务层生成本地记录任务并把事件置为处理中 |
+| POST | `/campus/event/archive` | `eventId,archiveConclusion` | `ResultVO<CampusEvent>` | 事件归档；单用户模式允许任意未归档事件填写结论后归档 |
 | GET | `/campus/event/clue/list` | `eventId` | `ResultVO<List<CampusEventClue>>` | 关联线索 |
 | GET | `/campus/event/clue/suggest` | `eventId,limit?` | `ResultVO<List<CampusClue>>` | 按事件主题、风险等级和已关联线索排除口径推荐相似线索 |
 | GET | `/campus/event/account/list` | `eventId` | `ResultVO<List<CampusEventAccount>>` | 关联账号 |
 | GET | `/campus/event/task/list` | `eventId` | `ResultVO<List<CampusDisposalTask>>` | 处置任务 |
-| GET | `/campus/event/record/list` | `disposalTaskId` | `ResultVO<List<CampusDisposalRecord>>` | 处置记录 |
+| GET | `/campus/event/record/list` | `disposalTaskId` 或 `eventId` | `ResultVO<List<CampusDisposalRecord>>` | 处置记录；事件页按 `eventId` 展示线下处置台账 |
+
+说明：当前校园事件前端按单用户台账模式使用，重点覆盖“线索归集 → 事件定级 → 记录线下处置 → 归档”。`assign/feedback/return/confirm` 多人派单接口保留兼容，但前端不作为主流程暴露。
 
 ### 预警中心（CampusAlertController）
 

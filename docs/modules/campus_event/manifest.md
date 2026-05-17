@@ -2,7 +2,9 @@
 
 ## 模块定位
 
-事件处置模块负责“线索聚合 → 事件定级 → 分派处置 → 反馈/退回 → 复核 → 归档”的闭环。它读取线索库和账号库，但不得绕过 Service 直接修改其它模块数据。
+事件处置模块负责“线索聚合 → 事件定级 → 处置记录 → 归档”的校园舆情事件台账闭环。当前前端先按单用户模式使用：平台记录监测线索、事件归集和线下处置情况，校内部门协同、反馈和复核暂时走线下流程。
+
+模块保留“分派处置 → 反馈/退回 → 复核”的多人派单接口作为兼容能力，但前端主流程不再要求先分派、再反馈、再复核。
 
 ## 依赖模块
 
@@ -24,10 +26,10 @@
 
 - `/campus/event/list/detail/save/create-from-clue/rate/archive`
 - `/campus/event/account/add/list`
+- `/campus/event/clue/add/list/suggest`
+- `/campus/event/record/add/list`
 - `/campus/event/assign/feedback/return/confirm`
-- `/campus/event/clue/list/suggest`
 - `/campus/event/task/list`
-- `/campus/event/record/list`
 
 ## 权限
 
@@ -37,8 +39,9 @@
 
 ## 测试影响
 
-- 事件必须先定级再分派，未复核不得归档。
-- 线索转事件必须拒绝 `archived`、`converted` 或已有 `event_id` 的线索，避免重复生成事件和关系。
+- 单用户模式下，事件可直接记录线下处置并填写归档结论归档；已归档事件不得继续编辑、归集线索或记录处置。
+- 线索转新事件必须拒绝 `archived`、`converted` 或已有 `event_id` 的线索，避免重复生成事件和关系。
+- 线索加入已有事件必须同时维护 `campus_event_clue` 和 `campus_clue.event_id`，并拒绝已属于其它事件的线索。
 - 分派应生成默认 SLA 截止时间。
 - 反馈、退回、复核必须校验任务状态。
 - 相似线索推荐必须排除已关联当前事件的线索。

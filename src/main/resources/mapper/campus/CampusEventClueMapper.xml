@@ -18,6 +18,15 @@
         VALUES (#{relationId}, #{eventId}, #{clueId}, #{deleted}, #{createUserId})
     </insert>
 
+    <select id="selectByEventAndClue" resultMap="CampusEventClueResultMap">
+        SELECT id, relation_id, event_id, clue_id, deleted, create_user_id, create_time
+        FROM campus_event_clue
+        WHERE event_id = #{eventId}
+          AND clue_id = #{clueId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
     <select id="listByEventId" resultMap="CampusEventClueResultMap">
         SELECT id, relation_id, event_id, clue_id, deleted, create_user_id, create_time
         FROM campus_event_clue

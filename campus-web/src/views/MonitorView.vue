@@ -839,7 +839,7 @@ import {
 } from '../services/monitor';
 import { listIngestSources, listIngestTasks } from '../services/detectionIngest';
 import { archiveClue, deleteClue, saveClue, judgeClue } from '../services/campusBusiness';
-import { listEvents } from '../services/eventCenter';
+import { addEventClue, listEvents } from '../services/eventCenter';
 import { getCurrentCampusUser } from '../services/permission';
 import type {
   ApiId,
@@ -1337,11 +1337,7 @@ async function executeBatchOp() {
     let failCount = 0;
     for (const clue of selectedClues.value) {
       try {
-        await saveClue({
-          clueId: clue.clueId,
-          eventId: batchJoinEventId.value,
-          clueTitle: clue.clueTitle || clue.title || ''
-        });
+        await addEventClue(batchJoinEventId.value, clue.clueId!);
         successCount++;
       } catch {
         failCount++;

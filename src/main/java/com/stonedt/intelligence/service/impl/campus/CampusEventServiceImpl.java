@@ -119,6 +119,36 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
+    public CampusEvent addClueToEvent(Long eventId, Long clueId, Long operatorUserId) {
+        CampusEvent event = requireEvent(eventId);
+        ensureNotArchived(event);
+        CampusClue clue = campusClueDao.selectByClueId(clueId);
+        if (clue == null) {
+            throw new IllegalArgumentException("线索不存在");
+        }
+        if (CLUE_STATUS_ARCHIVED.equals(clue.getClueStatus())) {
+            throw new IllegalArgumentException("已归档线索不能加入事件");
+        }
+        if (clue.getEventId() != null && !clue.getEventId().equals(eventId)) {
+            throw new IllegalArgumentException("线索已属于其它事件，不能重复归集");
+        }
+        if (CLUE_STATUS_CONVERTED.equals(clue.getClueStatus()) && clue.getEventId() == null) {
+            throw new IllegalArgumentException("线索状态异常，缺少所属事件");
+        }
+        if (campusEventClueDao.selectByEventAndClue(eventId, clueId) == null) {
+            addEventClue(eventId, clueId, operatorUserId);
+        }
+        if (clue.getEventId() == null) {
+            int converted = campusClueDao.markConverted(clueId, eventId, operatorUserId);
+            if (converted != 1) {
+                throw new IllegalArgumentException("线索状态已变化，不能继续加入事件");
+            }
+        }
+        return campusEventDao.selectByEventId(eventId);
+    }
+
+    @Override
     public CampusEvent detail(Long eventId) {
         return requireEvent(eventId);
     }
@@ -239,9 +269,37 @@ public class CampusEventServiceImpl implements CampusEventService {
 
     @Override
     @Transactional
+    public CampusDisposalRecord recordOfflineDisposal(Long eventId,
+                                                      String recordContent,
+                                                      String attachmentDesc,
+                                                      Long operatorUserId,
+                                                      String operatorName) {
+        CampusEvent event = requireEvent(eventId);
+        ensureNotArchived(event);
+        CampusDisposalTask task = new CampusDisposalTask();
+        task.setDisposalTaskId(SnowflakeUtil.getId());
+        task.setEventId(eventId);
+        task.setTaskTitle("线下处置记录");
+        task.setAssignedDepartmentId(0L);
+        task.setDisposalRequirement(event.getDisposalRequirement());
+        task.setTaskStatus(TASK_COMPLETED);
+        task.setFeedbackSummary(summary(recordContent));
+        task.setDeleted(0);
+        task.setCreateUserId(operatorUserId);
+        task.setUpdateUserId(operatorUserId);
+        campusDisposalTaskDao.insert(task);
+        CampusDisposalTask savedTask = campusDisposalTaskDao.selectByTaskId(task.getDisposalTaskId());
+        CampusDisposalRecord record = addRecord(savedTask, "offline", recordContent, attachmentDesc,
+                operatorUserId, operatorName);
+        campusEventDao.updateStatus(eventId, STATUS_PROCESSING, operatorUserId);
+        return record;
+    }
+
+    @Override
+    @Transactional
     public CampusEvent archive(Long eventId, String archiveConclusion, Long operatorUserId) {
         CampusEvent event = requireEvent(eventId);
-        ensureStatus(event, "归档", STATUS_REVIEWED);
+        ensureNotArchived(event);
         if (StringUtils.isBlank(archiveConclusion)) {
             throw new IllegalArgumentException("归档结论不能为空");
         }
@@ -296,6 +354,12 @@ public class CampusEventServiceImpl implements CampusEventService {
     public List<CampusDisposalRecord> listRecords(Long disposalTaskId) {
         requireTask(disposalTaskId);
         return campusDisposalRecordDao.listByTaskId(disposalTaskId);
+    }
+
+    @Override
+    public List<CampusDisposalRecord> listRecordsByEvent(Long eventId) {
+        requireEvent(eventId);
+        return campusDisposalRecordDao.listByEventId(eventId);
     }
 
     private void addEventClue(Long eventId, Long clueId, Long operatorUserId) {

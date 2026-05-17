@@ -12,4 +12,6 @@ public interface CampusDisposalRecordDao {
     int insert(CampusDisposalRecord record);
 
     List<CampusDisposalRecord> listByTaskId(@Param("disposalTaskId") Long disposalTaskId);
+
+    List<CampusDisposalRecord> listByEventId(@Param("eventId") Long eventId);
 }

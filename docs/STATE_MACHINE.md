@@ -220,9 +220,9 @@ alerted → converted
 | `pending_judge` | 待研判/待定级 | `CampusEventServiceImpl` 默认值 |
 | `rated` | 已定级 | `CampusEventMapper.rate` |
 | `assigned` | 已分派 | `CampusEventServiceImpl.assign` |
-| `processing` | 处理中/退回重办后继续处理 | `CampusEventServiceImpl.returnTask` |
-| `feedback` | 已反馈 | `CampusEventServiceImpl.feedback` |
-| `reviewed` | 已复核 | `CampusEventServiceImpl.confirm` |
+| `processing` | 处理中/已记录线下处置 | `CampusEventServiceImpl.returnTask` 或 `recordOfflineDisposal` |
+| `feedback` | 已反馈（多人派单兼容状态） | `CampusEventServiceImpl.feedback` |
+| `reviewed` | 已复核/已处置（多人派单兼容状态） | `CampusEventServiceImpl.confirm` |
 | `archived` | 已归档 | `CampusEventMapper.archive` |
 
 **允许流转**：
@@ -231,15 +231,21 @@ pending_judge → rated → assigned → feedback → reviewed → archived
 rated → assigned        # 可追加分派
 assigned → processing → feedback
 feedback/reviewed → processing   # 退回重办
+
+# 单用户台账模式
+pending_judge/rated/assigned/feedback/reviewed → processing   # 记录线下处置
+任意非 archived 状态 → archived                             # 填写归档结论后归档
 ```
 
 **触发 API / Service**：
 - `POST /campus/event/save`：创建/保存，默认 `pending_judge`
+- `POST /campus/event/clue/add`：将已有线索加入已有事件，线索进入 `converted` 并写入事件关系
 - `POST /campus/event/rate`：风险定级，进入 `rated`
 - `POST /campus/event/assign`：分派处置，进入 `assigned`
 - `POST /campus/event/feedback`：处置反馈，进入 `feedback`
 - `POST /campus/event/return`：退回重办，进入 `processing`
 - `POST /campus/event/confirm`：复核确认，进入 `reviewed`
+- `POST /campus/event/record/add`：单用户模式记录线下处置，服务层生成本地处置记录并进入 `processing`
 - `POST /campus/event/archive`：归档，进入 `archived`
 
 **权限要求**：登录 + 对应校园 API 权限；上述写操作均有审计记录。
@@ -247,7 +253,8 @@ feedback/reviewed → processing   # 退回重办
 **禁止流转**：
 - `archived` 不应再回到处置中状态。
 - 事件保存、关联账号和处置流转均不得继续操作 `archived` 事件。
-- `rate` 仅允许 `pending_judge/rated`；`assign` 仅允许 `rated/assigned/processing`；`feedback` 仅允许 `assigned/processing` 事件且任务为 `pending/returned`；`confirm` 仅允许 `feedback` 事件且任务为 `completed`；`archive` 仅允许 `reviewed` 事件且必须填写归档结论。
+- `rate` 仅允许 `pending_judge/rated`；`assign` 仅允许 `rated/assigned/processing`；`feedback` 仅允许 `assigned/processing` 事件且任务为 `pending/returned`；`confirm` 仅允许 `feedback` 事件且任务为 `completed`。
+- 单用户模式下 `record/add` 和 `archive` 仅禁止 `archived` 事件继续操作；`archive` 必须填写归档结论。
 - 分派处置未提交 `dueTime` 时，Service 按事件风险等级生成默认 SLA：`urgent` 30 分钟、`major` 2 小时、`concern` 8 小时、`normal` 24 小时。
 
 ## 校园处置任务状态（campus_disposal_task.task_status）

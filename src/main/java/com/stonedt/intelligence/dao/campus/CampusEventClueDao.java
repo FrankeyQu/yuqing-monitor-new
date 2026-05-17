@@ -11,5 +11,8 @@ public interface CampusEventClueDao {
 
     int insert(CampusEventClue relation);
 
+    CampusEventClue selectByEventAndClue(@Param("eventId") Long eventId,
+                                         @Param("clueId") Long clueId);
+
     List<CampusEventClue> listByEventId(@Param("eventId") Long eventId);
 }

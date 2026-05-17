@@ -14,10 +14,7 @@
               <el-select v-model="eventQuery.eventStatus" clearable placeholder="状态">
                 <el-option label="待研判" value="pending_judge" />
                 <el-option label="已定级" value="rated" />
-                <el-option label="已分派" value="assigned" />
                 <el-option label="处理中" value="processing" />
-                <el-option label="已反馈" value="feedback" />
-                <el-option label="已复核" value="reviewed" />
                 <el-option label="已归档" value="archived" />
               </el-select>
               <el-button @click="loadEvents">
@@ -63,9 +60,9 @@
                   <Gauge :size="15" />
                   定级
                 </el-button>
-                <el-button link type="success" @click.stop="openAssign(row)">
-                  <Send :size="15" />
-                  分派
+                <el-button link type="success" @click.stop="openRecord(row)">
+                  <MessageSquareText :size="15" />
+                  记录
                 </el-button>
                 <el-button link type="info" @click.stop="openArchive(row)">
                   <Archive :size="15" />
@@ -88,38 +85,28 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="处置任务" name="tasks">
+        <el-tab-pane label="处置记录" name="records">
           <div class="selected-line">
-            <span>当前事件</span>
-            <strong>{{ selectedEvent?.eventTitle || '未选择' }}</strong>
+            <div>
+              <span>当前事件</span>
+              <strong>{{ selectedEvent?.eventTitle || '未选择' }}</strong>
+            </div>
+            <el-button type="primary" size="small" :disabled="!selectedEvent?.eventId" @click="selectedEvent && openRecord(selectedEvent)">
+              <MessageSquareText :size="15" />
+              新增记录
+            </el-button>
           </div>
 
-          <el-table :data="tasks" v-loading="taskLoading" size="small" height="560">
-            <el-table-column prop="taskTitle" label="任务标题" min-width="190" show-overflow-tooltip />
-            <el-table-column prop="assignedDepartmentId" label="承办部门ID" width="120" />
-            <el-table-column prop="dueTime" label="截止时间" width="168" show-overflow-tooltip />
-            <el-table-column prop="taskStatus" label="状态" width="98">
+          <el-table :data="records" v-loading="recordLoading" size="small" height="560">
+            <el-table-column prop="recordType" label="类型" width="110">
               <template #default="{ row }">
-                <el-tag effect="plain">{{ taskStatusLabel(row.taskStatus) }}</el-tag>
+                <el-tag effect="plain">{{ recordTypeLabel(row.recordType) }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="feedbackSummary" label="反馈摘要" min-width="180" show-overflow-tooltip />
-            <el-table-column label="操作" width="220" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" @click="openFeedback(row, 'feedback')">
-                  <MessageSquareText :size="15" />
-                  反馈
-                </el-button>
-                <el-button link type="warning" @click="openFeedback(row, 'return')">
-                  <Undo2 :size="15" />
-                  退回
-                </el-button>
-                <el-button link type="success" @click="openFeedback(row, 'confirm')">
-                  <CheckCircle2 :size="15" />
-                  复核
-                </el-button>
-              </template>
-            </el-table-column>
+            <el-table-column prop="recordContent" label="记录内容" min-width="280" show-overflow-tooltip />
+            <el-table-column prop="handlerName" label="记录人" width="120" show-overflow-tooltip />
+            <el-table-column prop="handleTime" label="记录时间" width="168" show-overflow-tooltip />
+            <el-table-column prop="attachmentDesc" label="附件/备注" min-width="180" show-overflow-tooltip />
           </el-table>
         </el-tab-pane>
 
@@ -140,6 +127,14 @@
             </el-table-column>
             <el-table-column prop="schoolRelevanceScore" label="相关性" width="90" />
             <el-table-column prop="discoverTime" label="发现时间" width="168" show-overflow-tooltip />
+            <el-table-column label="操作" width="110" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" @click="addSimilarClue(row)">
+                  <Plus :size="15" />
+                  加入事件
+                </el-button>
+              </template>
+            </el-table-column>
           </el-table>
         </el-tab-pane>
 
@@ -264,41 +259,18 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="assignVisible" title="分派处置" width="620px">
-      <el-form label-position="top">
-        <el-form-item label="任务标题" required>
-          <el-input v-model.trim="assignForm.taskTitle" />
-        </el-form-item>
-        <div class="form-grid">
-          <el-form-item label="承办部门ID" required>
-            <el-input-number v-model="assignForm.assignedDepartmentId" :min="1" controls-position="right" />
-          </el-form-item>
-          <el-form-item label="截止时间">
-            <el-date-picker v-model="assignForm.dueTime" type="datetime" />
-          </el-form-item>
-        </div>
-        <el-form-item label="处置要求">
-          <el-input v-model.trim="assignForm.disposalRequirement" type="textarea" :rows="4" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="assignVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitAssign">分派</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="feedbackVisible" :title="feedbackTitle" width="540px">
+    <el-dialog v-model="recordVisible" title="记录线下处置" width="540px">
       <el-form label-position="top">
         <el-form-item label="记录内容" required>
-          <el-input v-model.trim="feedbackForm.recordContent" type="textarea" :rows="4" />
+          <el-input v-model.trim="recordForm.recordContent" type="textarea" :rows="4" />
         </el-form-item>
-        <el-form-item v-if="feedbackForm.action === 'feedback'" label="附件说明">
-          <el-input v-model.trim="feedbackForm.attachmentDesc" />
+        <el-form-item label="附件/备注">
+          <el-input v-model.trim="recordForm.attachmentDesc" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="feedbackVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitFeedback">保存</el-button>
+        <el-button @click="recordVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitRecord">保存</el-button>
       </template>
     </el-dialog>
 
@@ -317,54 +289,47 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import * as echarts from 'echarts';
 import type { ECharts, EChartsOption } from 'echarts';
 import { fetchSpreadData } from '../services/spread';
 import type { SpreadData } from '../services/spread';
 import {
-  CheckCircle2,
   Archive,
   Gauge,
   MessageSquareText,
   Pencil,
   Plus,
-  Search,
-  Send,
-  Undo2
+  Search
 } from 'lucide-vue-next';
 import {
-  assignDisposalTask,
+  addEventClue,
+  addOfflineDisposalRecord,
   archiveEvent,
-  confirmDisposalTask,
-  feedbackDisposalTask,
+  listEventRecords,
   listSimilarEventClues,
-  listDisposalTasks,
   listEvents,
   rateEvent,
-  returnDisposalTask,
   saveEvent
 } from '../services/eventCenter';
 import { CAMPUS_RISK_OPTIONS, campusRiskLabel, campusRiskTagType } from '../config/campusTaxonomy';
-import type { CampusClue, CampusDisposalTask, CampusEvent } from '../types/api';
+import type { CampusClue, CampusDisposalRecord, CampusEvent } from '../types/api';
 
 const activeTab = ref('events');
 const eventLoading = ref(false);
-const taskLoading = ref(false);
+const recordLoading = ref(false);
 const similarLoading = ref(false);
 const saving = ref(false);
 const eventDialogVisible = ref(false);
 const rateVisible = ref(false);
-const assignVisible = ref(false);
-const feedbackVisible = ref(false);
+const recordVisible = ref(false);
 const archiveVisible = ref(false);
 const events = ref<CampusEvent[]>([]);
-const tasks = ref<CampusDisposalTask[]>([]);
+const records = ref<CampusDisposalRecord[]>([]);
 const similarClues = ref<CampusClue[]>([]);
 const eventTotal = ref(0);
 const selectedEvent = ref<CampusEvent>();
-const selectedTask = ref<CampusDisposalTask>();
 const archiveConclusion = ref('');
 // Spread analysis state
 const spreadEventId = ref<number | undefined>(undefined);
@@ -397,21 +362,9 @@ const rateForm = reactive({
   riskLevel: 'normal',
   disposalRequirement: ''
 });
-const assignForm = reactive<CampusDisposalTask>({
-  eventId: undefined,
-  taskTitle: '',
-  assignedDepartmentId: undefined,
-  disposalRequirement: '',
-  dueTime: undefined
-});
-const feedbackForm = reactive({
-  action: 'feedback',
+const recordForm = reactive({
   recordContent: '',
   attachmentDesc: ''
-});
-const feedbackTitle = computed(() => {
-  const labels: Record<string, string> = { feedback: '处置反馈', return: '退回重办', confirm: '复核确认' };
-  return labels[feedbackForm.action] || '处置记录';
 });
 
 // ---- Spread (propagation) analysis functions ----
@@ -536,8 +489,8 @@ onBeforeUnmount(() => {
 });
 
 watch(activeTab, (tab) => {
-  if (tab === 'tasks' && selectedEvent.value?.eventId) {
-    loadTasks();
+  if (tab === 'records' && selectedEvent.value?.eventId) {
+    loadRecords();
   }
   if (tab === 'similar' && selectedEvent.value?.eventId) {
     loadSimilarClues();
@@ -573,26 +526,26 @@ async function loadEvents() {
 
 async function selectEvent(row?: CampusEvent) {
   selectedEvent.value = row;
-  if (activeTab.value === 'tasks' && row?.eventId) {
-    await loadTasks();
+  if (activeTab.value === 'records' && row?.eventId) {
+    await loadRecords();
   }
   if (activeTab.value === 'similar' && row?.eventId) {
     await loadSimilarClues();
   }
 }
 
-async function loadTasks() {
+async function loadRecords() {
   if (!selectedEvent.value?.eventId) {
-    tasks.value = [];
+    records.value = [];
     return;
   }
-  taskLoading.value = true;
+  recordLoading.value = true;
   try {
-    tasks.value = await listDisposalTasks(selectedEvent.value.eventId);
+    records.value = await listEventRecords(selectedEvent.value.eventId);
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '处置任务加载失败');
+    ElMessage.error(error instanceof Error ? error.message : '处置记录加载失败');
   } finally {
-    taskLoading.value = false;
+    recordLoading.value = false;
   }
 }
 
@@ -677,31 +630,13 @@ async function submitRate() {
   }
 }
 
-function defaultDueTime() {
-  const date = new Date();
-  const riskLevel = selectedEvent.value?.riskLevel || 'normal';
-  if (riskLevel === 'urgent') {
-    date.setMinutes(date.getMinutes() + 30);
-  } else if (riskLevel === 'major') {
-    date.setHours(date.getHours() + 2);
-  } else if (riskLevel === 'concern') {
-    date.setHours(date.getHours() + 8);
-  } else {
-    date.setDate(date.getDate() + 1);
-  }
-  return date;
-}
-
-function openAssign(row: CampusEvent) {
+function openRecord(row: CampusEvent) {
   selectedEvent.value = row;
-  Object.assign(assignForm, {
-    eventId: row.eventId,
-    taskTitle: `${row.eventTitle}处置任务`,
-    assignedDepartmentId: undefined,
-    disposalRequirement: row.disposalRequirement || '',
-    dueTime: defaultDueTime()
+  Object.assign(recordForm, {
+    recordContent: '',
+    attachmentDesc: ''
   });
-  assignVisible.value = true;
+  recordVisible.value = true;
 }
 
 function openArchive(row: CampusEvent) {
@@ -728,54 +663,39 @@ async function submitArchive() {
   }
 }
 
-async function submitAssign() {
-  if (!assignForm.eventId || !assignForm.taskTitle || !assignForm.assignedDepartmentId) {
-    ElMessage.warning('事件ID、任务标题和承办部门不能为空');
-    return;
-  }
-  saving.value = true;
-  try {
-    await assignDisposalTask({ ...assignForm });
-    ElMessage.success('已分派');
-    assignVisible.value = false;
-    await loadEvents();
-    if (activeTab.value === 'tasks') {
-      await loadTasks();
-    }
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '分派失败');
-  } finally {
-    saving.value = false;
-  }
-}
-
-function openFeedback(row: CampusDisposalTask, action: string) {
-  selectedTask.value = row;
-  feedbackForm.action = action;
-  feedbackForm.recordContent = '';
-  feedbackForm.attachmentDesc = '';
-  feedbackVisible.value = true;
-}
-
-async function submitFeedback() {
-  if (!selectedTask.value?.disposalTaskId || !feedbackForm.recordContent) {
+async function submitRecord() {
+  if (!selectedEvent.value?.eventId || !recordForm.recordContent) {
     ElMessage.warning('记录内容不能为空');
     return;
   }
   saving.value = true;
   try {
-    if (feedbackForm.action === 'return') {
-      await returnDisposalTask(selectedTask.value.disposalTaskId, feedbackForm.recordContent);
-    } else if (feedbackForm.action === 'confirm') {
-      await confirmDisposalTask(selectedTask.value.disposalTaskId, feedbackForm.recordContent);
-    } else {
-      await feedbackDisposalTask(selectedTask.value.disposalTaskId, feedbackForm.recordContent, feedbackForm.attachmentDesc);
-    }
+    await addOfflineDisposalRecord(selectedEvent.value.eventId, recordForm.recordContent, recordForm.attachmentDesc);
     ElMessage.success('处置记录已保存');
-    feedbackVisible.value = false;
-    await loadTasks();
+    recordVisible.value = false;
+    await loadEvents();
+    if (activeTab.value === 'records') {
+      await loadRecords();
+    }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '保存失败');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function addSimilarClue(row: CampusClue) {
+  if (!selectedEvent.value?.eventId || !row.clueId) {
+    ElMessage.warning('请先选择事件和线索');
+    return;
+  }
+  saving.value = true;
+  try {
+    await addEventClue(selectedEvent.value.eventId, row.clueId);
+    ElMessage.success('线索已加入事件');
+    await loadSimilarClues();
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '加入事件失败');
   } finally {
     saving.value = false;
   }
@@ -795,21 +715,22 @@ function eventStatusLabel(value?: string) {
     rated: '已定级',
     assigned: '已分派',
     processing: '处理中',
-    feedback: '已反馈',
-    reviewed: '已复核',
+    feedback: '已记录',
+    reviewed: '已处置',
     archived: '已归档'
   };
   return labels[value || 'pending_judge'] || value || '待研判';
 }
 
-function taskStatusLabel(value?: string) {
+function recordTypeLabel(value?: string) {
   const labels: Record<string, string> = {
-    pending: '待反馈',
-    completed: '已反馈',
-    returned: '已退回',
-    confirmed: '已确认'
+    offline: '线下处置',
+    feedback: '处置反馈',
+    return: '退回记录',
+    confirm: '复核记录',
+    assign: '分派记录'
   };
-  return labels[value || 'pending'] || value || '待反馈';
+  return labels[value || 'offline'] || value || '处置记录';
 }
 </script>
 

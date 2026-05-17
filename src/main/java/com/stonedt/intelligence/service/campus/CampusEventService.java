@@ -12,6 +12,8 @@ public interface CampusEventService {
 
     CampusEvent createFromClue(Long clueId, CampusEvent event, Long operatorUserId);
 
+    CampusEvent addClueToEvent(Long eventId, Long clueId, Long operatorUserId);
+
     CampusEvent detail(Long eventId);
 
     PageInfo<CampusEvent> list(Integer pageNum,
@@ -44,6 +46,12 @@ public interface CampusEventService {
                                  Long operatorUserId,
                                  String operatorName);
 
+    CampusDisposalRecord recordOfflineDisposal(Long eventId,
+                                               String recordContent,
+                                               String attachmentDesc,
+                                               Long operatorUserId,
+                                               String operatorName);
+
     CampusEvent archive(Long eventId, String archiveConclusion, Long operatorUserId);
 
     List<CampusEventClue> listClues(Long eventId);
@@ -55,4 +63,6 @@ public interface CampusEventService {
     List<CampusDisposalTask> listTasks(Long eventId);
 
     List<CampusDisposalRecord> listRecords(Long disposalTaskId);
+
+    List<CampusDisposalRecord> listRecordsByEvent(Long eventId);
 }

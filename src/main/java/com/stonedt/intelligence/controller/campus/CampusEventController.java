@@ -84,6 +84,24 @@ public class CampusEventController {
         }
     }
 
+    @PostMapping("/clue/add")
+    public ResultVO<CampusEvent> addClue(@RequestParam Long eventId,
+                                         @RequestParam Long clueId,
+                                         HttpServletRequest request) {
+        String params = "eventId=" + eventId + "&clueId=" + clueId;
+        try {
+            User user = userUtil.getuser(request);
+            CampusEvent saved = campusEventService.addClueToEvent(eventId, clueId, user.getUser_id());
+            campusAuditLogService.record(request, "舆情事件库", "加入线索", "campus_event_clue",
+                    String.valueOf(eventId), params, true, null);
+            return ResultVO.success(saved);
+        } catch (Exception e) {
+            campusAuditLogService.record(request, "舆情事件库", "加入线索", "campus_event_clue",
+                    String.valueOf(eventId), params, false, e.getMessage());
+            return ResultVO.error(400, e.getMessage());
+        }
+    }
+
     @PostMapping("/rate")
     public ResultVO<CampusEvent> rate(@RequestParam Long eventId,
                                       @RequestParam String riskLevel,
@@ -159,6 +177,26 @@ public class CampusEventController {
         return handleDisposalRecord("复核确认", disposalTaskId, recordContent, null, request);
     }
 
+    @PostMapping("/record/add")
+    public ResultVO<CampusDisposalRecord> recordOfflineDisposal(@RequestParam Long eventId,
+                                                                @RequestParam String recordContent,
+                                                                @RequestParam(required = false) String attachmentDesc,
+                                                                HttpServletRequest request) {
+        String params = "eventId=" + eventId;
+        try {
+            User user = userUtil.getuser(request);
+            CampusDisposalRecord record = campusEventService.recordOfflineDisposal(eventId, recordContent,
+                    attachmentDesc, user.getUser_id(), user.getUsername());
+            campusAuditLogService.record(request, "处置流转", "线下处置记录", "campus_disposal_record",
+                    String.valueOf(record.getRecordId()), params, true, null);
+            return ResultVO.success(record);
+        } catch (Exception e) {
+            campusAuditLogService.record(request, "处置流转", "线下处置记录", "campus_disposal_record",
+                    null, params, false, e.getMessage());
+            return ResultVO.error(400, e.getMessage());
+        }
+    }
+
     @PostMapping("/archive")
     public ResultVO<CampusEvent> archive(@RequestParam Long eventId,
                                          @RequestParam String archiveConclusion,
@@ -199,7 +237,14 @@ public class CampusEventController {
     }
 
     @GetMapping("/record/list")
-    public ResultVO<List<CampusDisposalRecord>> listRecords(@RequestParam Long disposalTaskId) {
+    public ResultVO<List<CampusDisposalRecord>> listRecords(@RequestParam(required = false) Long disposalTaskId,
+                                                            @RequestParam(required = false) Long eventId) {
+        if (eventId != null) {
+            return ResultVO.success(campusEventService.listRecordsByEvent(eventId));
+        }
+        if (disposalTaskId == null) {
+            return ResultVO.error(400, "事件ID或处置任务ID不能为空");
+        }
         return ResultVO.success(campusEventService.listRecords(disposalTaskId));
     }
 

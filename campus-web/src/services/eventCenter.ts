@@ -34,6 +34,10 @@ export function saveEvent(data: CampusEvent) {
   return apiPost<CampusEvent>('/campus/event/save', data);
 }
 
+export function addEventClue(eventId: ApiId, clueId: ApiId) {
+  return apiPost<CampusEvent>('/campus/event/clue/add', undefined, { eventId, clueId });
+}
+
 export function rateEvent(eventId: ApiId, riskLevel: string, disposalRequirement?: string) {
   return apiPost<CampusEvent>('/campus/event/rate', undefined, { eventId, riskLevel, disposalRequirement });
 }
@@ -52,6 +56,18 @@ export function listDisposalTasks(eventId: ApiId) {
 
 export function listSimilarEventClues(eventId: ApiId, limit = 10) {
   return apiGet<CampusClue[]>('/campus/event/clue/suggest', { eventId, limit });
+}
+
+export function listEventRecords(eventId: ApiId) {
+  return apiGet<CampusDisposalRecord[]>('/campus/event/record/list', { eventId });
+}
+
+export function addOfflineDisposalRecord(eventId: ApiId, recordContent: string, attachmentDesc?: string) {
+  return apiPost<CampusDisposalRecord>('/campus/event/record/add', undefined, {
+    eventId,
+    recordContent,
+    attachmentDesc
+  });
 }
 
 export function feedbackDisposalTask(disposalTaskId: number, recordContent: string, attachmentDesc?: string) {

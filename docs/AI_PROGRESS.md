@@ -11,6 +11,14 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-17 校园事件单用户台账模式收敛
+
+- **用户目标**：事件处置先按单用户平台使用，不在系统内确定部门、反馈人和复核人；学校内部协同、反馈和复核暂时走线下流程。
+- **后端调整**：`CampusEventController/Service` 新增 `/campus/event/clue/add`，把已有线索真正加入已有事件，同时写入 `campus_event_clue` 与 `campus_clue.event_id`；新增 `/campus/event/record/add`，用于记录线下处置情况，并支持 `/campus/event/record/list?eventId=` 按事件查看处置记录；事件归档放宽为任意未归档事件填写结论后可归档。
+- **前端调整**：`/events` 从“处置任务”收敛为“处置记录”，主操作改为“记录线下处置”；相似线索增加“加入事件”按钮；`/monitor` 批量/单条“加入事件”改为调用事件归集接口，不再伪装成线索保存。
+- **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/TEST_CHECKLIST.md` 和 `docs/modules/campus_event/manifest.md`，记录单用户事件台账模式、接口、状态流转和验证结果。
+- **本地验证**：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd -DskipTests compile` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+
 ## 2026-05-17 Batch1-Batch6 新界面业务闭环修正
 
 - **执行边界**：按用户要求作为主线程完成 Batch1-Batch6；本轮不考虑权限问题，不新增账号/角色逻辑，不改 `pom.xml` 和核心配置，不创建/切换分支。

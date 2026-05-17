@@ -34,4 +34,12 @@
         WHERE disposal_task_id = #{disposalTaskId}
         ORDER BY id DESC
     </select>
+
+    <select id="listByEventId" resultMap="CampusDisposalRecordResultMap">
+        SELECT id, record_id, disposal_task_id, event_id, record_type, record_content,
+               handler_user_id, handler_name, handle_time, attachment_desc, create_time
+        FROM campus_disposal_record
+        WHERE event_id = #{eventId}
+        ORDER BY id DESC
+    </select>
 </mapper>

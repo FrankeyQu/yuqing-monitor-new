@@ -11,6 +11,14 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 隐藏监测相似合并筛选
+
+- **工作分支 / worktree**：`claude/hide-monitor-dedup-controls`，`D:\PRJ\yuqing-report-ai-recovery`。
+- **分析结论**：线上当前活跃可见监测结果约 516 条，开启 `similarDedup` 后列表数量无变化，实际隐藏重复为 0；“匹配对象”实际控制关键词检索范围，不是相似合并算法，客户侧展示容易造成误解。
+- **前端调整**：`MonitorView.vue` 隐藏“合并相似信息”和“匹配对象”筛选行，默认继续按不合并、不限定匹配范围查询。
+- **兼容策略**：后端 `/campus/monitor/information/**` 的 `similarDedup/matchScope` 参数和 SQL 能力保留，仅作为历史接口兼容和后续诊断能力，不再在客户页面直接暴露。
+- **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+
 ## 2026-05-18 监测语言与取消预警口径修复
 
 - **工作分支 / worktree**：`claude/monitor-language-cancel-alert`，`D:\PRJ\yuqing`。

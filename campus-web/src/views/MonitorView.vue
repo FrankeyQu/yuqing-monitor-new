@@ -85,18 +85,6 @@
           </el-radio-group>
         </div>
 
-        <!-- 合并相似信息 + 匹配对象 -->
-        <div class="filter-row">
-          <span class="filter-label">合并相似信息：</span>
-          <el-switch v-model="similarDedup" size="small" @change="onSimilarDedupChange" />
-          <span class="filter-label" style="margin-left: 16px;">匹配对象：</span>
-          <el-radio-group v-model="query.matchScope" size="small" :disabled="!similarDedup" @change="handleFilterChange">
-            <el-radio-button value="title">仅标题</el-radio-button>
-            <el-radio-button value="content">仅内容</el-radio-button>
-            <el-radio-button value="both">标题+内容</el-radio-button>
-          </el-radio-group>
-        </div>
-
         <!-- 排序 + 关键词 -->
         <div class="filter-row">
           <span class="filter-label">排序：</span>
@@ -989,7 +977,6 @@ const publishTimePreset = ref('');
 const collectTimeRange = ref<[string, string] | null>(null);
 const publishTimeRange = ref<[string, string] | null>(null);
 const sentimentChecks = ref<string[]>(['all']);
-const similarDedup = ref(false);
 const searchKeyword = ref('');
 const informationDetailVisible = ref(false);
 const currentInformation = ref<CampusMonitorInformation | null>(null);
@@ -2285,7 +2272,6 @@ function resetInformationNarrowFilters() {
   query.keyword = '';
   searchKeyword.value = '';
   query.sortBy = 'publishTime';
-  similarDedup.value = false;
   query.similarDedup = false;
   query.matchScope = '';
   publishTimePreset.value = '';
@@ -2299,16 +2285,6 @@ function resetInformationNarrowFilters() {
 
 function onHitScopeChange() {
   resetInformationNarrowFilters();
-  handleFilterChange();
-}
-
-function onSimilarDedupChange(val: boolean) {
-  query.similarDedup = val;
-  if (!val) {
-    query.matchScope = '';
-  } else if (!query.matchScope) {
-    query.matchScope = 'both';
-  }
   handleFilterChange();
 }
 

@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusClueDao">
+
+    <resultMap id="CampusClueResultMap" type="com.stonedt.intelligence.entity.campus.CampusClue">
+        <id column="id" property="id"/>
+        <result column="clue_id" property="clueId"/>
+        <result column="clue_title" property="clueTitle"/>
+        <result column="clue_content" property="clueContent"/>
+        <result column="clue_source" property="clueSource"/>
+        <result column="source_platform" property="sourcePlatform"/>
+        <result column="original_url" property="originalUrl"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="discover_time" property="discoverTime"/>
+        <result column="involved_department_id" property="involvedDepartmentId"/>
+        <result column="involved_account" property="involvedAccount"/>
+        <result column="keywords" property="keywords"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="school_relevance_score" property="schoolRelevanceScore"/>
+        <result column="school_relevance_reason" property="schoolRelevanceReason"/>
+        <result column="matched_school_terms" property="matchedSchoolTerms"/>
+        <result column="excluded_reason" property="excludedReason"/>
+        <result column="topic_category" property="topicCategory"/>
+        <result column="topic_sub_category" property="topicSubCategory"/>
+        <result column="topic_reason" property="topicReason"/>
+        <result column="sentiment" property="sentiment"/>
+        <result column="language" property="language" jdbcType="VARCHAR"/>
+        <result column="clue_status" property="clueStatus"/>
+        <result column="judge_opinion" property="judgeOpinion"/>
+        <result column="judge_user_id" property="judgeUserId"/>
+        <result column="judge_time" property="judgeTime"/>
+        <result column="event_id" property="eventId"/>
+        <result column="duplicate_key" property="duplicateKey"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, clue_id, clue_title, clue_content, clue_source, source_platform,
+        original_url, publish_time, discover_time, involved_department_id,
+        involved_account, keywords, risk_level, school_relevance_score, school_relevance_reason,
+        matched_school_terms, excluded_reason, topic_category, topic_sub_category, topic_reason,
+        sentiment, language, clue_status,
+        judge_opinion, judge_user_id, judge_time, event_id, duplicate_key,
+        remark, deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusClue">
+        INSERT INTO campus_clue (
+            clue_id, clue_title, clue_content, clue_source, source_platform,
+            original_url, publish_time, discover_time, involved_department_id,
+            involved_account, keywords, risk_level, school_relevance_score, school_relevance_reason,
+            matched_school_terms, excluded_reason, topic_category, topic_sub_category, topic_reason,
+            sentiment, language, clue_status,
+            duplicate_key, remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{clueId}, #{clueTitle}, #{clueContent}, #{clueSource}, #{sourcePlatform},
+            #{originalUrl}, #{publishTime}, #{discoverTime}, #{involvedDepartmentId},
+            #{involvedAccount}, #{keywords}, #{riskLevel}, #{schoolRelevanceScore}, #{schoolRelevanceReason},
+            #{matchedSchoolTerms}, #{excludedReason}, #{topicCategory}, #{topicSubCategory}, #{topicReason},
+            #{sentiment}, #{language}, #{clueStatus},
+            #{duplicateKey}, #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusClue">
+        UPDATE campus_clue
+        <set>
+            <if test="clueTitle != null">clue_title = #{clueTitle},</if>
+            <if test="clueContent != null">clue_content = #{clueContent},</if>
+            <if test="clueSource != null">clue_source = #{clueSource},</if>
+            <if test="sourcePlatform != null">source_platform = #{sourcePlatform},</if>
+            <if test="originalUrl != null">original_url = #{originalUrl},</if>
+            <if test="publishTime != null">publish_time = #{publishTime},</if>
+            <if test="discoverTime != null">discover_time = #{discoverTime},</if>
+            <if test="involvedDepartmentId != null">involved_department_id = #{involvedDepartmentId},</if>
+            <if test="involvedAccount != null">involved_account = #{involvedAccount},</if>
+            <if test="keywords != null">keywords = #{keywords},</if>
+            <if test="riskLevel != null">risk_level = #{riskLevel},</if>
+            <if test="schoolRelevanceScore != null">school_relevance_score = #{schoolRelevanceScore},</if>
+            <if test="schoolRelevanceReason != null">school_relevance_reason = #{schoolRelevanceReason},</if>
+            <if test="matchedSchoolTerms != null">matched_school_terms = #{matchedSchoolTerms},</if>
+            <if test="excludedReason != null">excluded_reason = #{excludedReason},</if>
+            <if test="topicCategory != null">topic_category = #{topicCategory},</if>
+            <if test="topicSubCategory != null">topic_sub_category = #{topicSubCategory},</if>
+            <if test="topicReason != null">topic_reason = #{topicReason},</if>
+            <if test="sentiment != null">sentiment = #{sentiment},</if>
+            <if test="language != null">language = #{language},</if>
+            <if test="clueStatus != null">clue_status = #{clueStatus},</if>
+            <if test="duplicateKey != null">duplicate_key = #{duplicateKey},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+    </update>
+
+    <update id="judge">
+        UPDATE campus_clue
+        SET risk_level = #{riskLevel},
+            judge_opinion = #{judgeOpinion},
+            judge_user_id = #{judgeUserId},
+            judge_time = NOW(),
+            clue_status = 'judged',
+            update_user_id = #{updateUserId}
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+    </update>
+
+    <update id="archive">
+        UPDATE campus_clue
+        SET clue_status = 'archived',
+            remark = #{remark},
+            update_user_id = #{updateUserId}
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+    </update>
+
+    <update id="markConverted">
+        UPDATE campus_clue
+        SET clue_status = 'converted',
+            event_id = #{eventId},
+            update_user_id = #{updateUserId}
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_clue
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByClueId" resultMap="CampusClueResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_clue
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <sql id="AdvancedFilters">
+        <if test="keyword != null and keyword != ''">
+            <choose>
+                <when test="matchScope == 'title'">
+                    AND clue_title LIKE CONCAT('%', #{keyword}, '%')
+                </when>
+                <when test="matchScope == 'content'">
+                    AND clue_content LIKE CONCAT('%', #{keyword}, '%')
+                </when>
+                <otherwise>
+                    AND (
+                        clue_title LIKE CONCAT('%', #{keyword}, '%')
+                        OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                        OR keywords LIKE CONCAT('%', #{keyword}, '%')
+                        OR involved_account LIKE CONCAT('%', #{keyword}, '%')
+                        OR matched_school_terms LIKE CONCAT('%', #{keyword}, '%')
+                        OR topic_category LIKE CONCAT('%', #{keyword}, '%')
+                        OR topic_reason LIKE CONCAT('%', #{keyword}, '%')
+                    )
+                </otherwise>
+            </choose>
+        </if>
+        <if test="clueSource != null and clueSource != ''">
+            AND clue_source = #{clueSource}
+        </if>
+        <if test="sourcePlatform != null and sourcePlatform != ''">
+            AND source_platform = #{sourcePlatform}
+        </if>
+        <if test="sourceSubPlatform != null and sourceSubPlatform != ''">
+            AND clue_source = #{sourceSubPlatform}
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="clueStatus != null and clueStatus != ''">
+            AND clue_status = #{clueStatus}
+        </if>
+        <if test="language != null and language != ''">
+            AND language = #{language}
+        </if>
+        <if test="sentiment != null and sentiment != ''">
+            <choose>
+                <when test="sentiment == 'none'">
+                    AND (sentiment IS NULL OR sentiment = '')
+                </when>
+                <otherwise>
+                    AND (
+                        FIND_IN_SET(sentiment, #{sentiment}) &gt; 0
+                        OR (#{sentiment} = '负面' AND sentiment LIKE '%负%')
+                        OR (#{sentiment} = '中性' AND sentiment LIKE '%中%')
+                        OR (#{sentiment} = '正面' AND sentiment LIKE '%正%')
+                        OR (#{sentiment} LIKE '%负%' AND LOWER(sentiment) = 'negative')
+                        OR (#{sentiment} LIKE '%中%' AND LOWER(sentiment) = 'neutral')
+                        OR (#{sentiment} LIKE '%正%' AND LOWER(sentiment) = 'positive')
+                    )
+                </otherwise>
+            </choose>
+        </if>
+        <if test="startTime != null">
+            AND discover_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND discover_time &lt; DATE_ADD(#{endTime}, INTERVAL 1 DAY)
+        </if>
+        <if test="publishTimeStart != null">
+            AND publish_time &gt;= #{publishTimeStart}
+        </if>
+        <if test="publishTimeEnd != null">
+            AND publish_time &lt; DATE_ADD(#{publishTimeEnd}, INTERVAL 1 DAY)
+        </if>
+        <if test="collectTimeStart != null">
+            AND discover_time &gt;= #{collectTimeStart}
+        </if>
+        <if test="collectTimeEnd != null">
+            AND discover_time &lt; DATE_ADD(#{collectTimeEnd}, INTERVAL 1 DAY)
+        </if>
+        <if test="similarDedup != null and similarDedup == true">
+            AND NOT EXISTS (
+                SELECT 1 FROM campus_clue c2
+                WHERE c2.duplicate_key = campus_clue.duplicate_key
+                AND c2.id &lt; campus_clue.id
+                AND c2.deleted = 0
+            )
+        </if>
+    </sql>
+
+    <select id="list" resultMap="CampusClueResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_clue
+        WHERE deleted = 0
+        <include refid="AdvancedFilters"/>
+        <choose>
+            <when test="sortBy == 'publish_time' or sortBy == 'publishTime'">ORDER BY publish_time DESC, id DESC</when>
+            <when test="sortBy == 'sentiment_level' or sortBy == 'sentiment'">ORDER BY sentiment DESC, id DESC</when>
+            <when test="sortBy == 'value_score' or sortBy == 'value'">ORDER BY id DESC</when>
+            <when test="sortBy == 'website_level' or sortBy == 'siteLevel'">ORDER BY id DESC</when>
+            <when test="sortBy == 'relevance'">ORDER BY school_relevance_score DESC, discover_time DESC, id DESC</when>
+            <otherwise>ORDER BY discover_time DESC, id DESC</otherwise>
+        </choose>
+    </select>
+
+    <select id="listSimilarForEvent" resultMap="CampusClueResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_clue
+        WHERE deleted = 0
+          AND (event_id IS NULL OR event_id != #{eventId})
+          AND clue_status != 'archived'
+        <if test="excludeClueIds != null and excludeClueIds.size() > 0">
+            AND clue_id NOT IN
+            <foreach collection="excludeClueIds" item="clueId" open="(" separator="," close=")">
+                #{clueId}
+            </foreach>
+        </if>
+        <if test="topicCategory != null and topicCategory != ''">
+            AND topic_category = #{topicCategory}
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                clue_title LIKE CONCAT('%', #{keyword}, '%')
+                OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY school_relevance_score DESC, discover_time DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countDuplicate" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_clue
+        WHERE duplicate_key = #{duplicateKey}
+          AND deleted = 0
+        <if test="excludeClueId != null">
+            AND clue_id != #{excludeClueId}
+        </if>
+    </select>
+
+    <select id="listForDetection" resultMap="CampusClueResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_clue
+        WHERE deleted = 0
+        <if test="startTime != null">
+            AND discover_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND discover_time &lt; DATE_ADD(#{endTime}, INTERVAL 1 DAY)
+        </if>
+        ORDER BY discover_time DESC, id DESC
+    </select>
+
+    <select id="countBySubject" resultType="java.util.Map">
+        SELECT clue_title as name, COUNT(*) as value
+        FROM campus_clue
+        GROUP BY clue_title
+        LIMIT 10
+    </select>
+
+    <select id="countByPlatform" resultType="java.util.Map">
+        SELECT source_platform as name, COUNT(*) as value
+        FROM campus_clue
+        WHERE deleted = 0
+        GROUP BY source_platform
+        ORDER BY value DESC
+        LIMIT 10
+    </select>
+
+    <select id="countBySentiment" resultType="java.util.Map">
+        SELECT
+            CASE
+                WHEN sentiment = 'positive' THEN '正面'
+                WHEN sentiment = 'neutral' THEN '中性'
+                WHEN sentiment = 'negative' THEN '负面'
+                ELSE '未知'
+            END as name,
+            COUNT(*) as value
+        FROM campus_clue
+        WHERE deleted = 0
+        GROUP BY sentiment
+    </select>
+
+    <select id="countByMediaType" resultType="java.util.Map">
+        SELECT COALESCE(NULLIF(source_platform, ''), '其它') as name, COUNT(*) as value
+        FROM campus_clue
+        WHERE deleted = 0
+        <include refid="AdvancedFilters"/>
+        GROUP BY COALESCE(NULLIF(source_platform, ''), '其它')
+        ORDER BY value DESC
+    </select>
+
+    <select id="countBySubPlatform" resultType="java.util.Map">
+        SELECT COALESCE(NULLIF(clue_source, ''), '其它') as name, COUNT(*) as value
+        FROM campus_clue
+        WHERE deleted = 0
+        <include refid="AdvancedFilters"/>
+        GROUP BY COALESCE(NULLIF(clue_source, ''), '其它')
+        ORDER BY value DESC
+    </select>
+
+    <select id="getAllKeywords" resultType="string">
+        SELECT keywords
+        FROM campus_clue
+        WHERE deleted = 0
+          AND keywords IS NOT NULL
+          AND keywords != ''
+    </select>
+
+    <select id="listRecentWordCloudTexts" resultType="string">
+        SELECT CONCAT(
+            COALESCE(clue_title, ''),
+            ' ',
+            COALESCE(clue_content, ''),
+            ' ',
+            COALESCE(keywords, '')
+        )
+        FROM campus_clue
+        WHERE deleted = 0
+          AND (
+            (clue_title IS NOT NULL AND clue_title != '')
+            OR (clue_content IS NOT NULL AND clue_content != '')
+            OR (keywords IS NOT NULL AND keywords != '')
+          )
+        ORDER BY COALESCE(discover_time, create_time) DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="suggestKeywords" resultType="string">
+        SELECT DISTINCT clue_title
+        FROM campus_clue
+        WHERE deleted = 0
+          AND clue_title LIKE CONCAT('%', #{keyword}, '%')
+        LIMIT 10
+    </select>
+
+    <select id="getHotRankKeywords" resultType="java.util.Map">
+        SELECT
+            c.source_platform AS platform,
+            TRIM(SUBSTRING_INDEX(SUBSTRING_INDEX(c.keywords, ',', num.n), ',', -1)) AS keyword,
+            COUNT(*) AS cnt
+        FROM campus_clue c
+        JOIN (
+            SELECT 1 AS n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+            UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
+            UNION ALL SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+            UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20
+        ) num ON CHAR_LENGTH(c.keywords) - CHAR_LENGTH(REPLACE(c.keywords, ',', '')) >= num.n - 1
+        WHERE c.deleted = 0
+          AND c.keywords IS NOT NULL
+          AND c.keywords != ''
+          AND c.discover_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        GROUP BY c.source_platform, keyword
+        HAVING keyword != ''
+        ORDER BY c.source_platform, cnt DESC
+    </select>
+
+    <select id="getDailyTrend" resultType="java.util.Map">
+        SELECT
+            DATE_FORMAT(dates.d, '%m-%d') AS date,
+            COALESCE(c.cnt, 0) AS clueCount,
+            COALESCE(a.cnt, 0) AS alertCount
+        FROM (
+            SELECT DATE_SUB(CURDATE(), INTERVAL seq.seq DAY) AS d
+            FROM (
+                SELECT 0 AS seq UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+                UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+                UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19
+                UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+                UNION ALL SELECT 24 UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27
+                UNION ALL SELECT 28 UNION ALL SELECT 29
+            ) seq
+            WHERE seq.seq &lt; #{days}
+        ) dates
+        LEFT JOIN (
+            SELECT DATE(COALESCE(discover_time, create_time)) AS d, COUNT(*) AS cnt
+            FROM campus_clue
+            WHERE deleted = 0
+            GROUP BY DATE(COALESCE(discover_time, create_time))
+        ) c ON dates.d = c.d
+        LEFT JOIN (
+            SELECT DATE(create_time) AS d, COUNT(*) AS cnt
+            FROM campus_alert
+            WHERE deleted = 0
+            GROUP BY DATE(create_time)
+        ) a ON dates.d = a.d
+        ORDER BY dates.d
+    </select>
+
+    <select id="getDailyTrendByKeyword" resultType="java.util.Map">
+        SELECT
+            DATE_FORMAT(dates.d, '%m-%d') AS date,
+            COALESCE(c.cnt, 0) AS clueCount,
+            COALESCE(a.cnt, 0) AS alertCount
+        FROM (
+            SELECT DATE_SUB(CURDATE(), INTERVAL seq.seq DAY) AS d
+            FROM (
+                SELECT 0 AS seq UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+                UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+                UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19
+                UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+                UNION ALL SELECT 24 UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27
+                UNION ALL SELECT 28 UNION ALL SELECT 29
+            ) seq
+            WHERE seq.seq &lt; #{days}
+        ) dates
+        LEFT JOIN (
+            SELECT DATE(COALESCE(discover_time, create_time)) AS d, COUNT(*) AS cnt
+            FROM campus_clue
+            WHERE deleted = 0
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    clue_title LIKE CONCAT('%', #{keyword}, '%')
+                    OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                    OR keywords LIKE CONCAT('%', #{keyword}, '%')
+                    OR involved_account LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+            GROUP BY DATE(COALESCE(discover_time, create_time))
+        ) c ON dates.d = c.d
+        LEFT JOIN (
+            SELECT DATE(create_time) AS d, COUNT(*) AS cnt
+            FROM campus_alert
+            WHERE deleted = 0
+            GROUP BY DATE(create_time)
+        ) a ON dates.d = a.d
+        ORDER BY dates.d
+    </select>
+
+    <select id="countBySentimentByKeyword" resultType="java.util.Map">
+        SELECT
+            CASE
+                WHEN sentiment = 'positive' THEN '正面'
+                WHEN sentiment = 'neutral' THEN '中性'
+                WHEN sentiment = 'negative' THEN '负面'
+                ELSE '未知'
+            END as name,
+            COUNT(*) as value
+        FROM campus_clue
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                clue_title LIKE CONCAT('%', #{keyword}, '%')
+                OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+                OR involved_account LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        GROUP BY sentiment
+    </select>
+
+    <select id="countByPlatformByKeyword" resultType="java.util.Map">
+        SELECT source_platform as name, COUNT(*) as value
+        FROM campus_clue
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                clue_title LIKE CONCAT('%', #{keyword}, '%')
+                OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+                OR involved_account LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        GROUP BY source_platform
+        ORDER BY value DESC
+        LIMIT 10
+    </select>
+
+    <select id="countByKeyword" resultType="int">
+        SELECT COUNT(*)
+        FROM campus_clue
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                clue_title LIKE CONCAT('%', #{keyword}, '%')
+                OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+                OR involved_account LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+    </select>
+
+    <update id="updateAfterJudgment" parameterType="com.stonedt.intelligence.entity.campus.CampusClue">
+        UPDATE campus_clue
+        SET risk_level = #{riskLevel},
+            sentiment = #{sentiment},
+            judge_opinion = #{judgeOpinion},
+            judge_user_id = #{judgeUserId},
+            judge_time = #{judgeTime},
+            clue_status = 'judged',
+            update_user_id = #{updateUserId}
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+    </update>
+</mapper>

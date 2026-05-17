@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAccountContentDao">
+
+    <resultMap id="CampusAccountContentResultMap" type="com.stonedt.intelligence.entity.campus.CampusAccountContent">
+        <id column="id" property="id"/>
+        <result column="content_id" property="contentId"/>
+        <result column="account_id" property="accountId"/>
+        <result column="task_id" property="taskId"/>
+        <result column="platform" property="platform"/>
+        <result column="content_type" property="contentType"/>
+        <result column="content_title" property="contentTitle"/>
+        <result column="content_text" property="contentText"/>
+        <result column="original_url" property="originalUrl"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="capture_time" property="captureTime"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="sentiment" property="sentiment"/>
+        <result column="keywords" property="keywords"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="share_count" property="shareCount"/>
+        <result column="collect_count" property="collectCount"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="raw_data" property="rawData"/>
+        <result column="clue_id" property="clueId"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusAccountContent">
+        INSERT INTO campus_account_content (
+            content_id, account_id, task_id, platform, content_type, content_title,
+            content_text, original_url, publish_time, capture_time, risk_level,
+            sentiment, keywords, like_count, comment_count, share_count, collect_count,
+            view_count, raw_data, clue_id, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{contentId}, #{accountId}, #{taskId}, #{platform}, #{contentType}, #{contentTitle},
+            #{contentText}, #{originalUrl}, #{publishTime}, #{captureTime}, #{riskLevel},
+            #{sentiment}, #{keywords}, #{likeCount}, #{commentCount}, #{shareCount}, #{collectCount},
+            #{viewCount}, #{rawData}, #{clueId}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <select id="selectByContentId" resultMap="CampusAccountContentResultMap">
+        SELECT id, content_id, account_id, task_id, platform, content_type, content_title,
+               content_text, original_url, publish_time, capture_time, risk_level,
+               sentiment, keywords, like_count, comment_count, share_count, collect_count,
+               view_count, raw_data, clue_id, deleted, create_user_id,
+               update_user_id, create_time, update_time
+        FROM campus_account_content
+        WHERE content_id = #{contentId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusAccountContentResultMap">
+        SELECT id, content_id, account_id, task_id, platform, content_type, content_title,
+               content_text, original_url, publish_time, capture_time, risk_level,
+               sentiment, keywords, like_count, comment_count, share_count, collect_count,
+               view_count, raw_data, clue_id, deleted, create_user_id,
+               update_user_id, create_time, update_time
+        FROM campus_account_content
+        WHERE deleted = 0
+        <if test="accountId != null">
+            AND account_id = #{accountId}
+        </if>
+        <if test="taskId != null">
+            AND task_id = #{taskId}
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                content_title LIKE CONCAT('%', #{keyword}, '%')
+                OR content_text LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY publish_time DESC, id DESC
+    </select>
+
+    <select id="listForDetection" resultMap="CampusAccountContentResultMap">
+        SELECT id, content_id, account_id, task_id, platform, content_type, content_title,
+               content_text, original_url, publish_time, capture_time, risk_level,
+               sentiment, keywords, like_count, comment_count, share_count, collect_count,
+               view_count, raw_data, clue_id, deleted, create_user_id,
+               update_user_id, create_time, update_time
+        FROM campus_account_content
+        WHERE deleted = 0
+        <if test="startTime != null">
+            AND capture_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND capture_time &lt;= #{endTime}
+        </if>
+        ORDER BY capture_time DESC, id DESC
+    </select>
+</mapper>

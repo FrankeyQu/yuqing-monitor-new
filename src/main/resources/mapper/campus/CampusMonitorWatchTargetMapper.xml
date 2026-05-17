@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusMonitorWatchTargetDao">
+
+    <resultMap id="CampusMonitorWatchTargetResultMap" type="com.stonedt.intelligence.entity.campus.CampusMonitorWatchTarget">
+        <id column="id" property="id"/>
+        <result column="target_id" property="targetId"/>
+        <result column="monitor_task_id" property="monitorTaskId"/>
+        <result column="target_type" property="targetType"/>
+        <result column="platform" property="platform"/>
+        <result column="account_id" property="accountId"/>
+        <result column="account_name" property="accountName"/>
+        <result column="account_uid" property="accountUid"/>
+        <result column="link_url" property="linkUrl"/>
+        <result column="source_object_type" property="sourceObjectType"/>
+        <result column="source_object_id" property="sourceObjectId"/>
+        <result column="authorization_scope" property="authorizationScope"/>
+        <result column="keyword_scope" property="keywordScope"/>
+        <result column="target_status" property="targetStatus"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, target_id, monitor_task_id, target_type, platform, account_id,
+        account_name, account_uid, link_url, source_object_type, source_object_id,
+        authorization_scope, keyword_scope, target_status, remark, deleted,
+        create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusMonitorWatchTarget">
+        INSERT INTO campus_monitor_watch_target (
+            target_id, monitor_task_id, target_type, platform, account_id,
+            account_name, account_uid, link_url, source_object_type, source_object_id,
+            authorization_scope, keyword_scope, target_status, remark, deleted,
+            create_user_id, update_user_id
+        ) VALUES (
+            #{targetId}, #{monitorTaskId}, #{targetType}, #{platform}, #{accountId},
+            #{accountName}, #{accountUid}, #{linkUrl}, #{sourceObjectType}, #{sourceObjectId},
+            #{authorizationScope}, #{keywordScope}, #{targetStatus}, #{remark}, #{deleted},
+            #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusMonitorWatchTarget">
+        UPDATE campus_monitor_watch_target
+        <set>
+            <if test="monitorTaskId != null">monitor_task_id = #{monitorTaskId},</if>
+            <if test="targetType != null">target_type = #{targetType},</if>
+            <if test="platform != null">platform = #{platform},</if>
+            <if test="accountId != null">account_id = #{accountId},</if>
+            <if test="accountName != null">account_name = #{accountName},</if>
+            <if test="accountUid != null">account_uid = #{accountUid},</if>
+            <if test="linkUrl != null">link_url = #{linkUrl},</if>
+            <if test="sourceObjectType != null">source_object_type = #{sourceObjectType},</if>
+            <if test="sourceObjectId != null">source_object_id = #{sourceObjectId},</if>
+            <if test="authorizationScope != null">authorization_scope = #{authorizationScope},</if>
+            <if test="keywordScope != null">keyword_scope = #{keywordScope},</if>
+            <if test="targetStatus != null">target_status = #{targetStatus},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE target_id = #{targetId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_monitor_watch_target
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE target_id = #{targetId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByTargetId" resultMap="CampusMonitorWatchTargetResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_watch_target
+        WHERE target_id = #{targetId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusMonitorWatchTargetResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_watch_target
+        WHERE deleted = 0
+        <if test="monitorTaskId != null">
+            AND monitor_task_id = #{monitorTaskId}
+        </if>
+        <if test="targetType != null and targetType != ''">
+            AND target_type = #{targetType}
+        </if>
+        <if test="platform != null and platform != ''">
+            AND platform = #{platform}
+        </if>
+        <if test="targetStatus != null and targetStatus != ''">
+            AND target_status = #{targetStatus}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                account_name LIKE CONCAT('%', #{keyword}, '%')
+                OR account_uid LIKE CONCAT('%', #{keyword}, '%')
+                OR link_url LIKE CONCAT('%', #{keyword}, '%')
+                OR keyword_scope LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY update_time DESC, id DESC
+    </select>
+
+    <select id="listActiveByTask" resultMap="CampusMonitorWatchTargetResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_watch_target
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND target_status = 'active'
+          AND deleted = 0
+        ORDER BY id ASC
+    </select>
+</mapper>

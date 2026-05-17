@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDetectionTopicDao">
+
+    <resultMap id="CampusDetectionTopicResultMap" type="com.stonedt.intelligence.entity.campus.CampusDetectionTopic">
+        <id column="id" property="id"/>
+        <result column="topic_id" property="topicId"/>
+        <result column="topic_name" property="topicName"/>
+        <result column="topic_category" property="topicCategory"/>
+        <result column="keywords" property="keywords"/>
+        <result column="exclude_words" property="excludeWords"/>
+        <result column="platform_scope" property="platformScope"/>
+        <result column="source_scope" property="sourceScope"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="responsible_department_id" property="responsibleDepartmentId"/>
+        <result column="enabled" property="enabled"/>
+        <result column="description" property="description"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, topic_id, topic_name, topic_category, keywords, exclude_words,
+        platform_scope, source_scope, risk_level, responsible_department_id,
+        enabled, description, deleted, create_user_id, update_user_id,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusDetectionTopic">
+        INSERT INTO campus_detection_topic (
+            topic_id, topic_name, topic_category, keywords, exclude_words,
+            platform_scope, source_scope, risk_level, responsible_department_id,
+            enabled, description, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{topicId}, #{topicName}, #{topicCategory}, #{keywords}, #{excludeWords},
+            #{platformScope}, #{sourceScope}, #{riskLevel}, #{responsibleDepartmentId},
+            #{enabled}, #{description}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusDetectionTopic">
+        UPDATE campus_detection_topic
+        <set>
+            <if test="topicName != null">topic_name = #{topicName},</if>
+            <if test="topicCategory != null">topic_category = #{topicCategory},</if>
+            <if test="keywords != null">keywords = #{keywords},</if>
+            <if test="excludeWords != null">exclude_words = #{excludeWords},</if>
+            <if test="platformScope != null">platform_scope = #{platformScope},</if>
+            <if test="sourceScope != null">source_scope = #{sourceScope},</if>
+            <if test="riskLevel != null">risk_level = #{riskLevel},</if>
+            <if test="responsibleDepartmentId != null">responsible_department_id = #{responsibleDepartmentId},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="description != null">description = #{description},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE topic_id = #{topicId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_detection_topic
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE topic_id = #{topicId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByTopicId" resultMap="CampusDetectionTopicResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_topic
+        WHERE topic_id = #{topicId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusDetectionTopicResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_topic
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                topic_name LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="topicCategory != null and topicCategory != ''">
+            AND topic_category = #{topicCategory}
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

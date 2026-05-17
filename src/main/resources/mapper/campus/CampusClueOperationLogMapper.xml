@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusClueOperationLogDao">
+
+    <resultMap id="CampusClueOperationLogResultMap" type="com.stonedt.intelligence.entity.campus.CampusClueOperationLog">
+        <id column="id" property="id"/>
+        <result column="log_id" property="logId"/>
+        <result column="clue_id" property="clueId"/>
+        <result column="operation_type" property="operationType"/>
+        <result column="operation_content" property="operationContent"/>
+        <result column="before_value" property="beforeValue"/>
+        <result column="after_value" property="afterValue"/>
+        <result column="operator_user_id" property="operatorUserId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusClueOperationLog">
+        INSERT INTO campus_clue_operation_log (
+            log_id, clue_id, operation_type, operation_content, before_value,
+            after_value, operator_user_id, operator_name
+        ) VALUES (
+            #{logId}, #{clueId}, #{operationType}, #{operationContent}, #{beforeValue},
+            #{afterValue}, #{operatorUserId}, #{operatorName}
+        )
+    </insert>
+
+    <select id="listByClueId" resultMap="CampusClueOperationLogResultMap">
+        SELECT id, log_id, clue_id, operation_type, operation_content, before_value,
+               after_value, operator_user_id, operator_name, create_time
+        FROM campus_clue_operation_log
+        WHERE clue_id = #{clueId}
+        ORDER BY id DESC
+    </select>
+</mapper>

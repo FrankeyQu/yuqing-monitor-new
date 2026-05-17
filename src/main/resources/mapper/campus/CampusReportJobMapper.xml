@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusReportJobDao">
+
+    <resultMap id="CampusReportJobResultMap" type="com.stonedt.intelligence.entity.campus.CampusReportJob">
+        <id column="id" property="id"/>
+        <result column="report_job_id" property="reportJobId"/>
+        <result column="job_name" property="jobName"/>
+        <result column="report_type" property="reportType"/>
+        <result column="template_id" property="templateId"/>
+        <result column="period_rule" property="periodRule"/>
+        <result column="schedule_cron" property="scheduleCron"/>
+        <result column="output_format" property="outputFormat"/>
+        <result column="job_status" property="jobStatus"/>
+        <result column="last_run_time" property="lastRunTime"/>
+        <result column="next_run_time" property="nextRunTime"/>
+        <result column="reviewer_user_id" property="reviewerUserId"/>
+        <result column="description" property="description"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, report_job_id, job_name, report_type, template_id, period_rule,
+        schedule_cron, output_format, job_status, last_run_time, next_run_time,
+        reviewer_user_id, description, deleted, create_user_id, update_user_id,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusReportJob">
+        INSERT INTO campus_report_job (
+            report_job_id, job_name, report_type, template_id, period_rule,
+            schedule_cron, output_format, job_status, last_run_time, next_run_time,
+            reviewer_user_id, description, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{reportJobId}, #{jobName}, #{reportType}, #{templateId}, #{periodRule},
+            #{scheduleCron}, #{outputFormat}, #{jobStatus}, #{lastRunTime}, #{nextRunTime},
+            #{reviewerUserId}, #{description}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusReportJob">
+        UPDATE campus_report_job
+        <set>
+            <if test="jobName != null">job_name = #{jobName},</if>
+            <if test="reportType != null">report_type = #{reportType},</if>
+            <if test="templateId != null">template_id = #{templateId},</if>
+            <if test="periodRule != null">period_rule = #{periodRule},</if>
+            <if test="scheduleCron != null">schedule_cron = #{scheduleCron},</if>
+            <if test="outputFormat != null">output_format = #{outputFormat},</if>
+            <if test="jobStatus != null">job_status = #{jobStatus},</if>
+            <if test="lastRunTime != null">last_run_time = #{lastRunTime},</if>
+            <if test="nextRunTime != null">next_run_time = #{nextRunTime},</if>
+            <if test="reviewerUserId != null">reviewer_user_id = #{reviewerUserId},</if>
+            <if test="description != null">description = #{description},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE report_job_id = #{reportJobId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE campus_report_job
+        SET job_status = #{jobStatus},
+            update_user_id = #{updateUserId}
+        WHERE report_job_id = #{reportJobId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateLastRunTime">
+        UPDATE campus_report_job
+        SET last_run_time = NOW(),
+            update_user_id = #{updateUserId}
+        WHERE report_job_id = #{reportJobId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_report_job
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE report_job_id = #{reportJobId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByJobId" resultMap="CampusReportJobResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_report_job
+        WHERE report_job_id = #{reportJobId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusReportJobResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_report_job
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (job_name LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="reportType != null and reportType != ''">
+            AND report_type = #{reportType}
+        </if>
+        <if test="jobStatus != null and jobStatus != ''">
+            AND job_status = #{jobStatus}
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

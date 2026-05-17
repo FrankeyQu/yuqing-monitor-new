@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusIngestTaskDao">
+
+    <resultMap id="CampusIngestTaskResultMap" type="com.stonedt.intelligence.entity.campus.CampusIngestTask">
+        <id column="id" property="id"/>
+        <result column="task_id" property="taskId"/>
+        <result column="source_id" property="sourceId"/>
+        <result column="task_name" property="taskName"/>
+        <result column="target_type" property="targetType"/>
+        <result column="adapter_type" property="adapterType"/>
+        <result column="schedule_cron" property="scheduleCron"/>
+        <result column="schedule_enabled" property="scheduleEnabled"/>
+        <result column="fetch_config" property="fetchConfig"/>
+        <result column="task_status" property="taskStatus"/>
+        <result column="last_run_time" property="lastRunTime"/>
+        <result column="next_run_time" property="nextRunTime"/>
+        <result column="schedule_lock_until" property="scheduleLockUntil"/>
+        <result column="max_retry_count" property="maxRetryCount"/>
+        <result column="retry_interval_minutes" property="retryIntervalMinutes"/>
+        <result column="consecutive_fail_count" property="consecutiveFailCount"/>
+        <result column="current_retry_count" property="currentRetryCount"/>
+        <result column="last_error_type" property="lastErrorType"/>
+        <result column="auto_detect_enabled" property="autoDetectEnabled"/>
+        <result column="detection_task_ids" property="detectionTaskIds"/>
+        <result column="daily_quota_limit" property="dailyQuotaLimit"/>
+        <result column="daily_quota_used" property="dailyQuotaUsed"/>
+        <result column="quota_stat_date" property="quotaStatDate"/>
+        <result column="auto_pause_after_fail_count" property="autoPauseAfterFailCount"/>
+        <result column="governance_remark" property="governanceRemark"/>
+        <result column="authorization_scope" property="authorizationScope"/>
+        <result column="retention_days" property="retentionDays"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, task_id, source_id, task_name, target_type, adapter_type, schedule_cron,
+        schedule_enabled, fetch_config, task_status, last_run_time, next_run_time,
+        schedule_lock_until, max_retry_count, retry_interval_minutes, consecutive_fail_count,
+        current_retry_count, last_error_type, auto_detect_enabled, detection_task_ids,
+        daily_quota_limit, daily_quota_used, quota_stat_date, auto_pause_after_fail_count, governance_remark,
+        authorization_scope, retention_days, deleted,
+        create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusIngestTask">
+        INSERT INTO campus_ingest_task (
+            task_id, source_id, task_name, target_type, adapter_type, schedule_cron,
+            schedule_enabled, fetch_config, task_status, last_run_time, next_run_time,
+            schedule_lock_until, max_retry_count, retry_interval_minutes, consecutive_fail_count,
+            current_retry_count, last_error_type, auto_detect_enabled, detection_task_ids,
+            daily_quota_limit, daily_quota_used, quota_stat_date, auto_pause_after_fail_count, governance_remark,
+            authorization_scope, retention_days, deleted,
+            create_user_id, update_user_id
+        ) VALUES (
+            #{taskId}, #{sourceId}, #{taskName}, #{targetType}, #{adapterType}, #{scheduleCron},
+            #{scheduleEnabled}, #{fetchConfig}, #{taskStatus}, #{lastRunTime}, #{nextRunTime},
+            #{scheduleLockUntil}, #{maxRetryCount}, #{retryIntervalMinutes}, #{consecutiveFailCount},
+            #{currentRetryCount}, #{lastErrorType}, #{autoDetectEnabled}, #{detectionTaskIds},
+            #{dailyQuotaLimit}, #{dailyQuotaUsed}, #{quotaStatDate}, #{autoPauseAfterFailCount}, #{governanceRemark},
+            #{authorizationScope}, #{retentionDays},
+            #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusIngestTask">
+        UPDATE campus_ingest_task
+        <set>
+            <if test="sourceId != null">source_id = #{sourceId},</if>
+            <if test="taskName != null">task_name = #{taskName},</if>
+            <if test="targetType != null">target_type = #{targetType},</if>
+            <if test="adapterType != null">adapter_type = #{adapterType},</if>
+            <if test="scheduleCron != null">schedule_cron = #{scheduleCron},</if>
+            <if test="scheduleEnabled != null">schedule_enabled = #{scheduleEnabled},</if>
+            <if test="fetchConfig != null">fetch_config = #{fetchConfig},</if>
+            <if test="taskStatus != null">task_status = #{taskStatus},</if>
+            <if test="lastRunTime != null">last_run_time = #{lastRunTime},</if>
+            <if test="nextRunTime != null">next_run_time = #{nextRunTime},</if>
+            <if test="scheduleLockUntil != null">schedule_lock_until = #{scheduleLockUntil},</if>
+            <if test="maxRetryCount != null">max_retry_count = #{maxRetryCount},</if>
+            <if test="retryIntervalMinutes != null">retry_interval_minutes = #{retryIntervalMinutes},</if>
+            <if test="consecutiveFailCount != null">consecutive_fail_count = #{consecutiveFailCount},</if>
+            <if test="currentRetryCount != null">current_retry_count = #{currentRetryCount},</if>
+            <if test="lastErrorType != null">last_error_type = #{lastErrorType},</if>
+            <if test="autoDetectEnabled != null">auto_detect_enabled = #{autoDetectEnabled},</if>
+            <if test="detectionTaskIds != null">detection_task_ids = #{detectionTaskIds},</if>
+            <if test="dailyQuotaLimit != null">daily_quota_limit = #{dailyQuotaLimit},</if>
+            <if test="dailyQuotaUsed != null">daily_quota_used = #{dailyQuotaUsed},</if>
+            <if test="quotaStatDate != null">quota_stat_date = #{quotaStatDate},</if>
+            <if test="autoPauseAfterFailCount != null">auto_pause_after_fail_count = #{autoPauseAfterFailCount},</if>
+            <if test="governanceRemark != null">governance_remark = #{governanceRemark},</if>
+            <if test="authorizationScope != null">authorization_scope = #{authorizationScope},</if>
+            <if test="retentionDays != null">retention_days = #{retentionDays},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE campus_ingest_task
+        SET task_status = #{taskStatus},
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateLastRunTime">
+        UPDATE campus_ingest_task
+        SET last_run_time = NOW(),
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateNextRunTime">
+        UPDATE campus_ingest_task
+        SET next_run_time = #{nextRunTime},
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <update id="acquireScheduleLock">
+        UPDATE campus_ingest_task
+        SET schedule_lock_until = #{lockUntil},
+            update_user_id = 0
+        WHERE task_id = #{taskId}
+          AND schedule_enabled = 1
+          AND task_status = 'active'
+          AND deleted = 0
+          AND next_run_time IS NOT NULL
+          AND next_run_time &lt;= #{now}
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt; #{now})
+    </update>
+
+    <update id="acquireExecutionLock">
+        UPDATE campus_ingest_task
+        SET schedule_lock_until = #{lockUntil},
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND task_status = 'active'
+          AND deleted = 0
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt; #{now})
+    </update>
+
+    <update id="releaseScheduleLock">
+        UPDATE campus_ingest_task
+        SET schedule_lock_until = NULL
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <update id="releaseScheduleLockBefore">
+        UPDATE campus_ingest_task
+        SET schedule_lock_until = NULL
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+        <if test="lockUntil != null">
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt;= #{lockUntil})
+        </if>
+    </update>
+
+    <update id="markScheduleSuccess">
+        UPDATE campus_ingest_task
+        SET last_run_time = NOW(),
+            next_run_time = #{nextRunTime},
+            schedule_lock_until = NULL,
+            consecutive_fail_count = 0,
+            current_retry_count = 0,
+            last_error_type = NULL,
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+        <if test="lockUntil != null">
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt;= #{lockUntil})
+        </if>
+    </update>
+
+    <update id="markScheduleFailure">
+        UPDATE campus_ingest_task
+        SET last_run_time = NOW(),
+            next_run_time = #{nextRunTime},
+            schedule_lock_until = NULL,
+            consecutive_fail_count = IFNULL(consecutive_fail_count, 0) + 1,
+            current_retry_count = #{currentRetryCount},
+            last_error_type = #{errorType},
+            <if test="taskStatus != null and taskStatus != ''">task_status = #{taskStatus},</if>
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+        <if test="lockUntil != null">
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt;= #{lockUntil})
+        </if>
+    </update>
+
+    <update id="resetDailyQuota">
+        UPDATE campus_ingest_task
+        SET daily_quota_used = 0,
+            quota_stat_date = #{quotaStatDate},
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <update id="increaseDailyQuotaUsed">
+        UPDATE campus_ingest_task
+        SET daily_quota_used = IFNULL(daily_quota_used, 0) + #{costUnits},
+            quota_stat_date = #{quotaStatDate},
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_ingest_task
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByTaskId" resultMap="CampusIngestTaskResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_task
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="listDueTasks" resultMap="CampusIngestTaskResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_task
+        WHERE deleted = 0
+          AND schedule_enabled = 1
+          AND task_status = 'active'
+          AND schedule_cron IS NOT NULL
+          AND schedule_cron != ''
+          AND next_run_time IS NOT NULL
+          AND next_run_time &lt;= #{now}
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt; #{now})
+        ORDER BY next_run_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="list" resultMap="CampusIngestTaskResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_task
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (task_name LIKE CONCAT('%', #{keyword}, '%') OR authorization_scope LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="sourceId != null">
+            AND source_id = #{sourceId}
+        </if>
+        <if test="targetType != null and targetType != ''">
+            AND target_type = #{targetType}
+        </if>
+        <if test="taskStatus != null and taskStatus != ''">
+            AND task_status = #{taskStatus}
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

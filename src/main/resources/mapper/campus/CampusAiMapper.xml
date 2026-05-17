@@ -1,0 +1,482 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAiDao">
+
+    <resultMap id="CampusAiProviderResultMap" type="com.stonedt.intelligence.entity.campus.CampusAiProvider">
+        <id column="id" property="id"/>
+        <result column="provider_id" property="providerId"/>
+        <result column="provider_code" property="providerCode"/>
+        <result column="provider_name" property="providerName"/>
+        <result column="provider_type" property="providerType"/>
+        <result column="base_url" property="baseUrl"/>
+        <result column="auth_type" property="authType"/>
+        <result column="credential_ref" property="credentialRef"/>
+        <result column="enabled" property="enabled"/>
+        <result column="timeout_ms" property="timeoutMs"/>
+        <result column="max_retries" property="maxRetries"/>
+        <result column="daily_quota_limit" property="dailyQuotaLimit"/>
+        <result column="quota_used_today" property="quotaUsedToday"/>
+        <result column="quota_stat_date" property="quotaStatDate"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="CampusAiModelResultMap" type="com.stonedt.intelligence.entity.campus.CampusAiModel">
+        <id column="id" property="id"/>
+        <result column="model_id" property="modelId"/>
+        <result column="provider_code" property="providerCode"/>
+        <result column="model_code" property="modelCode"/>
+        <result column="model_name" property="modelName"/>
+        <result column="context_length" property="contextLength"/>
+        <result column="default_temperature" property="defaultTemperature"/>
+        <result column="default_max_tokens" property="defaultMaxTokens"/>
+        <result column="support_stream" property="supportStream"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="CampusAiFeatureBindingResultMap" type="com.stonedt.intelligence.entity.campus.CampusAiFeatureBinding">
+        <id column="id" property="id"/>
+        <result column="binding_id" property="bindingId"/>
+        <result column="feature_code" property="featureCode"/>
+        <result column="feature_name" property="featureName"/>
+        <result column="feature_type" property="featureType"/>
+        <result column="provider_code" property="providerCode"/>
+        <result column="model_code" property="modelCode"/>
+        <result column="fallback_provider_code" property="fallbackProviderCode"/>
+        <result column="fallback_model_code" property="fallbackModelCode"/>
+        <result column="enabled" property="enabled"/>
+        <result column="failure_strategy" property="failureStrategy"/>
+        <result column="timeout_ms" property="timeoutMs"/>
+        <result column="daily_quota_limit" property="dailyQuotaLimit"/>
+        <result column="quota_used_today" property="quotaUsedToday"/>
+        <result column="quota_stat_date" property="quotaStatDate"/>
+        <result column="log_prompt" property="logPrompt"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="CampusAiPromptTemplateResultMap" type="com.stonedt.intelligence.entity.campus.CampusAiPromptTemplate">
+        <id column="id" property="id"/>
+        <result column="template_id" property="templateId"/>
+        <result column="feature_code" property="featureCode"/>
+        <result column="template_name" property="templateName"/>
+        <result column="template_version" property="templateVersion"/>
+        <result column="system_prompt" property="systemPrompt"/>
+        <result column="user_prompt" property="userPrompt"/>
+        <result column="output_format" property="outputFormat"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="CampusAiCallLogResultMap" type="com.stonedt.intelligence.entity.campus.CampusAiCallLog">
+        <id column="id" property="id"/>
+        <result column="call_id" property="callId"/>
+        <result column="feature_code" property="featureCode"/>
+        <result column="provider_code" property="providerCode"/>
+        <result column="model_code" property="modelCode"/>
+        <result column="endpoint" property="endpoint"/>
+        <result column="request_time" property="requestTime"/>
+        <result column="duration_ms" property="durationMs"/>
+        <result column="call_status" property="callStatus"/>
+        <result column="http_status" property="httpStatus"/>
+        <result column="error_type" property="errorType"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="prompt_tokens" property="promptTokens"/>
+        <result column="completion_tokens" property="completionTokens"/>
+        <result column="total_tokens" property="totalTokens"/>
+        <result column="quota_units" property="quotaUnits"/>
+        <result column="request_snapshot" property="requestSnapshot"/>
+        <result column="response_snapshot" property="responseSnapshot"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="ProviderColumns">
+        id, provider_id, provider_code, provider_name, provider_type, base_url, auth_type,
+        credential_ref, enabled, timeout_ms, max_retries, daily_quota_limit,
+        quota_used_today, quota_stat_date, remark, deleted, create_user_id,
+        update_user_id, create_time, update_time
+    </sql>
+
+    <sql id="ModelColumns">
+        id, model_id, provider_code, model_code, model_name, context_length,
+        default_temperature, default_max_tokens, support_stream, enabled, remark,
+        deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <sql id="FeatureColumns">
+        id, binding_id, feature_code, feature_name, feature_type, provider_code,
+        model_code, fallback_provider_code, fallback_model_code, enabled,
+        failure_strategy, timeout_ms, daily_quota_limit, quota_used_today,
+        quota_stat_date, log_prompt, remark, deleted, create_user_id,
+        update_user_id, create_time, update_time
+    </sql>
+
+    <sql id="PromptColumns">
+        id, template_id, feature_code, template_name, template_version, system_prompt,
+        user_prompt, output_format, enabled, remark, deleted, create_user_id,
+        update_user_id, create_time, update_time
+    </sql>
+
+    <sql id="CallLogColumns">
+        id, call_id, feature_code, provider_code, model_code, endpoint, request_time,
+        duration_ms, call_status, http_status, error_type, error_message,
+        prompt_tokens, completion_tokens, total_tokens, quota_units,
+        request_snapshot, response_snapshot, deleted, create_time
+    </sql>
+
+    <insert id="insertProvider" parameterType="com.stonedt.intelligence.entity.campus.CampusAiProvider">
+        INSERT INTO campus_ai_provider (
+            provider_id, provider_code, provider_name, provider_type, base_url, auth_type,
+            credential_ref, enabled, timeout_ms, max_retries, daily_quota_limit,
+            quota_used_today, quota_stat_date, remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{providerId}, #{providerCode}, #{providerName}, #{providerType}, #{baseUrl}, #{authType},
+            #{credentialRef}, #{enabled}, #{timeoutMs}, #{maxRetries}, #{dailyQuotaLimit},
+            #{quotaUsedToday}, #{quotaStatDate}, #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateProvider" parameterType="com.stonedt.intelligence.entity.campus.CampusAiProvider">
+        UPDATE campus_ai_provider
+        SET provider_name = #{providerName},
+            provider_type = #{providerType},
+            base_url = #{baseUrl},
+            auth_type = #{authType},
+            credential_ref = #{credentialRef},
+            enabled = #{enabled},
+            timeout_ms = #{timeoutMs},
+            max_retries = #{maxRetries},
+            daily_quota_limit = #{dailyQuotaLimit},
+            quota_used_today = #{quotaUsedToday},
+            quota_stat_date = #{quotaStatDate},
+            remark = #{remark},
+            deleted = 0,
+            update_user_id = #{updateUserId}
+        WHERE provider_code = #{providerCode}
+    </update>
+
+    <update id="logicalDeleteProvider">
+        UPDATE campus_ai_provider
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE provider_code = #{providerCode}
+          AND deleted = 0
+    </update>
+
+    <select id="selectProvider" resultMap="CampusAiProviderResultMap">
+        SELECT <include refid="ProviderColumns"/>
+        FROM campus_ai_provider
+        WHERE provider_code = #{providerCode}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="listProviders" resultMap="CampusAiProviderResultMap">
+        SELECT <include refid="ProviderColumns"/>
+        FROM campus_ai_provider
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (provider_code LIKE CONCAT('%', #{keyword}, '%')
+                 OR provider_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR remark LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="providerType != null and providerType != ''">
+            AND provider_type = #{providerType}
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY id ASC
+    </select>
+
+    <insert id="insertModel" parameterType="com.stonedt.intelligence.entity.campus.CampusAiModel">
+        INSERT INTO campus_ai_model (
+            model_id, provider_code, model_code, model_name, context_length,
+            default_temperature, default_max_tokens, support_stream, enabled, remark,
+            deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{modelId}, #{providerCode}, #{modelCode}, #{modelName}, #{contextLength},
+            #{defaultTemperature}, #{defaultMaxTokens}, #{supportStream}, #{enabled}, #{remark},
+            #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateModel" parameterType="com.stonedt.intelligence.entity.campus.CampusAiModel">
+        UPDATE campus_ai_model
+        SET model_name = #{modelName},
+            context_length = #{contextLength},
+            default_temperature = #{defaultTemperature},
+            default_max_tokens = #{defaultMaxTokens},
+            support_stream = #{supportStream},
+            enabled = #{enabled},
+            remark = #{remark},
+            deleted = 0,
+            update_user_id = #{updateUserId}
+        WHERE provider_code = #{providerCode}
+          AND model_code = #{modelCode}
+    </update>
+
+    <update id="logicalDeleteModel">
+        UPDATE campus_ai_model
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE provider_code = #{providerCode}
+          AND model_code = #{modelCode}
+          AND deleted = 0
+    </update>
+
+    <select id="selectModel" resultMap="CampusAiModelResultMap">
+        SELECT <include refid="ModelColumns"/>
+        FROM campus_ai_model
+        WHERE provider_code = #{providerCode}
+          AND model_code = #{modelCode}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectFirstEnabledModel" resultMap="CampusAiModelResultMap">
+        SELECT <include refid="ModelColumns"/>
+        FROM campus_ai_model
+        WHERE provider_code = #{providerCode}
+          AND enabled = 1
+          AND deleted = 0
+        ORDER BY id ASC
+        LIMIT 1
+    </select>
+
+    <select id="listModels" resultMap="CampusAiModelResultMap">
+        SELECT <include refid="ModelColumns"/>
+        FROM campus_ai_model
+        WHERE deleted = 0
+        <if test="providerCode != null and providerCode != ''">
+            AND provider_code = #{providerCode}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (model_code LIKE CONCAT('%', #{keyword}, '%')
+                 OR model_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR remark LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY provider_code ASC, id ASC
+    </select>
+
+    <insert id="insertFeatureBinding" parameterType="com.stonedt.intelligence.entity.campus.CampusAiFeatureBinding">
+        INSERT INTO campus_ai_feature_binding (
+            binding_id, feature_code, feature_name, feature_type, provider_code, model_code,
+            fallback_provider_code, fallback_model_code, enabled, failure_strategy,
+            timeout_ms, daily_quota_limit, quota_used_today, quota_stat_date, log_prompt,
+            remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{bindingId}, #{featureCode}, #{featureName}, #{featureType}, #{providerCode}, #{modelCode},
+            #{fallbackProviderCode}, #{fallbackModelCode}, #{enabled}, #{failureStrategy},
+            #{timeoutMs}, #{dailyQuotaLimit}, #{quotaUsedToday}, #{quotaStatDate}, #{logPrompt},
+            #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateFeatureBinding" parameterType="com.stonedt.intelligence.entity.campus.CampusAiFeatureBinding">
+        UPDATE campus_ai_feature_binding
+        SET feature_name = #{featureName},
+            feature_type = #{featureType},
+            provider_code = #{providerCode},
+            model_code = #{modelCode},
+            fallback_provider_code = #{fallbackProviderCode},
+            fallback_model_code = #{fallbackModelCode},
+            enabled = #{enabled},
+            failure_strategy = #{failureStrategy},
+            timeout_ms = #{timeoutMs},
+            daily_quota_limit = #{dailyQuotaLimit},
+            quota_used_today = #{quotaUsedToday},
+            quota_stat_date = #{quotaStatDate},
+            log_prompt = #{logPrompt},
+            remark = #{remark},
+            deleted = 0,
+            update_user_id = #{updateUserId}
+        WHERE feature_code = #{featureCode}
+    </update>
+
+    <select id="selectFeatureBinding" resultMap="CampusAiFeatureBindingResultMap">
+        SELECT <include refid="FeatureColumns"/>
+        FROM campus_ai_feature_binding
+        WHERE feature_code = #{featureCode}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="listFeatureBindings" resultMap="CampusAiFeatureBindingResultMap">
+        SELECT <include refid="FeatureColumns"/>
+        FROM campus_ai_feature_binding
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (feature_code LIKE CONCAT('%', #{keyword}, '%')
+                 OR feature_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR remark LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="featureType != null and featureType != ''">
+            AND feature_type = #{featureType}
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY id ASC
+    </select>
+
+    <insert id="insertPromptTemplate" parameterType="com.stonedt.intelligence.entity.campus.CampusAiPromptTemplate">
+        INSERT INTO campus_ai_prompt_template (
+            template_id, feature_code, template_name, template_version, system_prompt,
+            user_prompt, output_format, enabled, remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{templateId}, #{featureCode}, #{templateName}, #{templateVersion}, #{systemPrompt},
+            #{userPrompt}, #{outputFormat}, #{enabled}, #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updatePromptTemplate" parameterType="com.stonedt.intelligence.entity.campus.CampusAiPromptTemplate">
+        UPDATE campus_ai_prompt_template
+        SET feature_code = #{featureCode},
+            template_name = #{templateName},
+            template_version = #{templateVersion},
+            system_prompt = #{systemPrompt},
+            user_prompt = #{userPrompt},
+            output_format = #{outputFormat},
+            enabled = #{enabled},
+            remark = #{remark},
+            deleted = 0,
+            update_user_id = #{updateUserId}
+        WHERE template_id = #{templateId}
+    </update>
+
+    <update id="logicalDeletePromptTemplate">
+        UPDATE campus_ai_prompt_template
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE template_id = #{templateId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectPromptTemplate" resultMap="CampusAiPromptTemplateResultMap">
+        SELECT <include refid="PromptColumns"/>
+        FROM campus_ai_prompt_template
+        WHERE template_id = #{templateId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectActivePrompt" resultMap="CampusAiPromptTemplateResultMap">
+        SELECT <include refid="PromptColumns"/>
+        FROM campus_ai_prompt_template
+        WHERE feature_code = #{featureCode}
+          AND enabled = 1
+          AND deleted = 0
+        ORDER BY update_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="listPromptTemplates" resultMap="CampusAiPromptTemplateResultMap">
+        SELECT <include refid="PromptColumns"/>
+        FROM campus_ai_prompt_template
+        WHERE deleted = 0
+        <if test="featureCode != null and featureCode != ''">
+            AND feature_code = #{featureCode}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (template_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR template_version LIKE CONCAT('%', #{keyword}, '%')
+                 OR remark LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY feature_code ASC, update_time DESC, id DESC
+    </select>
+
+    <insert id="insertCallLog" parameterType="com.stonedt.intelligence.entity.campus.CampusAiCallLog">
+        INSERT INTO campus_ai_call_log (
+            call_id, feature_code, provider_code, model_code, endpoint, request_time,
+            duration_ms, call_status, http_status, error_type, error_message,
+            prompt_tokens, completion_tokens, total_tokens, quota_units,
+            request_snapshot, response_snapshot, deleted
+        ) VALUES (
+            #{callId}, #{featureCode}, #{providerCode}, #{modelCode}, #{endpoint}, #{requestTime},
+            #{durationMs}, #{callStatus}, #{httpStatus}, #{errorType}, #{errorMessage},
+            #{promptTokens}, #{completionTokens}, #{totalTokens}, #{quotaUnits},
+            #{requestSnapshot}, #{responseSnapshot}, #{deleted}
+        )
+    </insert>
+
+    <select id="listCallLogs" resultMap="CampusAiCallLogResultMap">
+        SELECT <include refid="CallLogColumns"/>
+        FROM campus_ai_call_log
+        WHERE deleted = 0
+        <if test="featureCode != null and featureCode != ''">
+            AND feature_code = #{featureCode}
+        </if>
+        <if test="providerCode != null and providerCode != ''">
+            AND provider_code = #{providerCode}
+        </if>
+        <if test="callStatus != null and callStatus != ''">
+            AND call_status = #{callStatus}
+        </if>
+        ORDER BY request_time DESC, id DESC
+    </select>
+
+    <select id="countActiveProviders" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_ai_provider
+        WHERE enabled = 1
+          AND deleted = 0
+    </select>
+
+    <select id="countEnabledFeatures" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_ai_feature_binding
+        WHERE enabled = 1
+          AND deleted = 0
+    </select>
+
+    <select id="countLegacyFeatures" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_ai_feature_binding
+        WHERE feature_type = 'legacy'
+          AND deleted = 0
+    </select>
+
+    <select id="countFailedCallsSince" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_ai_call_log
+        WHERE call_status = 'failed'
+          AND request_time &gt;= #{since}
+          AND deleted = 0
+    </select>
+
+    <select id="countCallsByStatusSince" resultType="java.util.Map">
+        SELECT call_status AS name, COUNT(1) AS value
+        FROM campus_ai_call_log
+        WHERE request_time &gt;= #{since}
+          AND deleted = 0
+        GROUP BY call_status
+    </select>
+</mapper>

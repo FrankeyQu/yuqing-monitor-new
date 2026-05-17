@@ -1,0 +1,51 @@
+HELP.md
+target/
+.codex-tools/
+.playwright-cli/
+campus-web/node_modules/
+campus-web/dist/
+campus-web/.vite/
+*.tsbuildinfo
+config/xml/*.txt
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**
+!**/src/test/**
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+### VS Code ###
+.vscode/
+
+### Claude Code ###
+.claude/
+output/
+analysis/
+run.bat
+scrape_kwm.py
+deploy.ps1
+deploy.sh
+src/main/resources/static_legacy/
+src/main/resources/templates_legacy/
+src/main/resources/templates/legacy/
+*.ipynb

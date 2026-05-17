@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusEducationDao">
+
+    <resultMap id="CampusClueResultMap" type="com.stonedt.intelligence.entity.campus.CampusClue">
+        <id column="id" property="id"/>
+        <result column="clue_id" property="clueId"/>
+        <result column="clue_title" property="clueTitle"/>
+        <result column="clue_content" property="clueContent"/>
+        <result column="clue_source" property="clueSource"/>
+        <result column="source_platform" property="sourcePlatform"/>
+        <result column="original_url" property="originalUrl"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="discover_time" property="discoverTime"/>
+        <result column="involved_account" property="involvedAccount"/>
+        <result column="keywords" property="keywords"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="sentiment" property="sentiment"/>
+        <result column="language" property="language"/>
+        <result column="clue_status" property="clueStatus"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="ClueColumns">
+        id, clue_id, clue_title, clue_content, clue_source, source_platform,
+        original_url, publish_time, discover_time, involved_account, keywords,
+        risk_level, sentiment, language, clue_status, create_time, update_time
+    </sql>
+
+    <select id="listTopicClues" resultMap="CampusClueResultMap">
+        SELECT <include refid="ClueColumns"/>
+        FROM campus_clue
+        WHERE deleted = 0
+        <if test="startTime != null">
+            AND COALESCE(publish_time, discover_time, create_time) &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND COALESCE(publish_time, discover_time, create_time) &lt;= #{endTime}
+        </if>
+        <if test="keywords != null and keywords.size() > 0">
+            AND (
+            <foreach collection="keywords" item="keyword" separator=" OR ">
+                clue_title LIKE CONCAT('%', #{keyword}, '%')
+                OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+            </foreach>
+            )
+        </if>
+        ORDER BY COALESCE(publish_time, discover_time, create_time) DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listRankingClues" resultMap="CampusClueResultMap">
+        SELECT <include refid="ClueColumns"/>
+        FROM campus_clue
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                clue_title LIKE CONCAT('%', #{keyword}, '%')
+                OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="startTime != null">
+            AND COALESCE(publish_time, discover_time, create_time) &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND COALESCE(publish_time, discover_time, create_time) &lt;= #{endTime}
+        </if>
+        ORDER BY COALESCE(publish_time, discover_time, create_time) DESC, id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

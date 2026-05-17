@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDepartmentDao">
+
+    <resultMap id="CampusDepartmentResultMap" type="com.stonedt.intelligence.entity.campus.CampusDepartment">
+        <id column="id" property="id"/>
+        <result column="department_id" property="departmentId"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="department_name" property="departmentName"/>
+        <result column="department_code" property="departmentCode"/>
+        <result column="department_type" property="departmentType"/>
+        <result column="leader_user_id" property="leaderUserId"/>
+        <result column="contact_phone" property="contactPhone"/>
+        <result column="sort_no" property="sortNo"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, department_id, parent_id, department_name, department_code, department_type,
+        leader_user_id, contact_phone, sort_no, status, deleted, create_user_id,
+        update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusDepartment">
+        INSERT INTO campus_department (
+            department_id, parent_id, department_name, department_code, department_type,
+            leader_user_id, contact_phone, sort_no, status, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{departmentId}, #{parentId}, #{departmentName}, #{departmentCode}, #{departmentType},
+            #{leaderUserId}, #{contactPhone}, #{sortNo}, #{status}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusDepartment">
+        UPDATE campus_department
+        <set>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="departmentName != null">department_name = #{departmentName},</if>
+            <if test="departmentCode != null">department_code = #{departmentCode},</if>
+            <if test="departmentType != null">department_type = #{departmentType},</if>
+            <if test="leaderUserId != null">leader_user_id = #{leaderUserId},</if>
+            <if test="contactPhone != null">contact_phone = #{contactPhone},</if>
+            <if test="sortNo != null">sort_no = #{sortNo},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE department_id = #{departmentId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_department
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE department_id = #{departmentId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByDepartmentId" resultMap="CampusDepartmentResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_department
+        WHERE department_id = #{departmentId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusDepartmentResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_department
+        WHERE deleted = 0
+        <if test="departmentName != null and departmentName != ''">
+            AND department_name LIKE CONCAT('%', #{departmentName}, '%')
+        </if>
+        <if test="parentId != null">
+            AND parent_id = #{parentId}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY sort_no ASC, id ASC
+    </select>
+
+    <select id="countByCode" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_department
+        WHERE department_code = #{departmentCode}
+          AND deleted = 0
+        <if test="excludeDepartmentId != null">
+            AND department_id != #{excludeDepartmentId}
+        </if>
+    </select>
+</mapper>

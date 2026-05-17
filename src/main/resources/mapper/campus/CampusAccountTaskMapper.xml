@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAccountTaskDao">
+
+    <resultMap id="CampusAccountTaskResultMap" type="com.stonedt.intelligence.entity.campus.CampusAccountTask">
+        <id column="id" property="id"/>
+        <result column="task_id" property="taskId"/>
+        <result column="account_id" property="accountId"/>
+        <result column="task_no" property="taskNo"/>
+        <result column="task_name" property="taskName"/>
+        <result column="source_basis" property="sourceBasis"/>
+        <result column="authorization_scope" property="authorizationScope"/>
+        <result column="focus_start_time" property="focusStartTime"/>
+        <result column="focus_end_time" property="focusEndTime"/>
+        <result column="task_status" property="taskStatus"/>
+        <result column="responsible_department_id" property="responsibleDepartmentId"/>
+        <result column="responsible_user_id" property="responsibleUserId"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusAccountTask">
+        INSERT INTO campus_account_task (
+            task_id, account_id, task_no, task_name, source_basis, authorization_scope,
+            focus_start_time, focus_end_time, task_status, responsible_department_id,
+            responsible_user_id, remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{taskId}, #{accountId}, #{taskNo}, #{taskName}, #{sourceBasis}, #{authorizationScope},
+            #{focusStartTime}, #{focusEndTime}, #{taskStatus}, #{responsibleDepartmentId},
+            #{responsibleUserId}, #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE campus_account_task
+        SET task_status = #{taskStatus},
+            update_user_id = #{updateUserId}
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByTaskId" resultMap="CampusAccountTaskResultMap">
+        SELECT id, task_id, account_id, task_no, task_name, source_basis, authorization_scope,
+               focus_start_time, focus_end_time, task_status, responsible_department_id,
+               responsible_user_id, remark, deleted, create_user_id, update_user_id,
+               create_time, update_time
+        FROM campus_account_task
+        WHERE task_id = #{taskId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="listByAccountId" resultMap="CampusAccountTaskResultMap">
+        SELECT id, task_id, account_id, task_no, task_name, source_basis, authorization_scope,
+               focus_start_time, focus_end_time, task_status, responsible_department_id,
+               responsible_user_id, remark, deleted, create_user_id, update_user_id,
+               create_time, update_time
+        FROM campus_account_task
+        WHERE account_id = #{accountId}
+          AND deleted = 0
+        ORDER BY id DESC
+    </select>
+</mapper>

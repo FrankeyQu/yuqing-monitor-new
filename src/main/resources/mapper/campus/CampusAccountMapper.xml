@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAccountDao">
+
+    <resultMap id="CampusAccountResultMap" type="com.stonedt.intelligence.entity.campus.CampusAccount">
+        <id column="id" property="id"/>
+        <result column="account_id" property="accountId"/>
+        <result column="platform" property="platform"/>
+        <result column="account_name" property="accountName"/>
+        <result column="account_uid" property="accountUid"/>
+        <result column="homepage_url" property="homepageUrl"/>
+        <result column="account_type" property="accountType"/>
+        <result column="related_person_desc" property="relatedPersonDesc"/>
+        <result column="related_department_id" property="relatedDepartmentId"/>
+        <result column="source_basis" property="sourceBasis"/>
+        <result column="task_no" property="taskNo"/>
+        <result column="authorization_scope" property="authorizationScope"/>
+        <result column="focus_start_time" property="focusStartTime"/>
+        <result column="focus_end_time" property="focusEndTime"/>
+        <result column="focus_level" property="focusLevel"/>
+        <result column="responsible_department_id" property="responsibleDepartmentId"/>
+        <result column="responsible_user_id" property="responsibleUserId"/>
+        <result column="audit_status" property="auditStatus"/>
+        <result column="audit_opinion" property="auditOpinion"/>
+        <result column="audit_user_id" property="auditUserId"/>
+        <result column="audit_time" property="auditTime"/>
+        <result column="account_status" property="accountStatus"/>
+        <result column="tags" property="tags"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, account_id, platform, account_name, account_uid, homepage_url, account_type,
+        related_person_desc, related_department_id, source_basis, task_no,
+        authorization_scope, focus_start_time, focus_end_time, focus_level,
+        responsible_department_id, responsible_user_id, audit_status, audit_opinion,
+        audit_user_id, audit_time, account_status, tags, remark, deleted,
+        create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusAccount">
+        INSERT INTO campus_account (
+            account_id, platform, account_name, account_uid, homepage_url, account_type,
+            related_person_desc, related_department_id, source_basis, task_no,
+            authorization_scope, focus_start_time, focus_end_time, focus_level,
+            responsible_department_id, responsible_user_id, audit_status, account_status,
+            tags, remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{accountId}, #{platform}, #{accountName}, #{accountUid}, #{homepageUrl}, #{accountType},
+            #{relatedPersonDesc}, #{relatedDepartmentId}, #{sourceBasis}, #{taskNo},
+            #{authorizationScope}, #{focusStartTime}, #{focusEndTime}, #{focusLevel},
+            #{responsibleDepartmentId}, #{responsibleUserId}, #{auditStatus}, #{accountStatus},
+            #{tags}, #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusAccount">
+        UPDATE campus_account
+        <set>
+            <if test="platform != null">platform = #{platform},</if>
+            <if test="accountName != null">account_name = #{accountName},</if>
+            <if test="accountUid != null">account_uid = #{accountUid},</if>
+            <if test="homepageUrl != null">homepage_url = #{homepageUrl},</if>
+            <if test="accountType != null">account_type = #{accountType},</if>
+            <if test="relatedPersonDesc != null">related_person_desc = #{relatedPersonDesc},</if>
+            <if test="relatedDepartmentId != null">related_department_id = #{relatedDepartmentId},</if>
+            <if test="sourceBasis != null">source_basis = #{sourceBasis},</if>
+            <if test="taskNo != null">task_no = #{taskNo},</if>
+            <if test="authorizationScope != null">authorization_scope = #{authorizationScope},</if>
+            <if test="focusStartTime != null">focus_start_time = #{focusStartTime},</if>
+            <if test="focusEndTime != null">focus_end_time = #{focusEndTime},</if>
+            <if test="focusLevel != null">focus_level = #{focusLevel},</if>
+            <if test="responsibleDepartmentId != null">responsible_department_id = #{responsibleDepartmentId},</if>
+            <if test="responsibleUserId != null">responsible_user_id = #{responsibleUserId},</if>
+            <if test="tags != null">tags = #{tags},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE account_id = #{accountId}
+          AND deleted = 0
+    </update>
+
+    <update id="audit">
+        UPDATE campus_account
+        SET audit_status = #{auditStatus},
+            audit_opinion = #{auditOpinion},
+            audit_user_id = #{auditUserId},
+            audit_time = NOW(),
+            account_status = #{accountStatus},
+            update_user_id = #{updateUserId}
+        WHERE account_id = #{accountId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE campus_account
+        SET account_status = #{accountStatus},
+            update_user_id = #{updateUserId}
+        WHERE account_id = #{accountId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_account
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE account_id = #{accountId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByAccountId" resultMap="CampusAccountResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_account
+        WHERE account_id = #{accountId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusAccountResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_account
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                account_name LIKE CONCAT('%', #{keyword}, '%')
+                OR account_uid LIKE CONCAT('%', #{keyword}, '%')
+                OR homepage_url LIKE CONCAT('%', #{keyword}, '%')
+                OR tags LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="platform != null and platform != ''">
+            AND platform = #{platform}
+        </if>
+        <if test="focusLevel != null and focusLevel != ''">
+            AND focus_level = #{focusLevel}
+        </if>
+        <if test="auditStatus != null and auditStatus != ''">
+            AND audit_status = #{auditStatus}
+        </if>
+        <if test="accountStatus != null and accountStatus != ''">
+            AND account_status = #{accountStatus}
+        </if>
+        <if test="focusEndBefore != null">
+            AND focus_end_time &lt;= #{focusEndBefore}
+        </if>
+        ORDER BY update_time DESC, id DESC
+    </select>
+
+    <select id="countPlatformAccount" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_account
+        WHERE platform = #{platform}
+          AND account_uid = #{accountUid}
+          AND deleted = 0
+        <if test="excludeAccountId != null">
+            AND account_id != #{excludeAccountId}
+        </if>
+    </select>
+</mapper>

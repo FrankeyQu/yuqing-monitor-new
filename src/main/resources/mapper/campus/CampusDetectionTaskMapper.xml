@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDetectionTaskDao">
+
+    <resultMap id="CampusDetectionTaskResultMap" type="com.stonedt.intelligence.entity.campus.CampusDetectionTask">
+        <id column="id" property="id"/>
+        <result column="detection_task_id" property="detectionTaskId"/>
+        <result column="topic_id" property="topicId"/>
+        <result column="task_name" property="taskName"/>
+        <result column="object_types" property="objectTypes"/>
+        <result column="task_status" property="taskStatus"/>
+        <result column="scan_window_hours" property="scanWindowHours"/>
+        <result column="auto_alert" property="autoAlert"/>
+        <result column="last_run_time" property="lastRunTime"/>
+        <result column="next_run_time" property="nextRunTime"/>
+        <result column="description" property="description"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, detection_task_id, topic_id, task_name, object_types, task_status,
+        scan_window_hours, auto_alert, last_run_time, next_run_time, description,
+        deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusDetectionTask">
+        INSERT INTO campus_detection_task (
+            detection_task_id, topic_id, task_name, object_types, task_status,
+            scan_window_hours, auto_alert, next_run_time, description, deleted,
+            create_user_id, update_user_id
+        ) VALUES (
+            #{detectionTaskId}, #{topicId}, #{taskName}, #{objectTypes}, #{taskStatus},
+            #{scanWindowHours}, #{autoAlert}, #{nextRunTime}, #{description}, #{deleted},
+            #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusDetectionTask">
+        UPDATE campus_detection_task
+        <set>
+            <if test="topicId != null">topic_id = #{topicId},</if>
+            <if test="taskName != null">task_name = #{taskName},</if>
+            <if test="objectTypes != null">object_types = #{objectTypes},</if>
+            <if test="taskStatus != null">task_status = #{taskStatus},</if>
+            <if test="scanWindowHours != null">scan_window_hours = #{scanWindowHours},</if>
+            <if test="autoAlert != null">auto_alert = #{autoAlert},</if>
+            <if test="nextRunTime != null">next_run_time = #{nextRunTime},</if>
+            <if test="description != null">description = #{description},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE detection_task_id = #{detectionTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE campus_detection_task
+        SET task_status = #{taskStatus},
+            update_user_id = #{updateUserId}
+        WHERE detection_task_id = #{detectionTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateLastRunTime">
+        UPDATE campus_detection_task
+        SET last_run_time = NOW(),
+            update_user_id = #{updateUserId}
+        WHERE detection_task_id = #{detectionTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_detection_task
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE detection_task_id = #{detectionTaskId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByTaskId" resultMap="CampusDetectionTaskResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_task
+        WHERE detection_task_id = #{detectionTaskId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusDetectionTaskResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_task
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                task_name LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="topicId != null">
+            AND topic_id = #{topicId}
+        </if>
+        <if test="taskStatus != null and taskStatus != ''">
+            AND task_status = #{taskStatus}
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="listActiveTasks" resultMap="CampusDetectionTaskResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_task
+        WHERE deleted = 0
+          AND task_status = 'active'
+        ORDER BY id ASC
+    </select>
+</mapper>

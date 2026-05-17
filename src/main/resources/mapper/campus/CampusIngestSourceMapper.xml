@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusIngestSourceDao">
+
+    <resultMap id="CampusIngestSourceResultMap" type="com.stonedt.intelligence.entity.campus.CampusIngestSource">
+        <id column="id" property="id"/>
+        <result column="source_id" property="sourceId"/>
+        <result column="source_name" property="sourceName"/>
+        <result column="source_type" property="sourceType"/>
+        <result column="platform" property="platform"/>
+        <result column="access_endpoint" property="accessEndpoint"/>
+        <result column="authorization_basis" property="authorizationBasis"/>
+        <result column="authorization_scope" property="authorizationScope"/>
+        <result column="responsible_department_id" property="responsibleDepartmentId"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, source_id, source_name, source_type, platform, access_endpoint,
+        authorization_basis, authorization_scope, responsible_department_id,
+        enabled, remark, deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusIngestSource">
+        INSERT INTO campus_ingest_source (
+            source_id, source_name, source_type, platform, access_endpoint,
+            authorization_basis, authorization_scope, responsible_department_id,
+            enabled, remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{sourceId}, #{sourceName}, #{sourceType}, #{platform}, #{accessEndpoint},
+            #{authorizationBasis}, #{authorizationScope}, #{responsibleDepartmentId},
+            #{enabled}, #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusIngestSource">
+        UPDATE campus_ingest_source
+        <set>
+            <if test="sourceName != null">source_name = #{sourceName},</if>
+            <if test="sourceType != null">source_type = #{sourceType},</if>
+            <if test="platform != null">platform = #{platform},</if>
+            <if test="accessEndpoint != null">access_endpoint = #{accessEndpoint},</if>
+            <if test="authorizationBasis != null">authorization_basis = #{authorizationBasis},</if>
+            <if test="authorizationScope != null">authorization_scope = #{authorizationScope},</if>
+            <if test="responsibleDepartmentId != null">responsible_department_id = #{responsibleDepartmentId},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE source_id = #{sourceId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_ingest_source
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE source_id = #{sourceId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectBySourceId" resultMap="CampusIngestSourceResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_source
+        WHERE source_id = #{sourceId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusIngestSourceResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_source
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (source_name LIKE CONCAT('%', #{keyword}, '%') OR authorization_basis LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="sourceType != null and sourceType != ''">
+            AND source_type = #{sourceType}
+        </if>
+        <if test="platform != null and platform != ''">
+            AND platform = #{platform}
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDisposalRecordDao">
+
+    <resultMap id="CampusDisposalRecordResultMap" type="com.stonedt.intelligence.entity.campus.CampusDisposalRecord">
+        <id column="id" property="id"/>
+        <result column="record_id" property="recordId"/>
+        <result column="disposal_task_id" property="disposalTaskId"/>
+        <result column="event_id" property="eventId"/>
+        <result column="record_type" property="recordType"/>
+        <result column="record_content" property="recordContent"/>
+        <result column="handler_user_id" property="handlerUserId"/>
+        <result column="handler_name" property="handlerName"/>
+        <result column="handle_time" property="handleTime"/>
+        <result column="attachment_desc" property="attachmentDesc"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusDisposalRecord">
+        INSERT INTO campus_disposal_record (
+            record_id, disposal_task_id, event_id, record_type, record_content,
+            handler_user_id, handler_name, handle_time, attachment_desc
+        ) VALUES (
+            #{recordId}, #{disposalTaskId}, #{eventId}, #{recordType}, #{recordContent},
+            #{handlerUserId}, #{handlerName}, #{handleTime}, #{attachmentDesc}
+        )
+    </insert>
+
+    <select id="listByTaskId" resultMap="CampusDisposalRecordResultMap">
+        SELECT id, record_id, disposal_task_id, event_id, record_type, record_content,
+               handler_user_id, handler_name, handle_time, attachment_desc, create_time
+        FROM campus_disposal_record
+        WHERE disposal_task_id = #{disposalTaskId}
+        ORDER BY id DESC
+    </select>
+</mapper>

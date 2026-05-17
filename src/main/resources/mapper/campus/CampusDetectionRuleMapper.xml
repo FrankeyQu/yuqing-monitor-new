@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDetectionRuleDao">
+
+    <resultMap id="CampusDetectionRuleResultMap" type="com.stonedt.intelligence.entity.campus.CampusDetectionRule">
+        <id column="id" property="id"/>
+        <result column="rule_id" property="ruleId"/>
+        <result column="topic_id" property="topicId"/>
+        <result column="rule_name" property="ruleName"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="rule_condition" property="ruleCondition"/>
+        <result column="exclude_words" property="excludeWords"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="enabled" property="enabled"/>
+        <result column="sort_no" property="sortNo"/>
+        <result column="description" property="description"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, rule_id, topic_id, rule_name, rule_type, rule_condition,
+        exclude_words, risk_level, enabled, sort_no, description, deleted,
+        create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusDetectionRule">
+        INSERT INTO campus_detection_rule (
+            rule_id, topic_id, rule_name, rule_type, rule_condition, exclude_words,
+            risk_level, enabled, sort_no, description, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{ruleId}, #{topicId}, #{ruleName}, #{ruleType}, #{ruleCondition}, #{excludeWords},
+            #{riskLevel}, #{enabled}, #{sortNo}, #{description}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusDetectionRule">
+        UPDATE campus_detection_rule
+        <set>
+            <if test="topicId != null">topic_id = #{topicId},</if>
+            <if test="ruleName != null">rule_name = #{ruleName},</if>
+            <if test="ruleType != null">rule_type = #{ruleType},</if>
+            <if test="ruleCondition != null">rule_condition = #{ruleCondition},</if>
+            <if test="excludeWords != null">exclude_words = #{excludeWords},</if>
+            <if test="riskLevel != null">risk_level = #{riskLevel},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="sortNo != null">sort_no = #{sortNo},</if>
+            <if test="description != null">description = #{description},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE rule_id = #{ruleId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_detection_rule
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE rule_id = #{ruleId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByRuleId" resultMap="CampusDetectionRuleResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_rule
+        WHERE rule_id = #{ruleId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusDetectionRuleResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_rule
+        WHERE deleted = 0
+        <if test="topicId != null">
+            AND topic_id = #{topicId}
+        </if>
+        <if test="ruleType != null and ruleType != ''">
+            AND rule_type = #{ruleType}
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY sort_no ASC, id DESC
+    </select>
+
+    <select id="listEnabledByTopicId" resultMap="CampusDetectionRuleResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_rule
+        WHERE topic_id = #{topicId}
+          AND enabled = 1
+          AND deleted = 0
+        ORDER BY sort_no ASC, id ASC
+    </select>
+</mapper>

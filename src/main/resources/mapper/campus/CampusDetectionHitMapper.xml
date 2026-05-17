@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDetectionHitDao">
+
+    <resultMap id="CampusDetectionHitResultMap" type="com.stonedt.intelligence.entity.campus.CampusDetectionHit">
+        <id column="id" property="id"/>
+        <result column="hit_id" property="hitId"/>
+        <result column="detection_task_id" property="detectionTaskId"/>
+        <result column="topic_id" property="topicId"/>
+        <result column="rule_id" property="ruleId"/>
+        <result column="object_type" property="objectType"/>
+        <result column="object_id" property="objectId"/>
+        <result column="object_title" property="objectTitle"/>
+        <result column="platform" property="platform"/>
+        <result column="matched_keywords" property="matchedKeywords"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="hit_content" property="hitContent"/>
+        <result column="hit_status" property="hitStatus"/>
+        <result column="alert_id" property="alertId"/>
+        <result column="clue_id" property="clueId"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, hit_id, detection_task_id, topic_id, rule_id, object_type, object_id,
+        object_title, platform, matched_keywords, risk_level, hit_content,
+        hit_status, alert_id, clue_id, deleted, create_user_id, update_user_id,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusDetectionHit">
+        INSERT INTO campus_detection_hit (
+            hit_id, detection_task_id, topic_id, rule_id, object_type, object_id,
+            object_title, platform, matched_keywords, risk_level, hit_content,
+            hit_status, alert_id, clue_id, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{hitId}, #{detectionTaskId}, #{topicId}, #{ruleId}, #{objectType}, #{objectId},
+            #{objectTitle}, #{platform}, #{matchedKeywords}, #{riskLevel}, #{hitContent},
+            #{hitStatus}, #{alertId}, #{clueId}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE campus_detection_hit
+        SET hit_status = #{hitStatus},
+            alert_id = #{alertId},
+            clue_id = #{clueId},
+            update_user_id = #{updateUserId}
+        WHERE hit_id = #{hitId}
+          AND deleted = 0
+    </update>
+
+    <select id="countExisting" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_detection_hit
+        WHERE detection_task_id = #{detectionTaskId}
+          AND object_type = #{objectType}
+          AND object_id = #{objectId}
+          AND deleted = 0
+        <choose>
+            <when test="ruleId != null">
+                AND rule_id = #{ruleId}
+            </when>
+            <otherwise>
+                AND rule_id IS NULL
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="matchedKeywords != null and matchedKeywords != ''">
+                AND matched_keywords = #{matchedKeywords}
+            </when>
+            <otherwise>
+                AND (matched_keywords IS NULL OR matched_keywords = '')
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectByHitId" resultMap="CampusDetectionHitResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_hit
+        WHERE hit_id = #{hitId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusDetectionHitResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_detection_hit
+        WHERE deleted = 0
+        <if test="detectionTaskId != null">
+            AND detection_task_id = #{detectionTaskId}
+        </if>
+        <if test="topicId != null">
+            AND topic_id = #{topicId}
+        </if>
+        <if test="objectType != null and objectType != ''">
+            AND object_type = #{objectType}
+        </if>
+        <if test="hitStatus != null and hitStatus != ''">
+            AND hit_status = #{hitStatus}
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                object_title LIKE CONCAT('%', #{keyword}, '%')
+                OR hit_content LIKE CONCAT('%', #{keyword}, '%')
+                OR matched_keywords LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

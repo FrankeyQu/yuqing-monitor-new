@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDisposalTaskDao">
+
+    <resultMap id="CampusDisposalTaskResultMap" type="com.stonedt.intelligence.entity.campus.CampusDisposalTask">
+        <id column="id" property="id"/>
+        <result column="disposal_task_id" property="disposalTaskId"/>
+        <result column="event_id" property="eventId"/>
+        <result column="task_title" property="taskTitle"/>
+        <result column="assigned_department_id" property="assignedDepartmentId"/>
+        <result column="assigned_user_id" property="assignedUserId"/>
+        <result column="disposal_requirement" property="disposalRequirement"/>
+        <result column="due_time" property="dueTime"/>
+        <result column="task_status" property="taskStatus"/>
+        <result column="feedback_summary" property="feedbackSummary"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusDisposalTask">
+        INSERT INTO campus_disposal_task (
+            disposal_task_id, event_id, task_title, assigned_department_id, assigned_user_id,
+            disposal_requirement, due_time, task_status, feedback_summary, deleted,
+            create_user_id, update_user_id
+        ) VALUES (
+            #{disposalTaskId}, #{eventId}, #{taskTitle}, #{assignedDepartmentId}, #{assignedUserId},
+            #{disposalRequirement}, #{dueTime}, #{taskStatus}, #{feedbackSummary}, #{deleted},
+            #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE campus_disposal_task
+        SET task_status = #{taskStatus},
+            feedback_summary = #{feedbackSummary},
+            update_user_id = #{updateUserId}
+        WHERE disposal_task_id = #{disposalTaskId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByTaskId" resultMap="CampusDisposalTaskResultMap">
+        SELECT id, disposal_task_id, event_id, task_title, assigned_department_id,
+               assigned_user_id, disposal_requirement, due_time, task_status,
+               feedback_summary, deleted, create_user_id, update_user_id, create_time, update_time
+        FROM campus_disposal_task
+        WHERE disposal_task_id = #{disposalTaskId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="listByEventId" resultMap="CampusDisposalTaskResultMap">
+        SELECT id, disposal_task_id, event_id, task_title, assigned_department_id,
+               assigned_user_id, disposal_requirement, due_time, task_status,
+               feedback_summary, deleted, create_user_id, update_user_id, create_time, update_time
+        FROM campus_disposal_task
+        WHERE event_id = #{eventId}
+          AND deleted = 0
+        ORDER BY id DESC
+    </select>
+</mapper>

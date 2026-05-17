@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusMonitorIngestTaskRelationDao">
+
+    <insert id="upsert">
+        INSERT INTO campus_monitor_ingest_task_relation (
+            relation_id, monitor_task_id, ingest_task_id, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{relationId}, #{monitorTaskId}, #{ingestTaskId}, 0, #{operatorUserId}, #{operatorUserId}
+        )
+        ON DUPLICATE KEY UPDATE
+            deleted = 0,
+            update_user_id = #{operatorUserId},
+            update_time = CURRENT_TIMESTAMP
+    </insert>
+
+    <update id="softDeleteMissing">
+        UPDATE campus_monitor_ingest_task_relation
+        SET deleted = 1,
+            update_user_id = #{operatorUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+        <choose>
+            <when test="ingestTaskIds != null and ingestTaskIds.size() > 0">
+                AND ingest_task_id NOT IN
+                <foreach collection="ingestTaskIds" item="ingestTaskId" open="(" separator="," close=")">
+                    #{ingestTaskId}
+                </foreach>
+            </when>
+            <otherwise>
+                AND 1 = 1
+            </otherwise>
+        </choose>
+    </update>
+
+    <update id="softDeleteAll">
+        UPDATE campus_monitor_ingest_task_relation
+        SET deleted = 1,
+            update_user_id = #{operatorUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <select id="listIngestTaskIds" resultType="long">
+        SELECT ingest_task_id
+        FROM campus_monitor_ingest_task_relation
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+        ORDER BY id ASC
+    </select>
+</mapper>

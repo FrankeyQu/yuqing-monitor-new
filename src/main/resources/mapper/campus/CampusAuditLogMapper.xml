@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAuditLogDao">
+
+    <resultMap id="CampusAuditLogResultMap" type="com.stonedt.intelligence.entity.campus.CampusAuditLog">
+        <id column="id" property="id"/>
+        <result column="audit_id" property="auditId"/>
+        <result column="operator_user_id" property="operatorUserId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="operator_department_id" property="operatorDepartmentId"/>
+        <result column="operation_type" property="operationType"/>
+        <result column="module_name" property="moduleName"/>
+        <result column="object_type" property="objectType"/>
+        <result column="object_id" property="objectId"/>
+        <result column="request_method" property="requestMethod"/>
+        <result column="request_uri" property="requestUri"/>
+        <result column="request_ip" property="requestIp"/>
+        <result column="request_params" property="requestParams"/>
+        <result column="before_value" property="beforeValue"/>
+        <result column="after_value" property="afterValue"/>
+        <result column="operation_result" property="operationResult"/>
+        <result column="failure_reason" property="failureReason"/>
+        <result column="task_no" property="taskNo"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, audit_id, operator_user_id, operator_name, operator_department_id,
+        operation_type, module_name, object_type, object_id, request_method,
+        request_uri, request_ip, request_params, before_value, after_value,
+        operation_result, failure_reason, task_no, create_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusAuditLog">
+        INSERT INTO campus_audit_log (
+            audit_id, operator_user_id, operator_name, operator_department_id,
+            operation_type, module_name, object_type, object_id, request_method,
+            request_uri, request_ip, request_params, before_value, after_value,
+            operation_result, failure_reason, task_no
+        ) VALUES (
+            #{auditId}, #{operatorUserId}, #{operatorName}, #{operatorDepartmentId},
+            #{operationType}, #{moduleName}, #{objectType}, #{objectId}, #{requestMethod},
+            #{requestUri}, #{requestIp}, #{requestParams}, #{beforeValue}, #{afterValue},
+            #{operationResult}, #{failureReason}, #{taskNo}
+        )
+    </insert>
+
+    <select id="list" resultMap="CampusAuditLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_audit_log
+        WHERE 1 = 1
+        <if test="moduleName != null and moduleName != ''">
+            AND module_name = #{moduleName}
+        </if>
+        <if test="operationType != null and operationType != ''">
+            AND operation_type = #{operationType}
+        </if>
+        <if test="objectType != null and objectType != ''">
+            AND object_type = #{objectType}
+        </if>
+        <if test="objectId != null and objectId != ''">
+            AND object_id = #{objectId}
+        </if>
+        <if test="operatorName != null and operatorName != ''">
+            AND operator_name LIKE CONCAT('%', #{operatorName}, '%')
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

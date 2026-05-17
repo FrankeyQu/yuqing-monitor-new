@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusSensitiveWordDao">
+
+    <resultMap id="CampusSensitiveWordResultMap" type="com.stonedt.intelligence.entity.campus.CampusSensitiveWord">
+        <id column="id" property="id"/>
+        <result column="word_id" property="wordId"/>
+        <result column="word_text" property="wordText"/>
+        <result column="word_category" property="wordCategory"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="match_type" property="matchType"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, word_id, word_text, word_category, risk_level, match_type, status,
+        remark, deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusSensitiveWord">
+        INSERT INTO campus_sensitive_word (
+            word_id, word_text, word_category, risk_level, match_type, status,
+            remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{wordId}, #{wordText}, #{wordCategory}, #{riskLevel}, #{matchType}, #{status},
+            #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusSensitiveWord">
+        UPDATE campus_sensitive_word
+        <set>
+            <if test="wordText != null">word_text = #{wordText},</if>
+            <if test="wordCategory != null">word_category = #{wordCategory},</if>
+            <if test="riskLevel != null">risk_level = #{riskLevel},</if>
+            <if test="matchType != null">match_type = #{matchType},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE word_id = #{wordId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_sensitive_word
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE word_id = #{wordId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByWordId" resultMap="CampusSensitiveWordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_sensitive_word
+        WHERE word_id = #{wordId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusSensitiveWordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_sensitive_word
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (word_text LIKE CONCAT('%', #{keyword}, '%') OR remark LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="wordCategory != null and wordCategory != ''">
+            AND word_category = #{wordCategory}
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="listEnabled" resultMap="CampusSensitiveWordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_sensitive_word
+        WHERE deleted = 0
+          AND status = 1
+        ORDER BY id DESC
+    </select>
+</mapper>

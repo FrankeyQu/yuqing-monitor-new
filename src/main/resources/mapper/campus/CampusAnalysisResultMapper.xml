@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAnalysisResultDao">
+
+    <resultMap id="CampusAnalysisResultResultMap" type="com.stonedt.intelligence.entity.campus.CampusAnalysisResult">
+        <id column="id" property="id"/>
+        <result column="analysis_result_id" property="analysisResultId"/>
+        <result column="analysis_task_id" property="analysisTaskId"/>
+        <result column="object_type" property="objectType"/>
+        <result column="object_id" property="objectId"/>
+        <result column="analysis_type" property="analysisType"/>
+        <result column="sentiment" property="sentiment"/>
+        <result column="suggested_risk_level" property="suggestedRiskLevel"/>
+        <result column="summary" property="summary"/>
+        <result column="keywords" property="keywords"/>
+        <result column="similar_object_ids" property="similarObjectIds"/>
+        <result column="confidence" property="confidence"/>
+        <result column="result_payload" property="resultPayload"/>
+        <result column="assistive_label" property="assistiveLabel"/>
+        <result column="adoption_status" property="adoptionStatus"/>
+        <result column="reviewer_user_id" property="reviewerUserId"/>
+        <result column="review_time" property="reviewTime"/>
+        <result column="review_opinion" property="reviewOpinion"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, analysis_result_id, analysis_task_id, object_type, object_id, analysis_type,
+        sentiment, suggested_risk_level, summary, keywords, similar_object_ids,
+        confidence, result_payload, assistive_label, adoption_status, reviewer_user_id,
+        review_time, review_opinion, deleted, create_user_id, update_user_id,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusAnalysisResult">
+        INSERT INTO campus_analysis_result (
+            analysis_result_id, analysis_task_id, object_type, object_id, analysis_type,
+            sentiment, suggested_risk_level, summary, keywords, similar_object_ids,
+            confidence, result_payload, assistive_label, adoption_status, deleted,
+            create_user_id, update_user_id
+        ) VALUES (
+            #{analysisResultId}, #{analysisTaskId}, #{objectType}, #{objectId}, #{analysisType},
+            #{sentiment}, #{suggestedRiskLevel}, #{summary}, #{keywords}, #{similarObjectIds},
+            #{confidence}, #{resultPayload}, #{assistiveLabel}, #{adoptionStatus}, #{deleted},
+            #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="review">
+        UPDATE campus_analysis_result
+        SET adoption_status = #{adoptionStatus},
+            review_opinion = #{reviewOpinion},
+            reviewer_user_id = #{reviewerUserId},
+            review_time = NOW(),
+            update_user_id = #{updateUserId}
+        WHERE analysis_result_id = #{analysisResultId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByResultId" resultMap="CampusAnalysisResultResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_analysis_result
+        WHERE analysis_result_id = #{analysisResultId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusAnalysisResultResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_analysis_result
+        WHERE deleted = 0
+        <if test="analysisTaskId != null">
+            AND analysis_task_id = #{analysisTaskId}
+        </if>
+        <if test="objectType != null and objectType != ''">
+            AND object_type = #{objectType}
+        </if>
+        <if test="objectId != null">
+            AND object_id = #{objectId}
+        </if>
+        <if test="analysisType != null and analysisType != ''">
+            AND analysis_type = #{analysisType}
+        </if>
+        <if test="adoptionStatus != null and adoptionStatus != ''">
+            AND adoption_status = #{adoptionStatus}
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

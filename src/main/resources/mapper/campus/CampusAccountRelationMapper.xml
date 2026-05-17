@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAccountRelationDao">
+
+    <resultMap id="CampusAccountRelationResultMap" type="com.stonedt.intelligence.entity.campus.CampusAccountRelation">
+        <id column="id" property="id"/>
+        <result column="relation_id" property="relationId"/>
+        <result column="account_id" property="accountId"/>
+        <result column="relation_type" property="relationType"/>
+        <result column="relation_object_id" property="relationObjectId"/>
+        <result column="relation_desc" property="relationDesc"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusAccountRelation">
+        INSERT INTO campus_account_relation (
+            relation_id, account_id, relation_type, relation_object_id, relation_desc, deleted, create_user_id
+        ) VALUES (
+            #{relationId}, #{accountId}, #{relationType}, #{relationObjectId}, #{relationDesc}, #{deleted}, #{createUserId}
+        )
+    </insert>
+
+    <select id="listByAccountId" resultMap="CampusAccountRelationResultMap">
+        SELECT id, relation_id, account_id, relation_type, relation_object_id,
+               relation_desc, deleted, create_user_id, create_time
+        FROM campus_account_relation
+        WHERE account_id = #{accountId}
+          AND deleted = 0
+        ORDER BY id DESC
+    </select>
+</mapper>

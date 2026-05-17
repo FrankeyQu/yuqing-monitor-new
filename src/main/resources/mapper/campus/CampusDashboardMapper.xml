@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDashboardDao">
+
+    <select id="overview" resultType="java.util.HashMap">
+        SELECT
+            (SELECT COUNT(1)
+             FROM campus_clue
+             WHERE deleted = 0
+               AND DATE(discover_time) = CURDATE()) AS todayClueCount,
+            (SELECT COUNT(1)
+             FROM campus_clue
+             WHERE deleted = 0
+               AND clue_status = 'pending_judge') AS pendingClueCount,
+            (SELECT COUNT(1)
+             FROM campus_event
+             WHERE deleted = 0
+               AND event_status != 'archived') AS activeEventCount,
+            (SELECT COUNT(1)
+             FROM campus_event
+             WHERE deleted = 0
+               AND event_status != 'archived'
+               AND risk_level IN ('major', 'urgent')) AS highRiskEventCount,
+            (SELECT COUNT(1)
+             FROM campus_alert
+             WHERE deleted = 0
+               AND alert_status = 'pending') AS pendingAlertCount,
+            (SELECT COUNT(1)
+             FROM campus_disposal_task
+             WHERE deleted = 0
+               AND task_status NOT IN ('completed', 'confirmed')
+               AND due_time IS NOT NULL
+               AND due_time &lt; NOW()) AS overdueDisposalCount,
+            (SELECT COUNT(1)
+             FROM campus_account
+             WHERE deleted = 0
+               AND account_status = 'active') AS activeAccountCount
+    </select>
+
+    <select id="monitorOverview" resultType="java.util.HashMap">
+        SELECT
+            (SELECT COUNT(1)
+             FROM campus_monitor_task
+             WHERE deleted = 0
+               AND task_status = 'active') AS activeTaskCount,
+            (SELECT COUNT(1)
+             FROM campus_monitor_task
+             WHERE deleted = 0
+               AND schedule_enabled = 1
+               AND task_status = 'active') AS scheduledTaskCount,
+            (SELECT COUNT(1)
+             FROM campus_monitor_result
+             WHERE deleted = 0
+               AND DATE(create_time) = CURDATE()) AS todayResultCount,
+            (SELECT COUNT(1)
+             FROM campus_alert
+             WHERE deleted = 0
+               AND alert_source = 'monitor'
+               AND alert_status = 'pending') AS pendingAlertCount,
+            (SELECT COUNT(1)
+             FROM campus_alert
+             WHERE deleted = 0
+               AND alert_source = 'monitor'
+               AND DATE(create_time) = CURDATE()) AS todayAlertCount
+    </select>
+
+    <select id="riskDistribution" resultType="java.util.HashMap">
+        SELECT COALESCE(risk_level, 'normal') AS name, COUNT(1) AS value
+        FROM campus_event
+        WHERE deleted = 0
+        GROUP BY COALESCE(risk_level, 'normal')
+        ORDER BY value DESC
+    </select>
+
+    <select id="clueSourceDistribution" resultType="java.util.HashMap">
+        SELECT COALESCE(clue_source, 'unknown') AS name, COUNT(1) AS value
+        FROM campus_clue
+        WHERE deleted = 0
+        GROUP BY COALESCE(clue_source, 'unknown')
+        ORDER BY value DESC
+    </select>
+
+    <select id="eventStatusDistribution" resultType="java.util.HashMap">
+        SELECT COALESCE(event_status, 'unknown') AS name, COUNT(1) AS value
+        FROM campus_event
+        WHERE deleted = 0
+        GROUP BY COALESCE(event_status, 'unknown')
+        ORDER BY value DESC
+    </select>
+
+    <select id="trendByDay" resultType="java.util.HashMap">
+        SELECT
+            DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL day_seq.seq DAY), '%m-%d') AS name,
+            (SELECT COUNT(1)
+             FROM campus_clue clue
+             WHERE clue.deleted = 0
+               AND DATE(COALESCE(clue.discover_time, clue.create_time)) = DATE_SUB(CURDATE(), INTERVAL day_seq.seq DAY)) AS clueCount,
+            (SELECT COUNT(1)
+             FROM campus_alert alert
+             WHERE alert.deleted = 0
+               AND DATE(alert.create_time) = DATE_SUB(CURDATE(), INTERVAL day_seq.seq DAY)) AS alertCount,
+            (SELECT COUNT(1)
+             FROM campus_detection_hit hit
+             WHERE hit.deleted = 0
+               AND DATE(hit.create_time) = DATE_SUB(CURDATE(), INTERVAL day_seq.seq DAY)) AS hitCount,
+            (SELECT COUNT(1)
+             FROM campus_event ev
+             WHERE ev.deleted = 0
+               AND DATE(COALESCE(ev.discover_time, ev.create_time)) = DATE_SUB(CURDATE(), INTERVAL day_seq.seq DAY)) AS eventCount
+        FROM (
+            SELECT 6 AS seq UNION ALL SELECT 5 UNION ALL SELECT 4 UNION ALL SELECT 3
+            UNION ALL SELECT 2 UNION ALL SELECT 1 UNION ALL SELECT 0
+        ) day_seq
+        ORDER BY day_seq.seq DESC
+    </select>
+
+    <select id="monitorTrendByDay" resultType="java.util.HashMap">
+        SELECT
+            DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL day_seq.seq DAY), '%m-%d') AS name,
+            (SELECT COUNT(1)
+             FROM campus_monitor_result result
+             WHERE result.deleted = 0
+               AND DATE(result.create_time) = DATE_SUB(CURDATE(), INTERVAL day_seq.seq DAY)) AS monitorResultCount,
+            (SELECT COUNT(1)
+             FROM campus_alert alert
+             WHERE alert.deleted = 0
+               AND alert.alert_source = 'monitor'
+               AND DATE(alert.create_time) = DATE_SUB(CURDATE(), INTERVAL day_seq.seq DAY)) AS monitorAlertCount
+        FROM (
+            SELECT 6 AS seq UNION ALL SELECT 5 UNION ALL SELECT 4 UNION ALL SELECT 3
+            UNION ALL SELECT 2 UNION ALL SELECT 1 UNION ALL SELECT 0
+        ) day_seq
+        ORDER BY day_seq.seq DESC
+    </select>
+
+    <select id="alertRiskDistribution" resultType="java.util.HashMap">
+        SELECT COALESCE(risk_level, 'normal') AS name, COUNT(1) AS value
+        FROM campus_alert
+        WHERE deleted = 0
+        GROUP BY COALESCE(risk_level, 'normal')
+        ORDER BY value DESC
+    </select>
+
+    <select id="detectionHitRiskDistribution" resultType="java.util.HashMap">
+        SELECT COALESCE(risk_level, 'normal') AS name, COUNT(1) AS value
+        FROM campus_detection_hit
+        WHERE deleted = 0
+        GROUP BY COALESCE(risk_level, 'normal')
+        ORDER BY value DESC
+    </select>
+
+    <select id="sourceRiskDistribution" resultType="java.util.HashMap">
+        SELECT
+            COALESCE(NULLIF(clue_source, ''), 'unknown') AS name,
+            COUNT(1) AS totalCount,
+            SUM(CASE WHEN risk_level IS NULL OR risk_level = 'normal' THEN 1 ELSE 0 END) AS normalCount,
+            SUM(CASE WHEN risk_level = 'concern' THEN 1 ELSE 0 END) AS concernCount,
+            SUM(CASE WHEN risk_level = 'major' THEN 1 ELSE 0 END) AS majorCount,
+            SUM(CASE WHEN risk_level = 'urgent' THEN 1 ELSE 0 END) AS urgentCount
+        FROM campus_clue
+        WHERE deleted = 0
+        GROUP BY COALESCE(NULLIF(clue_source, ''), 'unknown')
+        ORDER BY totalCount DESC
+        LIMIT 8
+    </select>
+
+    <select id="mediaDistribution" resultType="java.util.HashMap">
+        SELECT COALESCE(source_platform, '其它') AS name, COUNT(1) AS value
+        FROM campus_clue
+        WHERE deleted = 0
+        GROUP BY source_platform
+        ORDER BY value DESC
+    </select>
+
+    <select id="topicRiskDistribution" resultType="java.util.HashMap">
+        SELECT
+            COALESCE(NULLIF(topic_category, ''), 'other') AS name,
+            COUNT(1) AS totalCount,
+            SUM(CASE WHEN risk_level IS NULL OR risk_level = 'normal' THEN 1 ELSE 0 END) AS normalCount,
+            SUM(CASE WHEN risk_level = 'concern' THEN 1 ELSE 0 END) AS concernCount,
+            SUM(CASE WHEN risk_level = 'major' THEN 1 ELSE 0 END) AS majorCount,
+            SUM(CASE WHEN risk_level = 'urgent' THEN 1 ELSE 0 END) AS urgentCount
+        FROM campus_clue
+        WHERE deleted = 0
+        GROUP BY COALESCE(NULLIF(topic_category, ''), 'other')
+        ORDER BY totalCount DESC
+        LIMIT 12
+    </select>
+
+    <select id="governanceMetrics" resultType="java.util.HashMap">
+        SELECT
+            (SELECT COUNT(1)
+             FROM campus_disposal_task
+             WHERE deleted = 0
+               AND task_status NOT IN ('completed', 'confirmed')
+               AND due_time IS NOT NULL
+               AND due_time &lt; NOW()) AS overdueTaskCount,
+            (SELECT COUNT(1)
+             FROM campus_disposal_task
+             WHERE deleted = 0
+               AND task_status NOT IN ('completed', 'confirmed')
+               AND due_time IS NOT NULL
+               AND due_time &gt;= NOW()
+               AND due_time &lt; DATE_ADD(NOW(), INTERVAL 24 HOUR)) AS dueSoonTaskCount,
+            (SELECT COUNT(1)
+             FROM campus_event
+             WHERE deleted = 0
+               AND event_status = 'reviewed') AS reviewedEventCount,
+            (SELECT COUNT(1)
+             FROM campus_event
+             WHERE deleted = 0
+               AND event_status = 'archived'
+               AND DATE(update_time) = CURDATE()) AS todayArchivedEventCount,
+            (SELECT COUNT(1)
+             FROM campus_alert
+             WHERE deleted = 0
+               AND alert_status = 'pending') AS pendingAlertCount
+    </select>
+</mapper>

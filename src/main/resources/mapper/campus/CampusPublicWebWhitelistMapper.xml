@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusPublicWebWhitelistDao">
+
+    <resultMap id="CampusPublicWebWhitelistResultMap" type="com.stonedt.intelligence.entity.campus.CampusPublicWebWhitelist">
+        <id column="id" property="id"/>
+        <result column="whitelist_id" property="whitelistId"/>
+        <result column="site_name" property="siteName"/>
+        <result column="site_domain" property="siteDomain"/>
+        <result column="base_url" property="baseUrl"/>
+        <result column="allowed_path_prefix" property="allowedPathPrefix"/>
+        <result column="authorization_basis" property="authorizationBasis"/>
+        <result column="authorization_scope" property="authorizationScope"/>
+        <result column="robots_policy" property="robotsPolicy"/>
+        <result column="rate_limit_seconds" property="rateLimitSeconds"/>
+        <result column="max_depth" property="maxDepth"/>
+        <result column="responsible_department_id" property="responsibleDepartmentId"/>
+        <result column="enabled" property="enabled"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, whitelist_id, site_name, site_domain, base_url, allowed_path_prefix,
+        authorization_basis, authorization_scope, robots_policy, rate_limit_seconds,
+        max_depth, responsible_department_id, enabled, remark, deleted,
+        create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusPublicWebWhitelist">
+        INSERT INTO campus_public_web_whitelist (
+            whitelist_id, site_name, site_domain, base_url, allowed_path_prefix,
+            authorization_basis, authorization_scope, robots_policy, rate_limit_seconds,
+            max_depth, responsible_department_id, enabled, remark, deleted,
+            create_user_id, update_user_id
+        ) VALUES (
+            #{whitelistId}, #{siteName}, #{siteDomain}, #{baseUrl}, #{allowedPathPrefix},
+            #{authorizationBasis}, #{authorizationScope}, #{robotsPolicy}, #{rateLimitSeconds},
+            #{maxDepth}, #{responsibleDepartmentId}, #{enabled}, #{remark}, #{deleted},
+            #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusPublicWebWhitelist">
+        UPDATE campus_public_web_whitelist
+        <set>
+            <if test="siteName != null">site_name = #{siteName},</if>
+            <if test="siteDomain != null">site_domain = #{siteDomain},</if>
+            <if test="baseUrl != null">base_url = #{baseUrl},</if>
+            <if test="allowedPathPrefix != null">allowed_path_prefix = #{allowedPathPrefix},</if>
+            <if test="authorizationBasis != null">authorization_basis = #{authorizationBasis},</if>
+            <if test="authorizationScope != null">authorization_scope = #{authorizationScope},</if>
+            <if test="robotsPolicy != null">robots_policy = #{robotsPolicy},</if>
+            <if test="rateLimitSeconds != null">rate_limit_seconds = #{rateLimitSeconds},</if>
+            <if test="maxDepth != null">max_depth = #{maxDepth},</if>
+            <if test="responsibleDepartmentId != null">responsible_department_id = #{responsibleDepartmentId},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE whitelist_id = #{whitelistId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE campus_public_web_whitelist
+        SET enabled = #{enabled},
+            update_user_id = #{updateUserId}
+        WHERE whitelist_id = #{whitelistId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_public_web_whitelist
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE whitelist_id = #{whitelistId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByWhitelistId" resultMap="CampusPublicWebWhitelistResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_public_web_whitelist
+        WHERE whitelist_id = #{whitelistId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusPublicWebWhitelistResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_public_web_whitelist
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (site_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR authorization_basis LIKE CONCAT('%', #{keyword}, '%')
+                 OR authorization_scope LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="siteDomain != null and siteDomain != ''">
+            AND site_domain LIKE CONCAT('%', #{siteDomain}, '%')
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

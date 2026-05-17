@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusIngestRecordDao">
+
+    <resultMap id="CampusIngestRecordResultMap" type="com.stonedt.intelligence.entity.campus.CampusIngestRecord">
+        <id column="id" property="id"/>
+        <result column="record_id" property="recordId"/>
+        <result column="run_id" property="runId"/>
+        <result column="source_id" property="sourceId"/>
+        <result column="task_id" property="taskId"/>
+        <result column="external_id" property="externalId"/>
+        <result column="content_hash" property="contentHash"/>
+        <result column="platform" property="platform"/>
+        <result column="content_type" property="contentType"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="original_url" property="originalUrl"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="author_name" property="authorName"/>
+        <result column="account_id" property="accountId"/>
+        <result column="account_task_id" property="accountTaskId"/>
+        <result column="keywords" property="keywords"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="sentiment" property="sentiment"/>
+        <result column="language" property="language" jdbcType="VARCHAR"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="share_count" property="shareCount"/>
+        <result column="collect_count" property="collectCount"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="raw_data" property="rawData"/>
+        <result column="normalized_status" property="normalizedStatus"/>
+        <result column="target_type" property="targetType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, record_id, run_id, source_id, task_id, external_id, content_hash, platform, content_type,
+        title, content, original_url, publish_time, author_name, account_id,
+        account_task_id, keywords, risk_level, sentiment, language,
+        like_count, comment_count, share_count, collect_count, view_count,
+        raw_data, normalized_status,
+        target_type, target_id, error_message, deleted, create_user_id, update_user_id,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusIngestRecord">
+        INSERT INTO campus_ingest_record (
+            record_id, run_id, source_id, task_id, external_id, content_hash, platform, content_type,
+            title, content, original_url, publish_time, author_name, account_id,
+            account_task_id, keywords, risk_level, sentiment, language,
+            like_count, comment_count, share_count, collect_count, view_count,
+            raw_data, normalized_status,
+            target_type, target_id, error_message, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{recordId}, #{runId}, #{sourceId}, #{taskId}, #{externalId}, #{contentHash}, #{platform}, #{contentType},
+            #{title}, #{content}, #{originalUrl}, #{publishTime}, #{authorName}, #{accountId},
+            #{accountTaskId}, #{keywords}, #{riskLevel}, #{sentiment}, #{language},
+            #{likeCount}, #{commentCount}, #{shareCount}, #{collectCount}, #{viewCount},
+            #{rawData}, #{normalizedStatus},
+            #{targetType}, #{targetId}, #{errorMessage}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <select id="selectDuplicate" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE source_id = #{sourceId}
+          AND deleted = 0
+          AND (
+            <if test="externalId != null and externalId != ''">
+                external_id = #{externalId}
+            </if>
+            <if test="externalId != null and externalId != '' and contentHash != null and contentHash != ''">
+                OR
+            </if>
+            <if test="contentHash != null and contentHash != ''">
+                content_hash = #{contentHash}
+            </if>
+            <if test="(externalId == null or externalId == '') and (contentHash == null or contentHash == '')">
+                1 = 0
+            </if>
+          )
+        LIMIT 1
+    </select>
+
+    <select id="selectDuplicateByExternalId" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE source_id = #{sourceId}
+          AND external_id = #{externalId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectDuplicateByContentHash" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE source_id = #{sourceId}
+          AND content_hash = #{contentHash}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectDuplicateByPlatformTitle" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE source_id = #{sourceId}
+          AND platform = #{platform}
+          AND title = #{title}
+          AND deleted = 0
+        ORDER BY CHAR_LENGTH(IFNULL(content, '')) DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <update id="updateStatus">
+        UPDATE campus_ingest_record
+        SET normalized_status = #{normalizedStatus},
+            target_type = #{targetType},
+            target_id = #{targetId},
+            error_message = #{errorMessage},
+            update_user_id = #{updateUserId}
+        WHERE record_id = #{recordId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateEnhancement">
+        UPDATE campus_ingest_record
+        SET title = CASE
+                WHEN #{incoming.title} IS NOT NULL
+                 AND #{incoming.title} != ''
+                 AND (title IS NULL OR title = '' OR CHAR_LENGTH(title) &lt; CHAR_LENGTH(#{incoming.title}))
+                THEN #{incoming.title}
+                ELSE title
+            END,
+            content = CASE
+                WHEN #{incoming.content} IS NOT NULL
+                 AND #{incoming.content} != ''
+                 AND (content IS NULL OR content = '' OR CHAR_LENGTH(content) &lt; CHAR_LENGTH(#{incoming.content}))
+                THEN #{incoming.content}
+                ELSE content
+            END,
+            original_url = CASE
+                WHEN #{incoming.originalUrl} IS NOT NULL
+                 AND #{incoming.originalUrl} != ''
+                 AND (original_url IS NULL OR original_url = '')
+                THEN #{incoming.originalUrl}
+                ELSE original_url
+            END,
+            publish_time = CASE
+                WHEN #{incoming.publishTime} IS NOT NULL AND publish_time IS NULL
+                THEN #{incoming.publishTime}
+                ELSE publish_time
+            END,
+            author_name = CASE
+                WHEN #{incoming.authorName} IS NOT NULL
+                 AND #{incoming.authorName} != ''
+                 AND (author_name IS NULL OR author_name = '')
+                THEN #{incoming.authorName}
+                ELSE author_name
+            END,
+            like_count = CASE WHEN #{incoming.likeCount} IS NOT NULL THEN #{incoming.likeCount} ELSE like_count END,
+            comment_count = CASE WHEN #{incoming.commentCount} IS NOT NULL THEN #{incoming.commentCount} ELSE comment_count END,
+            share_count = CASE WHEN #{incoming.shareCount} IS NOT NULL THEN #{incoming.shareCount} ELSE share_count END,
+            collect_count = CASE WHEN #{incoming.collectCount} IS NOT NULL THEN #{incoming.collectCount} ELSE collect_count END,
+            view_count = CASE WHEN #{incoming.viewCount} IS NOT NULL THEN #{incoming.viewCount} ELSE view_count END,
+            raw_data = CASE
+                WHEN #{incoming.rawData} IS NOT NULL
+                 AND #{incoming.rawData} != ''
+                 AND (raw_data IS NULL OR raw_data = '' OR CHAR_LENGTH(raw_data) &lt; CHAR_LENGTH(#{incoming.rawData}))
+                THEN #{incoming.rawData}
+                ELSE raw_data
+            END,
+            update_user_id = #{updateUserId}
+        WHERE record_id = #{recordId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByRecordId" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE record_id = #{recordId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectByTarget" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE target_type = #{targetType}
+          AND target_id = #{targetId}
+          AND deleted = 0
+        ORDER BY update_time DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (title LIKE CONCAT('%', #{keyword}, '%')
+                 OR content LIKE CONCAT('%', #{keyword}, '%')
+                 OR author_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR keywords LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="sourceId != null">
+            AND source_id = #{sourceId}
+        </if>
+        <if test="taskId != null">
+            AND task_id = #{taskId}
+        </if>
+        <if test="normalizedStatus != null and normalizedStatus != ''">
+            AND normalized_status = #{normalizedStatus}
+        </if>
+        <if test="targetType != null and targetType != ''">
+            AND target_type = #{targetType}
+        </if>
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="listForDetection" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE deleted = 0
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="listForDetectionByTaskIds" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE deleted = 0
+          AND task_id IN
+          <foreach collection="taskIds" item="taskId" open="(" separator="," close=")">
+              #{taskId}
+          </foreach>
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+        ORDER BY create_time DESC, id DESC
+    </select>
+
+    <select id="listForDetectionByRunId" resultMap="CampusIngestRecordResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_record
+        WHERE deleted = 0
+          AND run_id = #{runId}
+        ORDER BY create_time ASC, id ASC
+    </select>
+
+    <update id="logicalDeleteByTaskRetention">
+        UPDATE campus_ingest_record
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE id IN (
+            SELECT id FROM (
+                SELECT r.id
+                FROM campus_ingest_record r
+                JOIN campus_ingest_task t ON t.task_id = r.task_id
+                WHERE r.deleted = 0
+                  AND t.deleted = 0
+                  AND t.retention_days IS NOT NULL
+                  AND t.retention_days &gt; 0
+                  AND r.create_time &lt; DATE_SUB(NOW(), INTERVAL LEAST(t.retention_days, 3650) DAY)
+                ORDER BY r.id ASC
+                LIMIT #{limit}
+            ) expired
+        )
+    </update>
+
+    <update id="logicalDeleteBefore">
+        UPDATE campus_ingest_record
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE deleted = 0
+          AND create_time &lt; #{expireBefore}
+          AND (
+              task_id IS NULL
+              OR NOT EXISTS (
+                  SELECT 1
+                  FROM campus_ingest_task t
+                  WHERE t.task_id = campus_ingest_record.task_id
+                    AND t.deleted = 0
+                    AND t.retention_days IS NOT NULL
+                    AND t.retention_days &gt; 0
+              )
+          )
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </update>
+
+    <update id="updateLanguage">
+        UPDATE campus_ingest_record
+        SET language = #{language}
+        WHERE record_id = #{recordId}
+          AND deleted = 0
+    </update>
+</mapper>

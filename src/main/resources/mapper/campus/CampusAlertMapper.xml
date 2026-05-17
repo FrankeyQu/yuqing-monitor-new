@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAlertDao">
+
+    <resultMap id="CampusAlertResultMap" type="com.stonedt.intelligence.entity.campus.CampusAlert">
+        <id column="id" property="id"/>
+        <result column="alert_id" property="alertId"/>
+        <result column="alert_title" property="alertTitle"/>
+        <result column="alert_content" property="alertContent"/>
+        <result column="alert_source" property="alertSource"/>
+        <result column="source_object_id" property="sourceObjectId"/>
+        <result column="rule_id" property="ruleId"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="matched_keywords" property="matchedKeywords"/>
+        <result column="evidence_json" property="evidenceJson"/>
+        <result column="alert_status" property="alertStatus"/>
+        <result column="handle_opinion" property="handleOpinion"/>
+        <result column="handler_user_id" property="handlerUserId"/>
+        <result column="handle_time" property="handleTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, alert_id, alert_title, alert_content, alert_source, source_object_id,
+        rule_id, risk_level, matched_keywords, evidence_json, alert_status, handle_opinion,
+        handler_user_id, handle_time, deleted, create_user_id, update_user_id,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusAlert">
+        INSERT INTO campus_alert (
+            alert_id, alert_title, alert_content, alert_source, source_object_id,
+            rule_id, risk_level, matched_keywords, evidence_json, alert_status, deleted,
+            create_user_id, update_user_id
+        ) VALUES (
+            #{alertId}, #{alertTitle}, #{alertContent}, #{alertSource}, #{sourceObjectId},
+            #{ruleId}, #{riskLevel}, #{matchedKeywords}, #{evidenceJson}, #{alertStatus}, #{deleted},
+            #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="handle">
+        UPDATE campus_alert
+        SET alert_status = #{alertStatus},
+            handle_opinion = #{handleOpinion},
+            handler_user_id = #{handlerUserId},
+            handle_time = NOW(),
+            update_user_id = #{updateUserId}
+        WHERE alert_id = #{alertId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByAlertId" resultMap="CampusAlertResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_alert
+        WHERE alert_id = #{alertId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="countExisting" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_alert
+        WHERE deleted = 0
+          AND alert_source = #{alertSource}
+        <choose>
+            <when test="sourceObjectId != null">
+                AND source_object_id = #{sourceObjectId}
+            </when>
+            <otherwise>
+                AND source_object_id IS NULL
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="ruleId != null">
+                AND rule_id = #{ruleId}
+            </when>
+            <otherwise>
+                AND rule_id IS NULL
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="matchedKeywords != null and matchedKeywords != ''">
+                AND matched_keywords = #{matchedKeywords}
+            </when>
+            <otherwise>
+                AND (matched_keywords IS NULL OR matched_keywords = '')
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="list" resultMap="CampusAlertResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_alert
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (alert_title LIKE CONCAT('%', #{keyword}, '%')
+                 OR alert_content LIKE CONCAT('%', #{keyword}, '%')
+                 OR matched_keywords LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="alertSource != null and alertSource != ''">
+            AND alert_source = #{alertSource}
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="alertStatus != null and alertStatus != ''">
+            AND alert_status = #{alertStatus}
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="listMonitorAlerts" resultMap="CampusAlertResultMap">
+        SELECT a.id, a.alert_id, a.alert_title, a.alert_content, a.alert_source, a.source_object_id,
+               a.rule_id, a.risk_level, a.matched_keywords, a.evidence_json, a.alert_status, a.handle_opinion,
+               a.handler_user_id, a.handle_time, a.deleted, a.create_user_id, a.update_user_id,
+               a.create_time, a.update_time
+        FROM campus_alert a
+        LEFT JOIN campus_monitor_result r
+          ON a.alert_source = 'monitor'
+         AND a.source_object_id = r.monitor_result_id
+         AND r.deleted = 0
+        WHERE a.deleted = 0
+          AND a.alert_source = 'monitor'
+        <if test="monitorTaskId != null">
+            AND r.monitor_task_id = #{monitorTaskId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (a.alert_title LIKE CONCAT('%', #{keyword}, '%')
+                 OR a.alert_content LIKE CONCAT('%', #{keyword}, '%')
+                 OR a.matched_keywords LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND a.risk_level = #{riskLevel}
+        </if>
+        <if test="alertStatus != null and alertStatus != ''">
+            AND a.alert_status = #{alertStatus}
+        </if>
+        ORDER BY a.id DESC
+    </select>
+
+    <select id="countBySourceAndStatus" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_alert
+        WHERE deleted = 0
+        <if test="alertSource != null and alertSource != ''">
+            AND alert_source = #{alertSource}
+        </if>
+        <if test="alertStatus != null and alertStatus != ''">
+            AND alert_status = #{alertStatus}
+        </if>
+    </select>
+</mapper>

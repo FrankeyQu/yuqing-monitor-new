@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusIngestRunLogDao">
+
+    <resultMap id="CampusIngestRunLogResultMap" type="com.stonedt.intelligence.entity.campus.CampusIngestRunLog">
+        <id column="id" property="id"/>
+        <result column="run_id" property="runId"/>
+        <result column="task_id" property="taskId"/>
+        <result column="run_status" property="runStatus"/>
+        <result column="trigger_type" property="triggerType"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="duration_ms" property="durationMs"/>
+        <result column="fetched_count" property="fetchedCount"/>
+        <result column="success_count" property="successCount"/>
+        <result column="duplicate_count" property="duplicateCount"/>
+        <result column="invalid_count" property="invalidCount"/>
+        <result column="detection_trigger_count" property="detectionTriggerCount"/>
+        <result column="detection_hit_count" property="detectionHitCount"/>
+        <result column="detection_alert_count" property="detectionAlertCount"/>
+        <result column="detection_error_message" property="detectionErrorMessage"/>
+        <result column="fail_count" property="failCount"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="error_type" property="errorType"/>
+        <result column="retry_count" property="retryCount"/>
+        <result column="scheduler_node" property="schedulerNode"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusIngestRunLog">
+        INSERT INTO campus_ingest_run_log (
+            run_id, task_id, run_status, trigger_type, start_time, fetched_count,
+            success_count, duplicate_count, invalid_count, detection_trigger_count,
+            detection_hit_count, detection_alert_count, detection_error_message,
+            fail_count, error_message, error_type, retry_count,
+            scheduler_node, create_user_id
+        ) VALUES (
+            #{runId}, #{taskId}, #{runStatus}, #{triggerType}, #{startTime}, #{fetchedCount},
+            #{successCount}, #{duplicateCount}, #{invalidCount}, #{detectionTriggerCount},
+            #{detectionHitCount}, #{detectionAlertCount}, #{detectionErrorMessage},
+            #{failCount}, #{errorMessage}, #{errorType}, #{retryCount},
+            #{schedulerNode}, #{createUserId}
+        )
+    </insert>
+
+    <update id="finish">
+        UPDATE campus_ingest_run_log
+        SET run_status = #{runStatus},
+            end_time = NOW(),
+            fetched_count = #{fetchedCount},
+            success_count = #{successCount},
+            duplicate_count = #{duplicateCount},
+            invalid_count = #{invalidCount},
+            fail_count = #{failCount},
+            error_message = #{errorMessage},
+            duration_ms = #{durationMs},
+            error_type = #{errorType}
+        WHERE run_id = #{runId}
+    </update>
+
+    <update id="updateDetectionSummary">
+        UPDATE campus_ingest_run_log
+        SET detection_trigger_count = #{detectionTriggerCount},
+            detection_hit_count = #{detectionHitCount},
+            detection_alert_count = #{detectionAlertCount},
+            detection_error_message = #{detectionErrorMessage}
+        WHERE run_id = #{runId}
+    </update>
+
+    <select id="selectByRunId" resultMap="CampusIngestRunLogResultMap">
+        SELECT id, run_id, task_id, run_status, trigger_type, start_time, end_time,
+               duration_ms, fetched_count, success_count, duplicate_count, invalid_count,
+               detection_trigger_count, detection_hit_count, detection_alert_count, detection_error_message,
+               fail_count, error_message,
+               error_type, retry_count, scheduler_node, create_user_id, create_time
+        FROM campus_ingest_run_log
+        WHERE run_id = #{runId}
+        LIMIT 1
+    </select>
+
+    <select id="listByTaskId" resultMap="CampusIngestRunLogResultMap">
+        SELECT id, run_id, task_id, run_status, trigger_type, start_time, end_time,
+               duration_ms, fetched_count, success_count, duplicate_count, invalid_count,
+               detection_trigger_count, detection_hit_count, detection_alert_count, detection_error_message,
+               fail_count, error_message,
+               error_type, retry_count, scheduler_node, create_user_id, create_time
+        FROM campus_ingest_run_log
+        WHERE task_id = #{taskId}
+        ORDER BY id DESC
+    </select>
+
+    <select id="list" resultMap="CampusIngestRunLogResultMap">
+        SELECT id, run_id, task_id, run_status, trigger_type, start_time, end_time,
+               duration_ms, fetched_count, success_count, duplicate_count, invalid_count,
+               detection_trigger_count, detection_hit_count, detection_alert_count, detection_error_message,
+               fail_count, error_message,
+               error_type, retry_count, scheduler_node, create_user_id, create_time
+        FROM campus_ingest_run_log
+        <where>
+            <if test="taskId != null">
+                AND task_id = #{taskId}
+            </if>
+            <if test="runStatus != null and runStatus != ''">
+                AND run_status = #{runStatus}
+            </if>
+            <if test="errorType != null and errorType != ''">
+                AND error_type = #{errorType}
+            </if>
+            <if test="triggerType != null and triggerType != ''">
+                AND trigger_type = #{triggerType}
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <delete id="deleteBefore">
+        DELETE FROM campus_ingest_run_log
+        WHERE create_time &lt; #{expireBefore}
+          AND run_status != 'running'
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </delete>
+</mapper>

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusSchoolSubjectDao">
+
+    <resultMap id="CampusSchoolSubjectResultMap" type="com.stonedt.intelligence.entity.campus.CampusSchoolSubject">
+        <id column="id" property="id"/>
+        <result column="school_id" property="schoolId"/>
+        <result column="school_name" property="schoolName"/>
+        <result column="school_aliases" property="schoolAliases"/>
+        <result column="region" property="region"/>
+        <result column="education_stage" property="educationStage"/>
+        <result column="school_type" property="schoolType"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, school_id, school_name, school_aliases, region, education_stage,
+        school_type, status, remark, deleted, create_user_id, update_user_id,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusSchoolSubject">
+        INSERT INTO campus_school_subject (
+            school_id, school_name, school_aliases, region, education_stage,
+            school_type, status, remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{schoolId}, #{schoolName}, #{schoolAliases}, #{region}, #{educationStage},
+            #{schoolType}, #{status}, #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusSchoolSubject">
+        UPDATE campus_school_subject
+        <set>
+            <if test="schoolName != null">school_name = #{schoolName},</if>
+            <if test="schoolAliases != null">school_aliases = #{schoolAliases},</if>
+            <if test="region != null">region = #{region},</if>
+            <if test="educationStage != null">education_stage = #{educationStage},</if>
+            <if test="schoolType != null">school_type = #{schoolType},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE school_id = #{schoolId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_school_subject
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE school_id = #{schoolId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectBySchoolId" resultMap="CampusSchoolSubjectResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_school_subject
+        WHERE school_id = #{schoolId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectBySchoolName" resultMap="CampusSchoolSubjectResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_school_subject
+        WHERE school_name = #{schoolName}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusSchoolSubjectResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_school_subject
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                school_name LIKE CONCAT('%', #{keyword}, '%')
+                OR school_aliases LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="region != null and region != ''">
+            AND region = #{region}
+        </if>
+        <if test="educationStage != null and educationStage != ''">
+            AND education_stage = #{educationStage}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY region ASC, school_name ASC, id ASC
+    </select>
+
+    <select id="listActive" resultMap="CampusSchoolSubjectResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_school_subject
+        WHERE deleted = 0
+          AND status = 1
+        ORDER BY region ASC, school_name ASC, id ASC
+    </select>
+</mapper>

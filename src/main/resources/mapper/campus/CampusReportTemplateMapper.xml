@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusReportTemplateDao">
+
+    <resultMap id="CampusReportTemplateResultMap" type="com.stonedt.intelligence.entity.campus.CampusReportTemplate">
+        <id column="id" property="id"/>
+        <result column="template_id" property="templateId"/>
+        <result column="template_name" property="templateName"/>
+        <result column="report_type" property="reportType"/>
+        <result column="template_content" property="templateContent"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, template_id, template_name, report_type, template_content, status,
+        remark, deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusReportTemplate">
+        INSERT INTO campus_report_template (
+            template_id, template_name, report_type, template_content, status,
+            remark, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{templateId}, #{templateName}, #{reportType}, #{templateContent}, #{status},
+            #{remark}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusReportTemplate">
+        UPDATE campus_report_template
+        <set>
+            <if test="templateName != null">template_name = #{templateName},</if>
+            <if test="reportType != null">report_type = #{reportType},</if>
+            <if test="templateContent != null">template_content = #{templateContent},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE template_id = #{templateId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_report_template
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE template_id = #{templateId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByTemplateId" resultMap="CampusReportTemplateResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_report_template
+        WHERE template_id = #{templateId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusReportTemplateResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_report_template
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (template_name LIKE CONCAT('%', #{keyword}, '%') OR remark LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="reportType != null and reportType != ''">
+            AND report_type = #{reportType}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

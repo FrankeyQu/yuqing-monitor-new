@@ -1,0 +1,585 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusMonitorResultDao">
+
+    <resultMap id="CampusMonitorResultResultMap" type="com.stonedt.intelligence.entity.campus.CampusMonitorResult">
+        <id column="id" property="id"/>
+        <result column="monitor_result_id" property="monitorResultId"/>
+        <result column="monitor_task_id" property="monitorTaskId"/>
+        <result column="ingest_record_id" property="ingestRecordId"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="original_url" property="originalUrl"/>
+        <result column="platform" property="platform"/>
+        <result column="author_name" property="authorName"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="language" property="language"/>
+        <result column="matched_subjects" property="matchedSubjects"/>
+        <result column="matched_keywords" property="matchedKeywords"/>
+        <result column="matched_negative_words" property="matchedNegativeWords"/>
+        <result column="sentiment" property="sentiment"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="risk_score" property="riskScore"/>
+        <result column="school_relevance_score" property="schoolRelevanceScore"/>
+        <result column="school_relevance_reason" property="schoolRelevanceReason"/>
+        <result column="matched_school_terms" property="matchedSchoolTerms"/>
+        <result column="excluded_reason" property="excludedReason"/>
+        <result column="topic_category" property="topicCategory"/>
+        <result column="topic_sub_category" property="topicSubCategory"/>
+        <result column="topic_reason" property="topicReason"/>
+        <result column="result_status" property="resultStatus"/>
+        <result column="alert_id" property="alertId"/>
+        <result column="clue_id" property="clueId"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="share_count" property="shareCount"/>
+        <result column="collect_count" property="collectCount"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="CampusMonitorInformationResultMap" type="com.stonedt.intelligence.entity.campus.CampusMonitorInformation">
+        <result column="info_type" property="infoType"/>
+        <result column="info_id" property="infoId"/>
+        <result column="monitor_result_id" property="monitorResultId"/>
+        <result column="clue_id" property="clueId"/>
+        <result column="monitor_task_id" property="monitorTaskId"/>
+        <result column="ingest_record_id" property="ingestRecordId"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="summary" property="summary"/>
+        <result column="content_capture_status" property="contentCaptureStatus"/>
+        <result column="content_capture_label" property="contentCaptureLabel"/>
+        <result column="original_url" property="originalUrl"/>
+        <result column="platform" property="platform"/>
+        <result column="source_platform" property="sourcePlatform"/>
+        <result column="source_sub_platform" property="sourceSubPlatform"/>
+        <result column="author_name" property="authorName"/>
+        <result column="involved_account" property="involvedAccount"/>
+        <result column="publish_time" property="publishTime"/>
+        <result column="discover_time" property="discoverTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="info_time" property="infoTime"/>
+        <result column="language" property="language"/>
+        <result column="matched_subjects" property="matchedSubjects"/>
+        <result column="matched_keywords" property="matchedKeywords"/>
+        <result column="matched_negative_words" property="matchedNegativeWords"/>
+        <result column="keywords" property="keywords"/>
+        <result column="sentiment" property="sentiment"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="risk_score" property="riskScore"/>
+        <result column="school_relevance_score" property="schoolRelevanceScore"/>
+        <result column="school_relevance_reason" property="schoolRelevanceReason"/>
+        <result column="matched_school_terms" property="matchedSchoolTerms"/>
+        <result column="excluded_reason" property="excludedReason"/>
+        <result column="topic_category" property="topicCategory"/>
+        <result column="topic_sub_category" property="topicSubCategory"/>
+        <result column="topic_reason" property="topicReason"/>
+        <result column="result_status" property="resultStatus"/>
+        <result column="clue_status" property="clueStatus"/>
+        <result column="alert_id" property="alertId"/>
+        <result column="like_count" property="likeCount"/>
+        <result column="comment_count" property="commentCount"/>
+        <result column="share_count" property="shareCount"/>
+        <result column="collect_count" property="collectCount"/>
+        <result column="view_count" property="viewCount"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, monitor_result_id, monitor_task_id, ingest_record_id, title,
+        content, original_url, platform, author_name, publish_time, language,
+        matched_subjects, matched_keywords, matched_negative_words,
+        sentiment, risk_level, risk_score, school_relevance_score, school_relevance_reason,
+        matched_school_terms, excluded_reason, topic_category, topic_sub_category, topic_reason,
+        result_status, alert_id, clue_id,
+        like_count, comment_count, share_count, collect_count, view_count,
+        deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <sql id="MonitorResultInfoContentExpr">
+        CASE
+            WHEN ir.content IS NOT NULL
+             AND ir.content != ''
+             AND CHAR_LENGTH(ir.content) &gt; CHAR_LENGTH(IFNULL(mr.content, ''))
+            THEN ir.content
+            ELSE mr.content
+        END
+    </sql>
+
+    <sql id="ClueInfoContentExpr">
+        CASE
+            WHEN ir.content IS NOT NULL
+             AND ir.content != ''
+             AND CHAR_LENGTH(ir.content) &gt; CHAR_LENGTH(IFNULL(c.clue_content, ''))
+            THEN ir.content
+            ELSE c.clue_content
+        END
+    </sql>
+
+    <sql id="ValidMonitorResultOriginalUrlExpr">
+        CASE
+            WHEN mr.original_url IS NOT NULL
+             AND mr.original_url != ''
+             AND mr.original_url LIKE 'http%'
+             AND LOWER(mr.original_url) NOT LIKE 'http://s.weibo.com/%'
+             AND LOWER(mr.original_url) NOT LIKE 'https://s.weibo.com/%'
+            THEN mr.original_url
+            WHEN ir.original_url IS NOT NULL
+             AND ir.original_url != ''
+             AND ir.original_url LIKE 'http%'
+             AND LOWER(ir.original_url) NOT LIKE 'http://s.weibo.com/%'
+             AND LOWER(ir.original_url) NOT LIKE 'https://s.weibo.com/%'
+            THEN ir.original_url
+            ELSE NULL
+        END
+    </sql>
+
+    <sql id="ValidClueOriginalUrlExpr">
+        CASE
+            WHEN c.original_url IS NOT NULL
+             AND c.original_url != ''
+             AND c.original_url LIKE 'http%'
+             AND LOWER(c.original_url) NOT LIKE 'http://s.weibo.com/%'
+             AND LOWER(c.original_url) NOT LIKE 'https://s.weibo.com/%'
+            THEN c.original_url
+            WHEN ir.original_url IS NOT NULL
+             AND ir.original_url != ''
+             AND ir.original_url LIKE 'http%'
+             AND LOWER(ir.original_url) NOT LIKE 'http://s.weibo.com/%'
+             AND LOWER(ir.original_url) NOT LIKE 'https://s.weibo.com/%'
+            THEN ir.original_url
+            ELSE NULL
+        END
+    </sql>
+
+    <sql id="MonitorResultPrecisionPredicate">
+        NOT (
+            IFNULL(mr.matched_negative_words, '') = ''
+            AND IFNULL(mr.matched_keywords, '') != ''
+            AND INSTR(
+                CONCAT(',', REPLACE(REPLACE(IFNULL(CONCAT_WS(',', mt.monitor_subject, mt.subject_aliases), ''), '，', ','), ' ', ''), ','),
+                CONCAT(',', REPLACE(REPLACE(IFNULL(mr.matched_keywords, ''), '，', ','), ' ', ''), ',')
+            ) &gt; 0
+        )
+    </sql>
+
+    <sql id="InformationUnion">
+        SELECT
+            'monitor_result' AS info_type,
+            mr.monitor_result_id AS info_id,
+            mr.monitor_result_id,
+            mr.clue_id,
+            mr.monitor_task_id,
+            mr.ingest_record_id,
+            COALESCE(NULLIF(mr.title, ''), ir.title) AS title,
+            <include refid="MonitorResultInfoContentExpr"/> AS content,
+            LEFT(<include refid="MonitorResultInfoContentExpr"/>, 220) AS summary,
+            CASE
+                WHEN <include refid="MonitorResultInfoContentExpr"/> IS NULL
+                  OR <include refid="MonitorResultInfoContentExpr"/> = ''
+                THEN 'missing'
+                WHEN ir.raw_data LIKE '%"_content_capture_status":"full"%'
+                  OR ir.raw_data LIKE '%"longTextContent"%'
+                  OR ir.raw_data LIKE '%"long_text_content"%'
+                  OR CHAR_LENGTH(<include refid="MonitorResultInfoContentExpr"/>) &gt;= 120
+                THEN 'full'
+                ELSE 'partial'
+            END AS content_capture_status,
+            CASE
+                WHEN <include refid="MonitorResultInfoContentExpr"/> IS NULL
+                  OR <include refid="MonitorResultInfoContentExpr"/> = ''
+                THEN '未采集'
+                WHEN ir.raw_data LIKE '%"_detail_capture_status":"failed"%'
+                THEN '详情失败/摘要'
+                WHEN ir.raw_data LIKE '%"_content_capture_status":"full"%'
+                  OR ir.raw_data LIKE '%"longTextContent"%'
+                  OR ir.raw_data LIKE '%"long_text_content"%'
+                  OR CHAR_LENGTH(<include refid="MonitorResultInfoContentExpr"/>) &gt;= 120
+                THEN '完整正文'
+                ELSE '摘要/标题'
+            END AS content_capture_label,
+            <include refid="ValidMonitorResultOriginalUrlExpr"/> AS original_url,
+            COALESCE(NULLIF(mr.platform, ''), ir.platform) AS platform,
+            COALESCE(NULLIF(mr.platform, ''), ir.platform) AS source_platform,
+            ir.content_type AS source_sub_platform,
+            COALESCE(NULLIF(mr.author_name, ''), ir.author_name) AS author_name,
+            COALESCE(NULLIF(mr.author_name, ''), ir.author_name) AS involved_account,
+            COALESCE(mr.publish_time, ir.publish_time) AS publish_time,
+            mr.create_time AS discover_time,
+            mr.create_time,
+            COALESCE(mr.publish_time, ir.publish_time, mr.create_time) AS info_time,
+            COALESCE(NULLIF(mr.language, ''), ir.language) AS language,
+            mr.matched_subjects,
+            mr.matched_keywords,
+            mr.matched_negative_words,
+            CONCAT_WS(',', mr.matched_keywords, mr.matched_negative_words) AS keywords,
+            mr.sentiment,
+            mr.risk_level,
+            mr.risk_score,
+            mr.school_relevance_score,
+            mr.school_relevance_reason,
+            mr.matched_school_terms,
+            mr.excluded_reason,
+            mr.topic_category,
+            mr.topic_sub_category,
+            mr.topic_reason,
+            mr.result_status,
+            CASE WHEN mr.clue_id IS NULL THEN NULL ELSE 'converted' END AS clue_status,
+            mr.alert_id,
+            COALESCE(ir.like_count, mr.like_count) AS like_count,
+            COALESCE(ir.comment_count, mr.comment_count) AS comment_count,
+            COALESCE(ir.share_count, mr.share_count) AS share_count,
+            COALESCE(ir.collect_count, mr.collect_count) AS collect_count,
+            COALESCE(ir.view_count, mr.view_count) AS view_count
+        FROM campus_monitor_result mr
+        JOIN campus_monitor_task mt
+          ON mt.monitor_task_id = mr.monitor_task_id
+         AND mt.deleted = 0
+         AND mt.task_status = 'active'
+         AND IFNULL(mt.display_enabled, 1) = 1
+        LEFT JOIN campus_ingest_record ir
+          ON ir.record_id = mr.ingest_record_id
+         AND ir.deleted = 0
+        WHERE mr.deleted = 0
+        <if test="hitScope == null or hitScope == '' or hitScope != 'all'">
+          AND <include refid="MonitorResultPrecisionPredicate"/>
+        </if>
+    </sql>
+
+    <sql id="InformationFilters">
+        <if test="keyword != null and keyword != ''">
+            <choose>
+                <when test="matchScope == 'title'">
+                    AND title LIKE CONCAT('%', #{keyword}, '%')
+                </when>
+                <when test="matchScope == 'content'">
+                    AND content LIKE CONCAT('%', #{keyword}, '%')
+                </when>
+                <otherwise>
+                    AND (
+                        title LIKE CONCAT('%', #{keyword}, '%')
+                        OR content LIKE CONCAT('%', #{keyword}, '%')
+                        OR matched_subjects LIKE CONCAT('%', #{keyword}, '%')
+                        OR matched_keywords LIKE CONCAT('%', #{keyword}, '%')
+                        OR matched_negative_words LIKE CONCAT('%', #{keyword}, '%')
+                        OR matched_school_terms LIKE CONCAT('%', #{keyword}, '%')
+                        OR topic_category LIKE CONCAT('%', #{keyword}, '%')
+                        OR topic_reason LIKE CONCAT('%', #{keyword}, '%')
+                        OR author_name LIKE CONCAT('%', #{keyword}, '%')
+                    )
+                </otherwise>
+            </choose>
+        </if>
+        AND NOT (
+            LOWER(IFNULL(platform, '')) IN ('weibo', '微博', '新浪微博')
+            AND (
+                original_url IS NULL
+                OR original_url = ''
+                OR original_url NOT LIKE 'http%'
+                OR LOWER(original_url) LIKE 'http://s.weibo.com/%'
+                OR LOWER(original_url) LIKE 'https://s.weibo.com/%'
+                OR NOT (
+                    LOWER(original_url) REGEXP '^https?://weibo\\.com/[0-9]+/[0-9]{13,}'
+                    OR LOWER(original_url) REGEXP '^https?://m\\.weibo\\.cn/detail/[0-9]{13,}'
+                )
+                OR content LIKE '%实时资讯，海量讨论%'
+                OR title REGEXP '^[0-9.]+万?帖子'
+            )
+        )
+        <if test="monitorTaskId != null">
+            AND monitor_task_id = #{monitorTaskId}
+        </if>
+        <if test="sourcePlatform != null and sourcePlatform != ''">
+            AND (
+                platform = #{sourcePlatform}
+                <if test="sourcePlatform == 'douyin'">OR platform IN ('抖音', '抖音短视频')</if>
+                <if test="sourcePlatform == 'xiaohongshu'">OR platform IN ('小红书', 'red')</if>
+                <if test="sourcePlatform == 'zhihu'">OR platform IN ('知乎')</if>
+                <if test="sourcePlatform == 'weibo'">OR platform IN ('微博', '新浪微博')</if>
+                <if test="sourcePlatform == 'wechat_official'">OR platform IN ('微信公众号', '微信')</if>
+                <if test="sourcePlatform == 'bilibili'">OR platform IN ('B站', 'bilibili')</if>
+                <if test="sourcePlatform == 'forum'">OR platform IN ('公开论坛', '论坛', '贴吧', '百度贴吧')</if>
+                <if test="sourcePlatform == 'news'">
+                    OR platform IN ('新闻媒体', 'news_media', 'public_web', '公开网页', '百度', '人民网', '新华网', '腾讯网', '搜狐', '新浪网', '今日头条', '头条', '百家号', '学校官网', 'school_website', 'college_website', '公开论坛', '论坛', '贴吧', '百度贴吧', '豆瓣')
+                </if>
+            )
+        </if>
+        <if test="sourceSubPlatform != null and sourceSubPlatform != ''">
+            AND (
+                source_sub_platform = #{sourceSubPlatform}
+                <if test="sourceSubPlatform == 'tieba'">OR source_sub_platform IN ('贴吧', '百度贴吧')</if>
+                <if test="sourceSubPlatform == 'douban'">OR source_sub_platform IN ('豆瓣')</if>
+                <if test="sourceSubPlatform == 'local_forum'">OR source_sub_platform IN ('本地论坛', 'local_bbs')</if>
+                <if test="sourceSubPlatform == 'forum_other'">
+                    OR source_sub_platform IS NULL
+                    OR source_sub_platform = ''
+                    OR source_sub_platform NOT IN ('tieba', '贴吧', '百度贴吧', 'douban', '豆瓣', 'local_forum', 'local_bbs', '本地论坛')
+                </if>
+            )
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="clueStatus != null and clueStatus != ''">
+            AND clue_status = #{clueStatus}
+        </if>
+        <if test="resultStatus != null and resultStatus != ''">
+            AND (
+                result_status = #{resultStatus}
+                <if test="resultStatus == 'converted'">
+                    OR clue_id IS NOT NULL
+                </if>
+            )
+        </if>
+        <if test="language != null and language != ''">
+            AND language = #{language}
+        </if>
+        <if test="sentiment != null and sentiment != ''">
+            <choose>
+                <when test="sentiment == 'none'">
+                    AND (sentiment IS NULL OR sentiment = '')
+                </when>
+                <otherwise>
+                    AND (
+                        FIND_IN_SET(sentiment, #{sentiment}) &gt; 0
+                        OR (#{sentiment} = '负面' AND (sentiment LIKE '%负%' OR LOWER(sentiment) = 'negative'))
+                        OR (#{sentiment} = '中性' AND (sentiment LIKE '%中%' OR LOWER(sentiment) = 'neutral'))
+                        OR (#{sentiment} = '正面' AND (sentiment LIKE '%正%' OR LOWER(sentiment) = 'positive'))
+                        OR (#{sentiment} LIKE '%负%' AND LOWER(sentiment) = 'negative')
+                        OR (#{sentiment} LIKE '%中%' AND LOWER(sentiment) = 'neutral')
+                        OR (#{sentiment} LIKE '%正%' AND LOWER(sentiment) = 'positive')
+                    )
+                </otherwise>
+            </choose>
+        </if>
+        <if test="publishTimeStart != null">
+            AND publish_time &gt;= #{publishTimeStart}
+        </if>
+        <if test="publishTimeEnd != null">
+            AND publish_time &lt; DATE_ADD(#{publishTimeEnd}, INTERVAL 1 DAY)
+        </if>
+        <if test="collectTimeStart != null">
+            AND info_time &gt;= #{collectTimeStart}
+        </if>
+        <if test="collectTimeEnd != null">
+            AND info_time &lt; DATE_ADD(#{collectTimeEnd}, INTERVAL 1 DAY)
+        </if>
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusMonitorResult">
+        INSERT INTO campus_monitor_result (
+            monitor_result_id, monitor_task_id, ingest_record_id, title,
+            content, original_url, platform, author_name, publish_time,
+            matched_subjects, matched_keywords, matched_negative_words,
+            sentiment, risk_level, risk_score, school_relevance_score, school_relevance_reason,
+            matched_school_terms, excluded_reason, topic_category, topic_sub_category, topic_reason,
+            result_status, alert_id, clue_id,
+            language, like_count, comment_count, share_count, collect_count, view_count,
+            deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{monitorResultId}, #{monitorTaskId}, #{ingestRecordId}, #{title},
+            #{content}, #{originalUrl}, #{platform}, #{authorName}, #{publishTime},
+            #{matchedSubjects}, #{matchedKeywords}, #{matchedNegativeWords},
+            #{sentiment}, #{riskLevel}, #{riskScore}, #{schoolRelevanceScore}, #{schoolRelevanceReason},
+            #{matchedSchoolTerms}, #{excludedReason}, #{topicCategory}, #{topicSubCategory}, #{topicReason},
+            #{resultStatus}, #{alertId}, #{clueId},
+            #{language}, #{likeCount}, #{commentCount}, #{shareCount}, #{collectCount}, #{viewCount},
+            #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE campus_monitor_result
+        SET result_status = #{resultStatus},
+            alert_id = #{alertId},
+            update_user_id = #{updateUserId}
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateClue">
+        UPDATE campus_monitor_result
+        SET result_status = #{resultStatus},
+            clue_id = #{clueId},
+            update_user_id = #{updateUserId}
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateSnapshot">
+        UPDATE campus_monitor_result
+        SET title = CASE
+                WHEN #{record.title} IS NOT NULL
+                 AND #{record.title} != ''
+                 AND (title IS NULL OR title = '')
+                THEN #{record.title}
+                ELSE title
+            END,
+            content = CASE
+                WHEN #{record.content} IS NOT NULL
+                 AND #{record.content} != ''
+                 AND (content IS NULL OR content = '' OR CHAR_LENGTH(content) &lt; CHAR_LENGTH(#{record.content}))
+                THEN #{record.content}
+                ELSE content
+            END,
+            original_url = CASE
+                WHEN #{record.originalUrl} IS NOT NULL
+                 AND #{record.originalUrl} != ''
+                 AND (original_url IS NULL OR original_url = '')
+                THEN #{record.originalUrl}
+                ELSE original_url
+            END,
+            platform = CASE
+                WHEN #{record.platform} IS NOT NULL
+                 AND #{record.platform} != ''
+                 AND (platform IS NULL OR platform = '')
+                THEN #{record.platform}
+                ELSE platform
+            END,
+            author_name = CASE
+                WHEN #{record.authorName} IS NOT NULL
+                 AND #{record.authorName} != ''
+                 AND (author_name IS NULL OR author_name = '')
+                THEN #{record.authorName}
+                ELSE author_name
+            END,
+            publish_time = CASE WHEN publish_time IS NULL THEN #{record.publishTime} ELSE publish_time END,
+            language = CASE
+                WHEN #{record.language} IS NOT NULL
+                 AND #{record.language} != ''
+                 AND (language IS NULL OR language = '')
+                THEN #{record.language}
+                ELSE language
+            END,
+            like_count = CASE WHEN #{record.likeCount} IS NOT NULL THEN #{record.likeCount} ELSE like_count END,
+            comment_count = CASE WHEN #{record.commentCount} IS NOT NULL THEN #{record.commentCount} ELSE comment_count END,
+            share_count = CASE WHEN #{record.shareCount} IS NOT NULL THEN #{record.shareCount} ELSE share_count END,
+            collect_count = CASE WHEN #{record.collectCount} IS NOT NULL THEN #{record.collectCount} ELSE collect_count END,
+            view_count = CASE WHEN #{record.viewCount} IS NOT NULL THEN #{record.viewCount} ELSE view_count END,
+            update_user_id = #{updateUserId}
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByResultId" resultMap="CampusMonitorResultResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_result
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectByTaskAndRecord" resultMap="CampusMonitorResultResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_result
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND ingest_record_id = #{ingestRecordId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusMonitorResultResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_result
+        WHERE deleted = 0
+        <if test="monitorTaskId != null">
+            AND monitor_task_id = #{monitorTaskId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                title LIKE CONCAT('%', #{keyword}, '%')
+                OR content LIKE CONCAT('%', #{keyword}, '%')
+                OR matched_subjects LIKE CONCAT('%', #{keyword}, '%')
+                OR matched_keywords LIKE CONCAT('%', #{keyword}, '%')
+                OR matched_negative_words LIKE CONCAT('%', #{keyword}, '%')
+                OR matched_school_terms LIKE CONCAT('%', #{keyword}, '%')
+                OR topic_category LIKE CONCAT('%', #{keyword}, '%')
+                OR topic_reason LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="resultStatus != null and resultStatus != ''">
+            AND result_status = #{resultStatus}
+        </if>
+        <if test="platform != null and platform != ''">
+            AND platform = #{platform}
+        </if>
+        <if test="language != null and language != ''">
+            AND language = #{language}
+        </if>
+        <if test="converted != null and converted == true">
+            AND clue_id IS NOT NULL
+        </if>
+        <if test="converted != null and converted == false">
+            AND clue_id IS NULL
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="listInformation" resultMap="CampusMonitorInformationResultMap">
+        SELECT *
+        FROM (
+            <include refid="InformationUnion"/>
+        ) info
+        WHERE 1 = 1
+        <include refid="InformationFilters"/>
+        <choose>
+            <when test="sortBy == 'publish_time' or sortBy == 'publishTime'">ORDER BY publish_time DESC, info_id DESC</when>
+            <when test="sortBy == 'sentiment_level' or sortBy == 'sentiment'">ORDER BY sentiment DESC, info_id DESC</when>
+            <when test="sortBy == 'relevance'">ORDER BY school_relevance_score DESC, info_time DESC, info_id DESC</when>
+            <otherwise>ORDER BY info_time DESC, info_id DESC</otherwise>
+        </choose>
+    </select>
+
+    <select id="countInformationByPlatform" resultType="java.util.Map">
+        SELECT COALESCE(NULLIF(platform, ''), '其它') AS name, COUNT(*) AS value
+        FROM (
+            <include refid="InformationUnion"/>
+        ) info
+        WHERE 1 = 1
+        <include refid="InformationFilters"/>
+        GROUP BY COALESCE(NULLIF(platform, ''), '其它')
+        ORDER BY value DESC
+    </select>
+
+    <select id="countInformationBySubPlatform" resultType="java.util.Map">
+        SELECT COALESCE(NULLIF(source_sub_platform, ''), '其它') AS name, COUNT(*) AS value
+        FROM (
+            <include refid="InformationUnion"/>
+        ) info
+        WHERE 1 = 1
+        <include refid="InformationFilters"/>
+        GROUP BY COALESCE(NULLIF(source_sub_platform, ''), '其它')
+        ORDER BY value DESC
+    </select>
+
+    <select id="countToday" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_monitor_result mr
+        JOIN campus_monitor_task mt
+          ON mt.monitor_task_id = mr.monitor_task_id
+         AND mt.deleted = 0
+         AND mt.task_status = 'active'
+         AND IFNULL(mt.display_enabled, 1) = 1
+        WHERE mr.deleted = 0
+          AND <include refid="MonitorResultPrecisionPredicate"/>
+          AND mr.create_time &gt;= CURDATE()
+    </select>
+
+    <update id="logicalDeleteBefore">
+        UPDATE campus_monitor_result
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE deleted = 0
+          AND create_time &lt; #{expireBefore}
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </update>
+</mapper>

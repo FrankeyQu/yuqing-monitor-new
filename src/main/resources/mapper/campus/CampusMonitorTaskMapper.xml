@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusMonitorTaskDao">
+
+    <resultMap id="CampusMonitorTaskResultMap" type="com.stonedt.intelligence.entity.campus.CampusMonitorTask">
+        <id column="id" property="id"/>
+        <result column="monitor_task_id" property="monitorTaskId"/>
+        <result column="task_name" property="taskName"/>
+        <result column="monitor_subject" property="monitorSubject"/>
+        <result column="subject_aliases" property="subjectAliases"/>
+        <result column="keywords" property="keywords"/>
+        <result column="keywords_i18n" property="keywordsI18n"/>
+        <result column="negative_words" property="negativeWords"/>
+        <result column="negative_words_i18n" property="negativeWordsI18n"/>
+        <result column="exclude_words" property="excludeWords"/>
+        <result column="exclude_words_i18n" property="excludeWordsI18n"/>
+        <result column="platform_scope" property="platformScope"/>
+        <result column="scan_frequency_minutes" property="scanFrequencyMinutes"/>
+        <result column="schedule_enabled" property="scheduleEnabled"/>
+        <result column="display_enabled" property="displayEnabled"/>
+        <result column="auto_ingest_enabled" property="autoIngestEnabled"/>
+        <result column="alert_mode" property="alertMode"/>
+        <result column="task_status" property="taskStatus"/>
+        <result column="last_run_time" property="lastRunTime"/>
+        <result column="last_run_log_id" property="lastRunLogId"/>
+        <result column="last_collect_time" property="lastCollectTime"/>
+        <result column="last_match_count" property="lastMatchCount"/>
+        <result column="display_result_count" property="displayResultCount"/>
+        <result column="last_error_message" property="lastErrorMessage"/>
+        <result column="ingest_capability_status" property="ingestCapabilityStatus"/>
+        <result column="next_run_time" property="nextRunTime"/>
+        <result column="schedule_lock_until" property="scheduleLockUntil"/>
+        <result column="ingest_task_ids" property="ingestTaskIds"/>
+        <result column="ingest_task_names" property="ingestTaskNames"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, monitor_task_id, task_name, monitor_subject, subject_aliases,
+        keywords, keywords_i18n, negative_words, negative_words_i18n, exclude_words, exclude_words_i18n, platform_scope,
+        scan_frequency_minutes, schedule_enabled, display_enabled, auto_ingest_enabled, alert_mode, task_status, last_run_time,
+        last_run_log_id, last_collect_time, last_match_count, last_error_message, ingest_capability_status,
+        next_run_time, schedule_lock_until, remark, deleted, create_user_id, update_user_id,
+        create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusMonitorTask">
+        INSERT INTO campus_monitor_task (
+            monitor_task_id, task_name, monitor_subject, subject_aliases,
+            keywords, keywords_i18n, negative_words, negative_words_i18n, exclude_words, exclude_words_i18n, platform_scope,
+            scan_frequency_minutes, schedule_enabled, display_enabled, auto_ingest_enabled, alert_mode, task_status,
+            next_run_time, remark, ingest_capability_status,
+            deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{monitorTaskId}, #{taskName}, #{monitorSubject}, #{subjectAliases},
+            #{keywords}, #{keywordsI18n}, #{negativeWords}, #{negativeWordsI18n}, #{excludeWords}, #{excludeWordsI18n}, #{platformScope},
+            #{scanFrequencyMinutes}, #{scheduleEnabled}, #{displayEnabled}, #{autoIngestEnabled}, #{alertMode}, #{taskStatus},
+            #{nextRunTime}, #{remark}, #{ingestCapabilityStatus},
+            #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusMonitorTask">
+        UPDATE campus_monitor_task
+        <set>
+            <if test="taskName != null">task_name = #{taskName},</if>
+            <if test="monitorSubject != null">monitor_subject = #{monitorSubject},</if>
+            <if test="subjectAliases != null">subject_aliases = #{subjectAliases},</if>
+            <if test="keywords != null">keywords = #{keywords},</if>
+            <if test="keywordsI18n != null">keywords_i18n = #{keywordsI18n},</if>
+            <if test="negativeWords != null">negative_words = #{negativeWords},</if>
+            <if test="negativeWordsI18n != null">negative_words_i18n = #{negativeWordsI18n},</if>
+            <if test="excludeWords != null">exclude_words = #{excludeWords},</if>
+            <if test="excludeWordsI18n != null">exclude_words_i18n = #{excludeWordsI18n},</if>
+            <if test="platformScope != null">platform_scope = #{platformScope},</if>
+            <if test="scanFrequencyMinutes != null">scan_frequency_minutes = #{scanFrequencyMinutes},</if>
+            <if test="scheduleEnabled != null">schedule_enabled = #{scheduleEnabled},</if>
+            <if test="displayEnabled != null">display_enabled = #{displayEnabled},</if>
+            <if test="autoIngestEnabled != null">auto_ingest_enabled = #{autoIngestEnabled},</if>
+            <if test="alertMode != null">alert_mode = #{alertMode},</if>
+            <if test="taskStatus != null">task_status = #{taskStatus},</if>
+            <if test="nextRunTime != null">next_run_time = #{nextRunTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="ingestCapabilityStatus != null">ingest_capability_status = #{ingestCapabilityStatus},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE campus_monitor_task
+        SET task_status = #{taskStatus},
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateDisplayEnabled">
+        UPDATE campus_monitor_task
+        SET display_enabled = #{displayEnabled},
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateLastRun">
+        UPDATE campus_monitor_task
+        SET last_run_time = NOW(),
+            last_run_log_id = #{lastRunLogId},
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateRunSummary">
+        UPDATE campus_monitor_task
+        SET last_run_time = NOW(),
+            last_run_log_id = #{lastRunLogId},
+            last_match_count = #{lastMatchCount},
+            <if test="lastCollectTime != null">last_collect_time = #{lastCollectTime},</if>
+            <if test="ingestCapabilityStatus != null">ingest_capability_status = #{ingestCapabilityStatus},</if>
+            last_error_message = #{lastErrorMessage},
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateIngestCapability">
+        UPDATE campus_monitor_task
+        SET <if test="lastCollectTime != null">last_collect_time = #{lastCollectTime},</if>
+            ingest_capability_status = #{ingestCapabilityStatus},
+            last_error_message = #{lastErrorMessage},
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateNextRunTime">
+        UPDATE campus_monitor_task
+        SET next_run_time = #{nextRunTime},
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="acquireScheduleLock">
+        UPDATE campus_monitor_task
+        SET schedule_lock_until = #{lockUntil},
+            update_user_id = 0
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND schedule_enabled = 1
+          AND task_status = 'active'
+          AND deleted = 0
+          AND next_run_time IS NOT NULL
+          AND next_run_time &lt;= #{now}
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt; #{now})
+    </update>
+
+    <update id="acquireExecutionLock">
+        UPDATE campus_monitor_task
+        SET schedule_lock_until = #{lockUntil},
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND task_status != 'disabled'
+          AND deleted = 0
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt; #{now})
+    </update>
+
+    <update id="releaseScheduleLock">
+        UPDATE campus_monitor_task
+        SET schedule_lock_until = NULL
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <update id="releaseScheduleLockBefore">
+        UPDATE campus_monitor_task
+        SET schedule_lock_until = NULL
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+        <if test="lockUntil != null">
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt;= #{lockUntil})
+        </if>
+    </update>
+
+    <update id="markScheduleSuccess">
+        UPDATE campus_monitor_task
+        SET last_run_time = NOW(),
+            last_run_log_id = #{lastRunLogId},
+            next_run_time = #{nextRunTime},
+            schedule_lock_until = NULL,
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+        <if test="lockUntil != null">
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt;= #{lockUntil})
+        </if>
+    </update>
+
+    <update id="markScheduleFailure">
+        UPDATE campus_monitor_task
+        SET last_run_time = NOW(),
+            last_run_log_id = #{lastRunLogId},
+            next_run_time = #{nextRunTime},
+            schedule_lock_until = NULL,
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+        <if test="lockUntil != null">
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt;= #{lockUntil})
+        </if>
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_monitor_task
+        SET deleted = 1,
+            display_enabled = 0,
+            schedule_enabled = 0,
+            task_status = 'disabled',
+            schedule_lock_until = NULL,
+            update_user_id = #{updateUserId}
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByTaskId" resultMap="CampusMonitorTaskResultMap">
+        SELECT <include refid="BaseColumns"/>,
+               (SELECT GROUP_CONCAT(r.ingest_task_id ORDER BY r.id SEPARATOR ',')
+                FROM campus_monitor_ingest_task_relation r
+                WHERE r.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND r.deleted = 0) AS ingest_task_ids,
+               (SELECT GROUP_CONCAT(t.task_name ORDER BY r.id SEPARATOR '、')
+                FROM campus_monitor_ingest_task_relation r
+                JOIN campus_ingest_task t ON t.task_id = r.ingest_task_id AND t.deleted = 0
+                WHERE r.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND r.deleted = 0) AS ingest_task_names,
+               (SELECT COUNT(1)
+                FROM campus_monitor_result mr
+                WHERE mr.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND mr.deleted = 0) AS display_result_count
+        FROM campus_monitor_task
+        WHERE monitor_task_id = #{monitorTaskId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectById" resultMap="CampusMonitorTaskResultMap">
+        SELECT <include refid="BaseColumns"/>,
+               (SELECT GROUP_CONCAT(r.ingest_task_id ORDER BY r.id SEPARATOR ',')
+                FROM campus_monitor_ingest_task_relation r
+                WHERE r.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND r.deleted = 0) AS ingest_task_ids,
+               (SELECT GROUP_CONCAT(t.task_name ORDER BY r.id SEPARATOR '、')
+                FROM campus_monitor_ingest_task_relation r
+                JOIN campus_ingest_task t ON t.task_id = r.ingest_task_id AND t.deleted = 0
+                WHERE r.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND r.deleted = 0) AS ingest_task_names,
+               (SELECT COUNT(1)
+                FROM campus_monitor_result mr
+                WHERE mr.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND mr.deleted = 0) AS display_result_count
+        FROM campus_monitor_task
+        WHERE id = #{id}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="listDueTasks" resultMap="CampusMonitorTaskResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_task
+        WHERE deleted = 0
+          AND schedule_enabled = 1
+          AND task_status = 'active'
+          AND next_run_time IS NOT NULL
+          AND next_run_time &lt;= #{now}
+          AND (schedule_lock_until IS NULL OR schedule_lock_until &lt; #{now})
+        ORDER BY next_run_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <select id="list" resultMap="CampusMonitorTaskResultMap">
+        SELECT <include refid="BaseColumns"/>,
+               (SELECT GROUP_CONCAT(r.ingest_task_id ORDER BY r.id SEPARATOR ',')
+                FROM campus_monitor_ingest_task_relation r
+                WHERE r.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND r.deleted = 0) AS ingest_task_ids,
+               (SELECT GROUP_CONCAT(t.task_name ORDER BY r.id SEPARATOR '、')
+                FROM campus_monitor_ingest_task_relation r
+                JOIN campus_ingest_task t ON t.task_id = r.ingest_task_id AND t.deleted = 0
+                WHERE r.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND r.deleted = 0) AS ingest_task_names,
+               (SELECT COUNT(1)
+                FROM campus_monitor_result mr
+                WHERE mr.monitor_task_id = campus_monitor_task.monitor_task_id
+                  AND mr.deleted = 0) AS display_result_count
+        FROM campus_monitor_task
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (
+                task_name LIKE CONCAT('%', #{keyword}, '%')
+                OR monitor_subject LIKE CONCAT('%', #{keyword}, '%')
+                OR subject_aliases LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords LIKE CONCAT('%', #{keyword}, '%')
+                OR keywords_i18n LIKE CONCAT('%', #{keyword}, '%')
+                OR negative_words LIKE CONCAT('%', #{keyword}, '%')
+                OR negative_words_i18n LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="taskStatus != null and taskStatus != ''">
+            AND task_status = #{taskStatus}
+        </if>
+        <if test="platform != null and platform != ''">
+            AND platform_scope LIKE CONCAT('%', #{platform}, '%')
+        </if>
+        ORDER BY id DESC
+    </select>
+
+    <select id="countByStatus" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_monitor_task
+        WHERE deleted = 0
+        <if test="taskStatus != null and taskStatus != ''">
+            AND task_status = #{taskStatus}
+        </if>
+    </select>
+</mapper>

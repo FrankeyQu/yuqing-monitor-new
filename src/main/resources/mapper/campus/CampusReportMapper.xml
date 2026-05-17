@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusReportDao">
+
+    <resultMap id="CampusReportResultMap" type="com.stonedt.intelligence.entity.campus.CampusReport">
+        <id column="id" property="id"/>
+        <result column="report_id" property="reportId"/>
+        <result column="report_title" property="reportTitle"/>
+        <result column="report_type" property="reportType"/>
+        <result column="report_status" property="reportStatus"/>
+        <result column="template_id" property="templateId"/>
+        <result column="event_id" property="eventId"/>
+        <result column="period_start_time" property="periodStartTime"/>
+        <result column="period_end_time" property="periodEndTime"/>
+        <result column="report_summary" property="reportSummary"/>
+        <result column="report_content" property="reportContent"/>
+        <result column="report_format" property="reportFormat"/>
+        <result column="file_name" property="fileName"/>
+        <result column="file_path" property="filePath"/>
+        <result column="generated_by" property="generatedBy"/>
+        <result column="generate_time" property="generateTime"/>
+        <result column="archive_user_id" property="archiveUserId"/>
+        <result column="archive_time" property="archiveTime"/>
+        <result column="archive_opinion" property="archiveOpinion"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, report_id, report_title, report_type, report_status, template_id,
+        event_id, period_start_time, period_end_time, report_summary, report_content,
+        report_format, file_name, file_path, generated_by, generate_time,
+        archive_user_id, archive_time, archive_opinion, deleted, create_user_id,
+        update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusReport">
+        INSERT INTO campus_report (
+            report_id, report_title, report_type, report_status, template_id, event_id,
+            period_start_time, period_end_time, report_summary, report_content,
+            report_format, file_name, file_path, generated_by, generate_time,
+            deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{reportId}, #{reportTitle}, #{reportType}, #{reportStatus}, #{templateId}, #{eventId},
+            #{periodStartTime}, #{periodEndTime}, #{reportSummary}, #{reportContent},
+            #{reportFormat}, #{fileName}, #{filePath}, #{generatedBy}, #{generateTime},
+            #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusReport">
+        UPDATE campus_report
+        <set>
+            <if test="reportTitle != null">report_title = #{reportTitle},</if>
+            <if test="reportType != null">report_type = #{reportType},</if>
+            <if test="reportStatus != null">report_status = #{reportStatus},</if>
+            <if test="templateId != null">template_id = #{templateId},</if>
+            <if test="eventId != null">event_id = #{eventId},</if>
+            <if test="periodStartTime != null">period_start_time = #{periodStartTime},</if>
+            <if test="periodEndTime != null">period_end_time = #{periodEndTime},</if>
+            <if test="reportSummary != null">report_summary = #{reportSummary},</if>
+            <if test="reportContent != null">report_content = #{reportContent},</if>
+            <if test="reportFormat != null">report_format = #{reportFormat},</if>
+            <if test="fileName != null">file_name = #{fileName},</if>
+            <if test="filePath != null">file_path = #{filePath},</if>
+            <if test="generatedBy != null">generated_by = #{generatedBy},</if>
+            <if test="generateTime != null">generate_time = #{generateTime},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE report_id = #{reportId}
+          AND deleted = 0
+    </update>
+
+    <update id="archive">
+        UPDATE campus_report
+        SET report_status = 'archived',
+            archive_opinion = #{archiveOpinion},
+            archive_user_id = #{archiveUserId},
+            archive_time = NOW(),
+            update_user_id = #{updateUserId}
+        WHERE report_id = #{reportId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_report
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE report_id = #{reportId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByReportId" resultMap="CampusReportResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_report
+        WHERE report_id = #{reportId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusReportResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_report
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (report_title LIKE CONCAT('%', #{keyword}, '%') OR report_summary LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="reportType != null and reportType != ''">
+            AND report_type = #{reportType}
+        </if>
+        <if test="reportStatus != null and reportStatus != ''">
+            AND report_status = #{reportStatus}
+        </if>
+        <if test="startTime != null">
+            AND create_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+        ORDER BY update_time DESC, id DESC
+    </select>
+</mapper>

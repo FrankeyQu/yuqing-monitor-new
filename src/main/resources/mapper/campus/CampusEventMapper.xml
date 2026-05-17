@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusEventDao">
+
+    <resultMap id="CampusEventResultMap" type="com.stonedt.intelligence.entity.campus.CampusEvent">
+        <id column="id" property="id"/>
+        <result column="event_id" property="eventId"/>
+        <result column="event_title" property="eventTitle"/>
+        <result column="event_type" property="eventType"/>
+        <result column="event_summary" property="eventSummary"/>
+        <result column="first_publish_time" property="firstPublishTime"/>
+        <result column="discover_time" property="discoverTime"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="impact_scope" property="impactScope"/>
+        <result column="involved_department_id" property="involvedDepartmentId"/>
+        <result column="current_heat" property="currentHeat"/>
+        <result column="event_status" property="eventStatus"/>
+        <result column="disposal_requirement" property="disposalRequirement"/>
+        <result column="archive_conclusion" property="archiveConclusion"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, event_id, event_title, event_type, event_summary, first_publish_time,
+        discover_time, risk_level, impact_scope, involved_department_id,
+        current_heat, event_status, disposal_requirement, archive_conclusion,
+        deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusEvent">
+        INSERT INTO campus_event (
+            event_id, event_title, event_type, event_summary, first_publish_time,
+            discover_time, risk_level, impact_scope, involved_department_id,
+            current_heat, event_status, disposal_requirement, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{eventId}, #{eventTitle}, #{eventType}, #{eventSummary}, #{firstPublishTime},
+            #{discoverTime}, #{riskLevel}, #{impactScope}, #{involvedDepartmentId},
+            #{currentHeat}, #{eventStatus}, #{disposalRequirement}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusEvent">
+        UPDATE campus_event
+        <set>
+            <if test="eventTitle != null">event_title = #{eventTitle},</if>
+            <if test="eventType != null">event_type = #{eventType},</if>
+            <if test="eventSummary != null">event_summary = #{eventSummary},</if>
+            <if test="firstPublishTime != null">first_publish_time = #{firstPublishTime},</if>
+            <if test="discoverTime != null">discover_time = #{discoverTime},</if>
+            <if test="riskLevel != null">risk_level = #{riskLevel},</if>
+            <if test="impactScope != null">impact_scope = #{impactScope},</if>
+            <if test="involvedDepartmentId != null">involved_department_id = #{involvedDepartmentId},</if>
+            <if test="currentHeat != null">current_heat = #{currentHeat},</if>
+            <if test="eventStatus != null">event_status = #{eventStatus},</if>
+            <if test="disposalRequirement != null">disposal_requirement = #{disposalRequirement},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE event_id = #{eventId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        UPDATE campus_event
+        SET event_status = #{eventStatus},
+            update_user_id = #{updateUserId}
+        WHERE event_id = #{eventId}
+          AND deleted = 0
+    </update>
+
+    <update id="rate">
+        UPDATE campus_event
+        SET risk_level = #{riskLevel},
+            disposal_requirement = #{disposalRequirement},
+            event_status = 'rated',
+            update_user_id = #{updateUserId}
+        WHERE event_id = #{eventId}
+          AND deleted = 0
+    </update>
+
+    <update id="archive">
+        UPDATE campus_event
+        SET archive_conclusion = #{archiveConclusion},
+            event_status = 'archived',
+            update_user_id = #{updateUserId}
+        WHERE event_id = #{eventId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByEventId" resultMap="CampusEventResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_event
+        WHERE event_id = #{eventId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="getEventSource" resultType="java.util.Map">
+        SELECT
+            e.event_title as title,
+            e.create_time as time,
+            COALESCE(c.source_platform, '新浪微博') as media
+        FROM campus_event e
+        LEFT JOIN campus_event_clue ec ON e.event_id = ec.event_id
+        LEFT JOIN campus_clue c ON ec.clue_id = c.clue_id
+        WHERE e.event_id = #{eventId}
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusEventResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_event
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (event_title LIKE CONCAT('%', #{keyword}, '%') OR event_summary LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="riskLevel != null and riskLevel != ''">
+            AND risk_level = #{riskLevel}
+        </if>
+        <if test="eventStatus != null and eventStatus != ''">
+            AND event_status = #{eventStatus}
+        </if>
+        <if test="startTime != null">
+            AND discover_time &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND discover_time &lt;= #{endTime}
+        </if>
+        ORDER BY update_time DESC, id DESC
+    </select>
+</mapper>

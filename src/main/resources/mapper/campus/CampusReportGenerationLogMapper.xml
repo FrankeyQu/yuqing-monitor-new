@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusReportGenerationLogDao">
+
+    <resultMap id="CampusReportGenerationLogResultMap" type="com.stonedt.intelligence.entity.campus.CampusReportGenerationLog">
+        <id column="id" property="id"/>
+        <result column="generation_log_id" property="generationLogId"/>
+        <result column="report_job_id" property="reportJobId"/>
+        <result column="report_id" property="reportId"/>
+        <result column="run_status" property="runStatus"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusReportGenerationLog">
+        INSERT INTO campus_report_generation_log (
+            generation_log_id, report_job_id, report_id, run_status,
+            start_time, error_message, create_user_id
+        ) VALUES (
+            #{generationLogId}, #{reportJobId}, #{reportId}, #{runStatus},
+            #{startTime}, #{errorMessage}, #{createUserId}
+        )
+    </insert>
+
+    <update id="finish">
+        UPDATE campus_report_generation_log
+        SET report_id = #{reportId},
+            run_status = #{runStatus},
+            end_time = NOW(),
+            error_message = #{errorMessage}
+        WHERE generation_log_id = #{generationLogId}
+    </update>
+
+    <select id="selectByLogId" resultMap="CampusReportGenerationLogResultMap">
+        SELECT id, generation_log_id, report_job_id, report_id, run_status,
+               start_time, end_time, error_message, create_user_id, create_time
+        FROM campus_report_generation_log
+        WHERE generation_log_id = #{generationLogId}
+        LIMIT 1
+    </select>
+
+    <select id="listByJobId" resultMap="CampusReportGenerationLogResultMap">
+        SELECT id, generation_log_id, report_job_id, report_id, run_status,
+               start_time, end_time, error_message, create_user_id, create_time
+        FROM campus_report_generation_log
+        WHERE report_job_id = #{reportJobId}
+        ORDER BY id DESC
+    </select>
+</mapper>

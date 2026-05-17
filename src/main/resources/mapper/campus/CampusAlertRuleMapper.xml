@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusAlertRuleDao">
+
+    <resultMap id="CampusAlertRuleResultMap" type="com.stonedt.intelligence.entity.campus.CampusAlertRule">
+        <id column="id" property="id"/>
+        <result column="rule_id" property="ruleId"/>
+        <result column="rule_name" property="ruleName"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="rule_condition" property="ruleCondition"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="enabled" property="enabled"/>
+        <result column="description" property="description"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, rule_id, rule_name, rule_type, rule_condition, risk_level, enabled,
+        description, deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusAlertRule">
+        INSERT INTO campus_alert_rule (
+            rule_id, rule_name, rule_type, rule_condition, risk_level, enabled,
+            description, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{ruleId}, #{ruleName}, #{ruleType}, #{ruleCondition}, #{riskLevel}, #{enabled},
+            #{description}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.stonedt.intelligence.entity.campus.CampusAlertRule">
+        UPDATE campus_alert_rule
+        <set>
+            <if test="ruleName != null">rule_name = #{ruleName},</if>
+            <if test="ruleType != null">rule_type = #{ruleType},</if>
+            <if test="ruleCondition != null">rule_condition = #{ruleCondition},</if>
+            <if test="riskLevel != null">risk_level = #{riskLevel},</if>
+            <if test="enabled != null">enabled = #{enabled},</if>
+            <if test="description != null">description = #{description},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE rule_id = #{ruleId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        UPDATE campus_alert_rule
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE rule_id = #{ruleId}
+          AND deleted = 0
+    </update>
+
+    <select id="selectByRuleId" resultMap="CampusAlertRuleResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_alert_rule
+        WHERE rule_id = #{ruleId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusAlertRuleResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_alert_rule
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (rule_name LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="ruleType != null and ruleType != ''">
+            AND rule_type = #{ruleType}
+        </if>
+        <if test="enabled != null">
+            AND enabled = #{enabled}
+        </if>
+        ORDER BY id DESC
+    </select>
+</mapper>

@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusPermissionDao">
+
+    <resultMap id="RoleResultMap" type="com.stonedt.intelligence.entity.campus.CampusPermissionRole">
+        <id column="id" property="id"/>
+        <result column="role_id" property="roleId"/>
+        <result column="role_code" property="roleCode"/>
+        <result column="role_name" property="roleName"/>
+        <result column="role_type" property="roleType"/>
+        <result column="data_scope" property="dataScope"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="MenuResultMap" type="com.stonedt.intelligence.entity.campus.CampusPermissionMenu">
+        <id column="id" property="id"/>
+        <result column="menu_id" property="menuId"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="menu_code" property="menuCode"/>
+        <result column="menu_name" property="menuName"/>
+        <result column="menu_type" property="menuType"/>
+        <result column="route_path" property="routePath"/>
+        <result column="component_path" property="componentPath"/>
+        <result column="permission_code" property="permissionCode"/>
+        <result column="icon" property="icon"/>
+        <result column="sort_no" property="sortNo"/>
+        <result column="visible" property="visible"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="ApiResultMap" type="com.stonedt.intelligence.entity.campus.CampusPermissionApi">
+        <id column="id" property="id"/>
+        <result column="api_id" property="apiId"/>
+        <result column="api_code" property="apiCode"/>
+        <result column="api_name" property="apiName"/>
+        <result column="module_name" property="moduleName"/>
+        <result column="request_method" property="requestMethod"/>
+        <result column="request_path" property="requestPath"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="RoleColumns">
+        id, role_id, role_code, role_name, role_type, data_scope, status, remark,
+        deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <sql id="MenuColumns">
+        id, menu_id, parent_id, menu_code, menu_name, menu_type, route_path,
+        component_path, permission_code, icon, sort_no, visible, status, deleted,
+        create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <sql id="ApiColumns">
+        id, api_id, api_code, api_name, module_name, request_method, request_path,
+        status, remark, deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insertRole" parameterType="com.stonedt.intelligence.entity.campus.CampusPermissionRole">
+        INSERT INTO campus_permission_role (
+            role_id, role_code, role_name, role_type, data_scope, status, remark,
+            deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{roleId}, #{roleCode}, #{roleName}, #{roleType}, #{dataScope}, #{status}, #{remark},
+            #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateRole" parameterType="com.stonedt.intelligence.entity.campus.CampusPermissionRole">
+        UPDATE campus_permission_role
+        <set>
+            <if test="roleCode != null">role_code = #{roleCode},</if>
+            <if test="roleName != null">role_name = #{roleName},</if>
+            <if test="roleType != null">role_type = #{roleType},</if>
+            <if test="dataScope != null">data_scope = #{dataScope},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="deleted != null">deleted = #{deleted},</if>
+            update_user_id = #{updateUserId}
+        </set>
+        WHERE role_id = #{roleId}
+          AND deleted = 0
+    </update>
+
+    <update id="logicalDeleteRole">
+        UPDATE campus_permission_role
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE role_id = #{roleId}
+          AND role_code != 'campus_admin'
+          AND deleted = 0
+    </update>
+
+    <select id="selectRoleById" resultMap="RoleResultMap">
+        SELECT <include refid="RoleColumns"/>
+        FROM campus_permission_role
+        WHERE role_id = #{roleId}
+          AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <select id="countRoleCode" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_permission_role
+        WHERE role_code = #{roleCode}
+          AND deleted = 0
+        <if test="excludeRoleId != null">
+            AND role_id != #{excludeRoleId}
+        </if>
+    </select>
+
+    <select id="listRoles" resultMap="RoleResultMap">
+        SELECT <include refid="RoleColumns"/>
+        FROM campus_permission_role
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (role_code LIKE CONCAT('%', #{keyword}, '%')
+                 OR role_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR remark LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="roleType != null and roleType != ''">
+            AND role_type = #{roleType}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY id ASC
+    </select>
+
+    <select id="listRolesByUserId" resultMap="RoleResultMap">
+        SELECT r.*
+        FROM campus_permission_role r
+        INNER JOIN campus_user_role ur
+            ON ur.role_id = r.role_id
+           AND ur.deleted = 0
+        WHERE ur.user_id = #{userId}
+          AND r.status = 1
+          AND r.deleted = 0
+        ORDER BY r.id ASC
+    </select>
+
+    <select id="listMenus" resultMap="MenuResultMap">
+        SELECT <include refid="MenuColumns"/>
+        FROM campus_permission_menu
+        WHERE deleted = 0
+        <if test="visible != null">
+            AND visible = #{visible}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY sort_no ASC, id ASC
+    </select>
+
+    <select id="listMenusByUserId" resultMap="MenuResultMap">
+        SELECT DISTINCT m.*
+        FROM campus_permission_menu m
+        INNER JOIN campus_role_menu rm
+            ON rm.menu_id = m.menu_id
+           AND rm.deleted = 0
+        INNER JOIN campus_user_role ur
+            ON ur.role_id = rm.role_id
+           AND ur.deleted = 0
+        INNER JOIN campus_permission_role r
+            ON r.role_id = ur.role_id
+           AND r.status = 1
+           AND r.deleted = 0
+        WHERE ur.user_id = #{userId}
+          AND m.deleted = 0
+          AND m.status = 1
+        <if test="visible != null">
+          AND m.visible = #{visible}
+        </if>
+        ORDER BY m.sort_no ASC, m.id ASC
+    </select>
+
+    <select id="listApis" resultMap="ApiResultMap">
+        SELECT <include refid="ApiColumns"/>
+        FROM campus_permission_api
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (api_code LIKE CONCAT('%', #{keyword}, '%')
+                 OR api_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR request_path LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="moduleName != null and moduleName != ''">
+            AND module_name = #{moduleName}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY module_name ASC, id ASC
+    </select>
+
+    <select id="listApisByUserId" resultMap="ApiResultMap">
+        SELECT DISTINCT a.*
+        FROM campus_permission_api a
+        INNER JOIN campus_role_api ra
+            ON ra.api_id = a.api_id
+           AND ra.deleted = 0
+        INNER JOIN campus_user_role ur
+            ON ur.role_id = ra.role_id
+           AND ur.deleted = 0
+        INNER JOIN campus_permission_role r
+            ON r.role_id = ur.role_id
+           AND r.status = 1
+           AND r.deleted = 0
+        WHERE ur.user_id = #{userId}
+          AND a.status = 1
+          AND a.deleted = 0
+        ORDER BY a.id ASC
+    </select>
+
+    <select id="listRoleMenuIds" resultType="long">
+        SELECT menu_id
+        FROM campus_role_menu
+        WHERE role_id = #{roleId}
+          AND deleted = 0
+        ORDER BY menu_id ASC
+    </select>
+
+    <select id="listRoleApiIds" resultType="long">
+        SELECT api_id
+        FROM campus_role_api
+        WHERE role_id = #{roleId}
+          AND deleted = 0
+        ORDER BY api_id ASC
+    </select>
+
+    <update id="deleteRoleMenus">
+        UPDATE campus_role_menu
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE role_id = #{roleId}
+          AND deleted = 0
+    </update>
+
+    <update id="deleteRoleApis">
+        UPDATE campus_role_api
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE role_id = #{roleId}
+          AND deleted = 0
+    </update>
+
+    <insert id="insertRoleMenu">
+        INSERT INTO campus_role_menu (
+            relation_id, role_id, menu_id, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{relationId}, #{roleId}, #{menuId}, 0, #{operatorUserId}, #{operatorUserId}
+        )
+        ON DUPLICATE KEY UPDATE
+            deleted = 0,
+            update_user_id = VALUES(update_user_id),
+            update_time = CURRENT_TIMESTAMP
+    </insert>
+
+    <insert id="insertRoleApi">
+        INSERT INTO campus_role_api (
+            relation_id, role_id, api_id, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{relationId}, #{roleId}, #{apiId}, 0, #{operatorUserId}, #{operatorUserId}
+        )
+        ON DUPLICATE KEY UPDATE
+            deleted = 0,
+            update_user_id = VALUES(update_user_id),
+            update_time = CURRENT_TIMESTAMP
+    </insert>
+</mapper>

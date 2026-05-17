@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusDictDao">
+
+    <resultMap id="CampusDictTypeResultMap" type="com.stonedt.intelligence.entity.campus.CampusDictType">
+        <id column="id" property="id"/>
+        <result column="dict_type" property="dictType"/>
+        <result column="dict_name" property="dictName"/>
+        <result column="description" property="description"/>
+        <result column="sort_no" property="sortNo"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <resultMap id="CampusDictItemResultMap" type="com.stonedt.intelligence.entity.campus.CampusDictItem">
+        <id column="id" property="id"/>
+        <result column="dict_type" property="dictType"/>
+        <result column="item_code" property="itemCode"/>
+        <result column="item_name" property="itemName"/>
+        <result column="item_value" property="itemValue"/>
+        <result column="description" property="description"/>
+        <result column="sort_no" property="sortNo"/>
+        <result column="status" property="status"/>
+        <result column="deleted" property="deleted"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="TypeColumns">
+        id, dict_type, dict_name, description, sort_no, status, deleted,
+        create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <sql id="ItemColumns">
+        id, dict_type, item_code, item_name, item_value, description, sort_no, status,
+        deleted, create_user_id, update_user_id, create_time, update_time
+    </sql>
+
+    <insert id="insertType" parameterType="com.stonedt.intelligence.entity.campus.CampusDictType">
+        INSERT INTO campus_dict_type (
+            dict_type, dict_name, description, sort_no, status, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{dictType}, #{dictName}, #{description}, #{sortNo}, #{status}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateType" parameterType="com.stonedt.intelligence.entity.campus.CampusDictType">
+        UPDATE campus_dict_type
+        SET dict_name = #{dictName},
+            description = #{description},
+            sort_no = #{sortNo},
+            status = #{status},
+            deleted = #{deleted},
+            update_user_id = #{updateUserId}
+        WHERE dict_type = #{dictType}
+    </update>
+
+    <update id="logicalDeleteType">
+        UPDATE campus_dict_type
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE dict_type = #{dictType}
+          AND deleted = 0
+    </update>
+
+    <select id="selectType" resultMap="CampusDictTypeResultMap">
+        SELECT <include refid="TypeColumns"/>
+        FROM campus_dict_type
+        WHERE dict_type = #{dictType}
+        LIMIT 1
+    </select>
+
+    <select id="listTypes" resultMap="CampusDictTypeResultMap">
+        SELECT <include refid="TypeColumns"/>
+        FROM campus_dict_type
+        WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (dict_type LIKE CONCAT('%', #{keyword}, '%') OR dict_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY sort_no ASC, id ASC
+    </select>
+
+    <insert id="insertItem" parameterType="com.stonedt.intelligence.entity.campus.CampusDictItem">
+        INSERT INTO campus_dict_item (
+            dict_type, item_code, item_name, item_value, description, sort_no,
+            status, deleted, create_user_id, update_user_id
+        ) VALUES (
+            #{dictType}, #{itemCode}, #{itemName}, #{itemValue}, #{description}, #{sortNo},
+            #{status}, #{deleted}, #{createUserId}, #{updateUserId}
+        )
+    </insert>
+
+    <update id="updateItem" parameterType="com.stonedt.intelligence.entity.campus.CampusDictItem">
+        UPDATE campus_dict_item
+        SET item_name = #{itemName},
+            item_value = #{itemValue},
+            description = #{description},
+            sort_no = #{sortNo},
+            status = #{status},
+            deleted = #{deleted},
+            update_user_id = #{updateUserId}
+        WHERE dict_type = #{dictType}
+          AND item_code = #{itemCode}
+    </update>
+
+    <update id="logicalDeleteItem">
+        UPDATE campus_dict_item
+        SET deleted = 1,
+            update_user_id = #{updateUserId}
+        WHERE dict_type = #{dictType}
+          AND item_code = #{itemCode}
+          AND deleted = 0
+    </update>
+
+    <select id="selectItem" resultMap="CampusDictItemResultMap">
+        SELECT <include refid="ItemColumns"/>
+        FROM campus_dict_item
+        WHERE dict_type = #{dictType}
+          AND item_code = #{itemCode}
+        LIMIT 1
+    </select>
+
+    <select id="listItems" resultMap="CampusDictItemResultMap">
+        SELECT <include refid="ItemColumns"/>
+        FROM campus_dict_item
+        WHERE deleted = 0
+        <if test="dictType != null and dictType != ''">
+            AND dict_type = #{dictType}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (item_code LIKE CONCAT('%', #{keyword}, '%') OR item_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY dict_type ASC, sort_no ASC, id ASC
+    </select>
+
+    <select id="enabledItems" resultMap="CampusDictItemResultMap">
+        SELECT <include refid="ItemColumns"/>
+        FROM campus_dict_item
+        WHERE deleted = 0
+          AND status = 1
+          AND dict_type = #{dictType}
+        ORDER BY sort_no ASC, id ASC
+    </select>
+</mapper>

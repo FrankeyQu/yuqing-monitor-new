@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusMonitorRunLogDao">
+
+    <resultMap id="CampusMonitorRunLogResultMap" type="com.stonedt.intelligence.entity.campus.CampusMonitorRunLog">
+        <id column="id" property="id"/>
+        <result column="run_log_id" property="runLogId"/>
+        <result column="monitor_task_id" property="monitorTaskId"/>
+        <result column="run_status" property="runStatus"/>
+        <result column="trigger_type" property="triggerType"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="scanned_count" property="scannedCount"/>
+        <result column="match_count" property="matchCount"/>
+        <result column="negative_count" property="negativeCount"/>
+        <result column="alert_count" property="alertCount"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="scheduler_node" property="schedulerNode"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, run_log_id, monitor_task_id, run_status, trigger_type, start_time, end_time,
+        scanned_count, match_count, negative_count, alert_count,
+        error_message, scheduler_node, create_user_id, create_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusMonitorRunLog">
+        INSERT INTO campus_monitor_run_log (
+            run_log_id, monitor_task_id, run_status, trigger_type, start_time,
+            scanned_count, match_count, negative_count, alert_count,
+            error_message, scheduler_node, create_user_id
+        ) VALUES (
+            #{runLogId}, #{monitorTaskId}, #{runStatus}, #{triggerType}, #{startTime},
+            #{scannedCount}, #{matchCount}, #{negativeCount}, #{alertCount},
+            #{errorMessage}, #{schedulerNode}, #{createUserId}
+        )
+    </insert>
+
+    <update id="finish">
+        UPDATE campus_monitor_run_log
+        SET run_status = #{runStatus},
+            end_time = NOW(),
+            scanned_count = #{scannedCount},
+            match_count = #{matchCount},
+            negative_count = #{negativeCount},
+            alert_count = #{alertCount},
+            error_message = #{errorMessage}
+        WHERE run_log_id = #{runLogId}
+    </update>
+
+    <select id="selectByRunLogId" resultMap="CampusMonitorRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_run_log
+        WHERE run_log_id = #{runLogId}
+        LIMIT 1
+    </select>
+
+    <select id="listByTaskId" resultMap="CampusMonitorRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_run_log
+        WHERE monitor_task_id = #{monitorTaskId}
+        ORDER BY id DESC
+    </select>
+
+    <delete id="deleteBefore">
+        DELETE FROM campus_monitor_run_log
+        WHERE create_time &lt; #{expireBefore}
+          AND run_log_id NOT IN (
+              SELECT last_run_log_id
+              FROM campus_monitor_task
+              WHERE last_run_log_id IS NOT NULL
+                AND deleted = 0
+          )
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </delete>
+</mapper>

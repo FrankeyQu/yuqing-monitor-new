@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+
+<mapper namespace="com.stonedt.intelligence.dao.campus.CampusIngestApiCallLogDao">
+
+    <resultMap id="CampusIngestApiCallLogResultMap" type="com.stonedt.intelligence.entity.campus.CampusIngestApiCallLog">
+        <id column="id" property="id"/>
+        <result column="call_id" property="callId"/>
+        <result column="run_id" property="runId"/>
+        <result column="task_id" property="taskId"/>
+        <result column="source_id" property="sourceId"/>
+        <result column="provider" property="provider"/>
+        <result column="endpoint_key" property="endpointKey"/>
+        <result column="credential_ref" property="credentialRef"/>
+        <result column="request_time" property="requestTime"/>
+        <result column="duration_ms" property="durationMs"/>
+        <result column="call_status" property="callStatus"/>
+        <result column="http_status" property="httpStatus"/>
+        <result column="error_type" property="errorType"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="cost_units" property="costUnits"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, call_id, run_id, task_id, source_id, provider, endpoint_key, credential_ref,
+        request_time, duration_ms, call_status, http_status, error_type, error_message,
+        cost_units, create_time
+    </sql>
+
+    <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusIngestApiCallLog">
+        INSERT INTO campus_ingest_api_call_log (
+            call_id, run_id, task_id, source_id, provider, endpoint_key, credential_ref,
+            request_time, duration_ms, call_status, http_status, error_type, error_message,
+            cost_units
+        ) VALUES (
+            #{callId}, #{runId}, #{taskId}, #{sourceId}, #{provider}, #{endpointKey}, #{credentialRef},
+            #{requestTime}, #{durationMs}, #{callStatus}, #{httpStatus}, #{errorType}, #{errorMessage},
+            #{costUnits}
+        )
+    </insert>
+
+    <select id="selectByCallId" resultMap="CampusIngestApiCallLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_api_call_log
+        WHERE call_id = #{callId}
+        LIMIT 1
+    </select>
+
+    <select id="list" resultMap="CampusIngestApiCallLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_ingest_api_call_log
+        WHERE 1 = 1
+        <if test="taskId != null">
+            AND task_id = #{taskId}
+        </if>
+        <if test="runId != null">
+            AND run_id = #{runId}
+        </if>
+        <if test="provider != null and provider != ''">
+            AND provider = #{provider}
+        </if>
+        <if test="callStatus != null and callStatus != ''">
+            AND call_status = #{callStatus}
+        </if>
+        ORDER BY id DESC
+        LIMIT 200
+    </select>
+
+    <delete id="deleteBefore">
+        DELETE FROM campus_ingest_api_call_log
+        WHERE create_time &lt; #{expireBefore}
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </delete>
+</mapper>

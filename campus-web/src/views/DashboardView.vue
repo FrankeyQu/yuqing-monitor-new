@@ -1,17 +1,26 @@
 <template>
-  <section class="screen-page dashboard-page">
-    <div class="dashboard-header">
+  <section ref="pageRef" class="dashboard-unified" :class="{ 'is-screen-mode': isScreenMode }">
+    <header class="dashboard-hero">
       <div>
-        <span>校园舆情监测</span>
-        <h2>舆情态势总览</h2>
+        <span>{{ isScreenMode ? '校园舆情态势大屏' : '校园舆情监测' }}</span>
+        <h2>{{ isScreenMode ? '任务运行、关键词命中、负面告警闭环' : '舆情态势工作台' }}</h2>
       </div>
       <div class="dashboard-actions">
+        <strong v-if="isScreenMode" class="screen-time">{{ nowText }}</strong>
         <el-button type="primary" plain :loading="loading" @click="loadAll">
           <RefreshCw :size="16" />
           刷新
         </el-button>
+        <el-button v-if="!isScreenMode" type="primary" @click="enterScreenMode">
+          <Maximize2 :size="16" />
+          大屏模式
+        </el-button>
+        <el-button v-else type="primary" plain @click="exitScreenMode">
+          <Minimize2 :size="16" />
+          退出大屏
+        </el-button>
       </div>
-    </div>
+    </header>
 
     <el-alert
       v-if="errorMessage"
@@ -22,47 +31,155 @@
       :closable="false"
     />
 
-    <section class="dashboard-summary">
-      <span>今日线索 <strong>{{ statistics.overview.todayClueCount ?? 0 }}</strong></span>
-      <span class="summary-sep">|</span>
-      <span>待处理预警 <strong>{{ statistics.overview.pendingAlertCount ?? 0 }}</strong></span>
-      <span class="summary-sep">|</span>
-      <span>处置中事件 <strong>{{ statistics.overview.activeEventCount ?? 0 }}</strong></span>
-      <span class="summary-sep">|</span>
-      <span>高风险 <strong class="tone-red">{{ statistics.overview.highRiskEventCount ?? 0 }}</strong></span>
-      <span class="summary-sep">|</span>
-      <span>活跃监测 <strong>{{ statistics.monitorOverview?.activeTaskCount ?? 0 }}</strong></span>
-    </section>
-
-    <section class="screen-grid">
-      <article class="screen-panel">
-        <div class="panel-header">
-          <h2>热点词云</h2>
+    <section class="screen-metrics dashboard-metrics">
+      <article v-for="card in metricCards" :key="card.label" class="screen-card" :class="`tone-${card.tone}`">
+        <div class="screen-card-icon">
+          <component :is="card.icon" :size="24" />
         </div>
-        <WordCloud
-          :words="wordCloudData"
-          :loading="loading"
-          :min-height="320"
-          @word-click="onWordClick"
-        />
-      </article>
-
-      <article class="screen-panel">
-        <div class="panel-header">
-          <h2>舆情趋势（近 7 天）</h2>
+        <div>
+          <span>{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
         </div>
-        <div ref="trendChartRef" class="screen-chart" style="min-height: 320px;" />
       </article>
     </section>
 
-    <section class="screen-panel">
-      <div class="panel-header">
-        <h2>最新舆情线索</h2>
-        <el-button link type="primary" @click="router.push('/monitor')">进入监测信息</el-button>
-      </div>
-      <div ref="tableScrollRef" class="dashboard-table-wrap">
+    <template v-if="!isScreenMode">
+      <section class="screen-grid dashboard-top-grid">
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>热点词云</h2>
+          </div>
+          <WordCloud
+            :words="wordCloudData"
+            :loading="loading"
+            :min-height="320"
+            @word-click="onWordClick"
+          />
+        </article>
+
+        <article class="screen-panel screen-panel-large">
+          <div class="panel-header">
+            <h2>监测近 7 日趋势</h2>
+            <ChartToolbar
+              :chart-ref="monitorTrendChartRef"
+              :chart-data="monitorTrendRows"
+              title="监测近 7 日趋势"
+              @refresh="loadAll"
+            />
+          </div>
+          <div ref="monitorTrendChartRef" class="screen-chart screen-chart-lg" />
+        </article>
+      </section>
+
+      <section class="screen-grid screen-grid-three">
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>运行中的监测任务</h2>
+            <el-button link type="primary" @click="router.push('/monitor')">进入</el-button>
+          </div>
+          <div class="screen-list">
+            <div v-for="item in monitorTasks" :key="item.monitorTaskId || item.taskName" class="screen-list-row screen-feed-row">
+              <div class="screen-list-main">
+                <span>{{ item.taskName }}</span>
+                <small>{{ item.monitorSubject }} · {{ item.keywords || item.negativeWords || '未配置关键词' }}</small>
+              </div>
+              <div class="screen-list-tags">
+                <el-tag :type="taskStatusTagType(item.taskStatus)" effect="plain">{{ taskStatusLabel(item.taskStatus) }}</el-tag>
+                <el-tag effect="plain">{{ frequencyLabel(item.scanFrequencyMinutes) }}</el-tag>
+              </div>
+            </div>
+            <el-empty v-if="!monitorTasks.length && !loading" description="暂无运行任务" />
+          </div>
+        </article>
+
+        <article class="screen-panel">
+          <div class="panel-header">
+            <div class="panel-title-line">
+              <h2>最新监测命中</h2>
+              <el-tag v-if="monitorResultTotal" effect="plain" type="info">共 {{ monitorResultTotal }}</el-tag>
+            </div>
+            <el-button link type="primary" @click="router.push({ path: '/monitor', query: { hitScope: 'all' } })">查看全部</el-button>
+          </div>
+          <div class="screen-list">
+            <div v-for="item in monitorResults" :key="item.monitorResultId || item.title" class="screen-list-row screen-feed-row">
+              <div class="screen-list-main">
+                <span>{{ item.title || '未命名内容' }}</span>
+                <small>{{ item.platform || item.sourcePlatform || '监测命中' }} · {{ item.matchedKeywords || item.matchedNegativeWords || '-' }}</small>
+              </div>
+              <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
+            </div>
+            <el-empty v-if="!monitorResults.length && !loading" description="暂无监测命中" />
+          </div>
+        </article>
+
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>待处理负面告警</h2>
+            <el-button link type="primary" @click="router.push('/monitor')">进入</el-button>
+          </div>
+          <div class="screen-list">
+            <div v-for="item in monitorAlerts" :key="item.alertId" class="screen-list-row">
+              <div class="screen-list-main">
+                <span>{{ item.alertTitle }}</span>
+                <small>{{ item.matchedKeywords || alertSourceLabel(item.alertSource) }}</small>
+              </div>
+              <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
+            </div>
+            <el-empty v-if="!monitorAlerts.length && !loading" description="暂无待处理告警" />
+          </div>
+        </article>
+      </section>
+
+      <section class="screen-grid screen-grid-main">
+        <article class="screen-panel screen-panel-large">
+          <div class="panel-header">
+            <h2>近 7 日舆情流入趋势</h2>
+            <ChartToolbar
+              :chart-ref="trendChartRef"
+              :chart-data="trendRows"
+              title="近 7 日舆情流入趋势"
+              @refresh="loadAll"
+            />
+          </div>
+          <div ref="trendChartRef" class="screen-chart screen-chart-lg" />
+        </article>
+
+        <article class="screen-panel score-panel">
+          <div class="panel-header">
+            <h2>风险压力指数</h2>
+            <ChartToolbar
+              :chart-ref="riskGaugeRef"
+              :chart-data="riskGaugeData"
+              title="风险压力指数"
+              @refresh="loadAll"
+            />
+            <el-tag :type="riskScoreTag" effect="plain">{{ riskScoreLevel }}</el-tag>
+          </div>
+          <div ref="riskGaugeRef" class="screen-chart screen-gauge" />
+          <div class="score-facts">
+            <div>
+              <span>高风险事件</span>
+              <strong>{{ statistics.overview.highRiskEventCount ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>待处理预警</span>
+              <strong>{{ statistics.overview.pendingAlertCount ?? 0 }}</strong>
+            </div>
+            <div>
+              <span>超期处置</span>
+              <strong>{{ statistics.overview.overdueDisposalCount ?? 0 }}</strong>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen-panel">
+        <div class="panel-header">
+          <h2>最新舆情线索</h2>
+          <el-button link type="primary" @click="router.push('/monitor')">进入监测信息</el-button>
+        </div>
         <el-table
-          :data="displayClueList"
+          :data="pendingClues"
           size="small"
           v-loading="loading"
           :show-header="true"
@@ -70,301 +187,697 @@
           class="dashboard-clue-table"
         >
           <el-table-column type="index" label="#" width="50" />
-          <el-table-column prop="clueTitle" label="标题" min-width="200" show-overflow-tooltip />
-          <el-table-column prop="sourcePlatform" label="来源" width="100">
+          <el-table-column prop="clueTitle" label="标题" min-width="220" show-overflow-tooltip />
+          <el-table-column prop="sourcePlatform" label="来源" width="120">
             <template #default="{ row }">
-              <span class="platform-label">{{ row.sourcePlatform || row.clueSource || '-' }}</span>
+              <PlatformBadge :platform="row.sourcePlatform || row.clueSource || ''" show-icon />
             </template>
           </el-table-column>
-          <el-table-column prop="sentiment" label="情感" width="80">
+          <el-table-column prop="sentiment" label="情感" width="90">
             <template #default="{ row }">
-              <span :class="['sentiment-tag', sentimentClass(row.sentiment)]">
+              <span :class="['sentiment-tag', `sentiment-${row.sentiment || 'unknown'}`]">
                 {{ sentimentLabel(row.sentiment) }}
               </span>
             </template>
           </el-table-column>
           <el-table-column prop="publishTime" label="时间" width="160">
-            <template #default="{ row }">
-              {{ formatTime(row.publishTime) }}
-            </template>
+            <template #default="{ row }">{{ formatTime(row.publishTime) }}</template>
           </el-table-column>
         </el-table>
-      </div>
-    </section>
+      </section>
 
-    <section class="screen-grid">
-      <article class="screen-panel">
-        <div class="panel-header">
-          <h2>情感分布</h2>
-        </div>
-        <div ref="sentimentChartRef" class="screen-chart screen-chart-sm" />
-      </article>
+      <section class="screen-grid screen-grid-three">
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>事件风险分布</h2>
+            <ChartToolbar :chart-ref="riskChartRef" :chart-data="riskRows" title="事件风险分布" @refresh="loadAll" />
+          </div>
+          <div ref="riskChartRef" class="screen-chart screen-chart-sm" />
+        </article>
 
-      <article class="screen-panel">
-        <div class="panel-header">
-          <h2>媒体来源分布</h2>
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>情感分布</h2>
+            <ChartToolbar :chart-ref="sentimentChartRef" :chart-data="sentimentRows" title="情感分布" @refresh="loadAll" />
+          </div>
+          <div ref="sentimentChartRef" class="screen-chart screen-chart-sm" />
+        </article>
+
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>媒体来源分布</h2>
+            <ChartToolbar :chart-ref="sourceChartRef" :chart-data="sourceRows" title="媒体来源分布" @refresh="loadAll" />
+          </div>
+          <div ref="sourceChartRef" class="screen-chart screen-chart-sm" />
+        </article>
+      </section>
+
+      <section class="screen-grid screen-grid-three">
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>待处理预警</h2>
+            <el-button link type="primary" @click="router.push('/alerts')">进入</el-button>
+          </div>
+          <div class="screen-list">
+            <div v-for="item in pendingAlerts" :key="item.alertId" class="screen-list-row">
+              <span>{{ item.alertTitle }}</span>
+              <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
+            </div>
+            <el-empty v-if="!pendingAlerts.length && !loading" description="暂无待处理预警" />
+          </div>
+        </article>
+
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>检测命中</h2>
+            <el-button link type="primary" @click="router.push('/admin/monitor-tasks')">进入</el-button>
+          </div>
+          <div class="screen-list">
+            <div v-for="item in pendingHits" :key="item.hitId" class="screen-list-row">
+              <span>{{ item.objectTitle }}</span>
+              <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ item.matchedKeywords || '命中' }}</el-tag>
+            </div>
+            <el-empty v-if="!pendingHits.length && !loading" description="暂无待处理命中" />
+          </div>
+        </article>
+
+        <article class="screen-panel">
+          <div class="panel-header">
+            <h2>处置中事件</h2>
+            <el-button link type="primary" @click="router.push('/events')">进入</el-button>
+          </div>
+          <div class="screen-list">
+            <div v-for="item in activeEvents" :key="item.eventId" class="screen-list-row">
+              <span>{{ item.eventTitle }}</span>
+              <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
+            </div>
+            <el-empty v-if="!activeEvents.length && !loading" description="暂无处置中事件" />
+          </div>
+        </article>
+      </section>
+    </template>
+
+    <template v-else>
+      <section class="dashboard-screen-stage">
+        <div class="dashboard-screen-main">
+          <article class="screen-panel screen-cell-wide">
+            <div class="panel-header">
+              <h2>监测近 7 日趋势</h2>
+              <el-tag effect="plain" type="warning">命中 / 告警</el-tag>
+            </div>
+            <div ref="monitorTrendChartRef" class="screen-chart screen-chart-lg" />
+          </article>
+
+          <article class="screen-panel monitor-command-panel">
+            <div class="panel-header">
+              <h2>监测运行</h2>
+              <el-tag effect="plain" type="success">任务 / 频率</el-tag>
+            </div>
+            <div class="monitor-run-facts">
+              <div v-for="item in monitorRunFacts" :key="item.label">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+                <small>{{ item.note }}</small>
+              </div>
+            </div>
+          </article>
+
+          <article class="screen-panel score-panel">
+            <div class="panel-header">
+              <h2>风险压力指数</h2>
+              <el-tag :type="riskScoreTag" effect="plain">{{ riskScoreLevel }}</el-tag>
+            </div>
+            <div ref="riskGaugeRef" class="screen-chart screen-gauge" />
+            <div class="score-facts">
+              <div>
+                <span>高风险</span>
+                <strong>{{ statistics.overview.highRiskEventCount ?? 0 }}</strong>
+              </div>
+              <div>
+                <span>待处理</span>
+                <strong>{{ statistics.overview.pendingAlertCount ?? 0 }}</strong>
+              </div>
+              <div>
+                <span>超期</span>
+                <strong>{{ statistics.overview.overdueDisposalCount ?? 0 }}</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="screen-panel">
+            <div class="panel-header">
+              <div class="panel-title-line">
+                <h2>最新监测命中</h2>
+                <el-tag v-if="monitorResultTotal" effect="plain" type="info">共 {{ monitorResultTotal }}</el-tag>
+              </div>
+            </div>
+            <div class="screen-list compact-list">
+              <div v-for="item in monitorResults.slice(0, 6)" :key="item.monitorResultId || item.title" class="screen-list-row screen-feed-row">
+                <div class="screen-list-main">
+                  <span>{{ item.title || '未命名内容' }}</span>
+                  <small>{{ item.platform || item.sourcePlatform || '监测命中' }} · {{ item.matchedKeywords || item.matchedNegativeWords || '-' }}</small>
+                </div>
+                <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
+              </div>
+              <el-empty v-if="!monitorResults.length && !loading" description="暂无监测命中" />
+            </div>
+          </article>
+
+          <article class="screen-panel">
+            <div class="panel-header">
+              <h2>待处理负面告警</h2>
+            </div>
+            <div class="screen-list compact-list">
+              <div v-for="item in monitorAlerts.slice(0, 6)" :key="item.alertId" class="screen-list-row">
+                <div class="screen-list-main">
+                  <span>{{ item.alertTitle }}</span>
+                  <small>{{ item.matchedKeywords || alertSourceLabel(item.alertSource) }}</small>
+                </div>
+                <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
+              </div>
+              <el-empty v-if="!monitorAlerts.length && !loading" description="暂无待处理告警" />
+            </div>
+          </article>
         </div>
-        <div ref="sourceChartRef" class="screen-chart screen-chart-sm" />
-      </article>
-    </section>
+
+        <div class="dashboard-screen-bottom">
+          <article class="screen-panel">
+            <div class="panel-header">
+              <h2>运行任务</h2>
+            </div>
+            <div class="screen-list compact-list">
+              <div v-for="item in monitorTasks.slice(0, 4)" :key="item.monitorTaskId || item.taskName" class="screen-list-row screen-feed-row">
+                <div class="screen-list-main">
+                  <span>{{ item.taskName }}</span>
+                  <small>{{ item.monitorSubject }} · {{ frequencyLabel(item.scanFrequencyMinutes) }}</small>
+                </div>
+                <el-tag :type="taskStatusTagType(item.taskStatus)" effect="plain">{{ taskStatusLabel(item.taskStatus) }}</el-tag>
+              </div>
+              <el-empty v-if="!monitorTasks.length && !loading" description="暂无运行任务" />
+            </div>
+          </article>
+
+          <article class="screen-panel">
+            <div class="panel-header">
+              <h2>事件处置状态</h2>
+            </div>
+            <div ref="eventStatusChartRef" class="screen-chart screen-chart-sm" />
+          </article>
+
+          <article class="screen-panel">
+            <div class="panel-header">
+              <h2>来源风险构成</h2>
+            </div>
+            <div ref="sourceRiskChartRef" class="screen-chart screen-chart-sm" />
+          </article>
+
+          <article class="screen-panel">
+            <div class="panel-header">
+              <h2>处置中事件热度</h2>
+            </div>
+            <div ref="eventHeatChartRef" class="screen-chart screen-chart-sm" />
+          </article>
+        </div>
+      </section>
+    </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { Component, Ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import * as echarts from 'echarts';
 import type { ECharts, EChartsOption } from 'echarts';
 import {
-  RefreshCw
+  BellRing,
+  Gauge,
+  Maximize2,
+  Minimize2,
+  RadioTower,
+  RefreshCw,
+  ScanSearch,
+  Siren,
+  Target
 } from 'lucide-vue-next';
-import {
-  fetchDashboardStatistics,
-  fetchDashboardTrend,
-  fetchPendingClues,
-  fetchWordCloud
-} from '../services/dashboard';
 import WordCloud from '../components/WordCloud.vue';
-import type {
-  CampusClue,
-  DashboardStatistics,
-  DashboardTrendPoint,
-  DistributionItem,
-  WordCloudItem
-} from '../types/api';
+import ChartToolbar from '../components/ChartToolbar.vue';
+import PlatformBadge from '../components/PlatformBadge.vue';
+import {
+  alertSourceLabel,
+  formatTime,
+  frequencyLabel,
+  getDistributionValue,
+  riskColors,
+  riskLabel,
+  riskOrder,
+  riskTagType,
+  sentimentLabel,
+  sourceLabel,
+  statusLabel,
+  sumValues,
+  taskStatusLabel,
+  taskStatusTagType,
+  toNumber,
+  truncateText,
+  useCampusSituationDashboard
+} from '../composables/useCampusSituationDashboard';
+import type { DistributionItem, SourceRiskDistributionItem } from '../types/api';
+
+type ChartKey =
+  | 'trend'
+  | 'monitorTrend'
+  | 'riskGauge'
+  | 'risk'
+  | 'eventStatus'
+  | 'alertRisk'
+  | 'sourceRisk'
+  | 'eventHeat'
+  | 'sentiment'
+  | 'source';
+
+interface MetricCard {
+  label: string;
+  value: string | number;
+  icon: Component;
+  tone: string;
+}
 
 const router = useRouter();
-
-const loading = ref(false);
-const errorMessage = ref('');
-
-const statistics = ref<DashboardStatistics>(emptyStatistics());
-const wordCloudData = ref<WordCloudItem[]>([]);
-const trendData = ref<DashboardTrendPoint[]>([]);
-const clueList = ref<CampusClue[]>([]);
-
+const route = useRoute();
+const pageRef = ref<HTMLElement | null>(null);
 const trendChartRef = ref<HTMLElement | null>(null);
+const monitorTrendChartRef = ref<HTMLElement | null>(null);
+const riskGaugeRef = ref<HTMLElement | null>(null);
+const riskChartRef = ref<HTMLElement | null>(null);
+const eventStatusChartRef = ref<HTMLElement | null>(null);
+const alertRiskChartRef = ref<HTMLElement | null>(null);
+const sourceRiskChartRef = ref<HTMLElement | null>(null);
+const eventHeatChartRef = ref<HTMLElement | null>(null);
 const sentimentChartRef = ref<HTMLElement | null>(null);
 const sourceChartRef = ref<HTMLElement | null>(null);
-const tableScrollRef = ref<HTMLElement | null>(null);
 
-let trendChart: ECharts | null = null;
-let sentimentChart: ECharts | null = null;
-let sourceChart: ECharts | null = null;
-let scrollTimer: number | undefined;
+const chartRefs: Record<ChartKey, Ref<HTMLElement | null>> = {
+  trend: trendChartRef,
+  monitorTrend: monitorTrendChartRef,
+  riskGauge: riskGaugeRef,
+  risk: riskChartRef,
+  eventStatus: eventStatusChartRef,
+  alertRisk: alertRiskChartRef,
+  sourceRisk: sourceRiskChartRef,
+  eventHeat: eventHeatChartRef,
+  sentiment: sentimentChartRef,
+  source: sourceChartRef
+};
+const charts: Partial<Record<ChartKey, ECharts>> = {};
+
+const {
+  activeEvents,
+  alertRiskRows,
+  dashboardTrendData,
+  detectionRiskRows,
+  errorMessage,
+  eventRows,
+  loadDashboard,
+  loading,
+  monitorAlerts,
+  monitorNegativeRate,
+  monitorOverview,
+  monitorResults,
+  monitorResultTotal,
+  monitorRunFacts,
+  monitorTasks,
+  monitorTrendRows,
+  now,
+  nowText,
+  pendingAlerts,
+  pendingClues,
+  pendingHits,
+  riskRows,
+  riskScore,
+  riskScoreLevel,
+  riskScoreTag,
+  sentimentRows,
+  sourceRiskRows,
+  sourceRows,
+  statistics,
+  trendRows,
+  wordCloudData
+} = useCampusSituationDashboard();
+
 let refreshTimer: number | undefined;
+let clockTimer: number | undefined;
+let syncingFullscreen = false;
 
-const TONE_BLUE = '#3D5AFE';
-const TONE_GREEN = '#10B981';
-const TONE_ORANGE = '#F59E0B';
-const TONE_RED = '#EF4444';
-const TONE_PURPLE = '#8B5CF6';
+const isScreenMode = computed(() => route.path === '/situation' || route.query.mode === 'screen');
+const riskGaugeData = computed(() => ({
+  score: riskScore.value,
+  level: riskScoreLevel.value,
+  overview: statistics.value.overview
+}));
+const metricCards = computed<MetricCard[]>(() => [
+  { label: '启用任务', value: monitorOverview.value.activeTaskCount ?? 0, icon: RadioTower, tone: 'blue' },
+  { label: '自动扫描', value: monitorOverview.value.scheduledTaskCount ?? 0, icon: ScanSearch, tone: 'cyan' },
+  { label: '今日监测命中', value: monitorOverview.value.todayResultCount ?? 0, icon: Target, tone: 'green' },
+  { label: '今日负面告警', value: monitorOverview.value.todayAlertCount ?? 0, icon: BellRing, tone: 'orange' },
+  { label: '待处理告警', value: monitorOverview.value.pendingAlertCount ?? 0, icon: Siren, tone: 'red' },
+  {
+    label: '风险压力',
+    value: isScreenMode.value ? riskScore.value : `${monitorNegativeRate.value}%`,
+    icon: Gauge,
+    tone: riskScore.value >= 75 ? 'red' : riskScore.value >= 45 ? 'orange' : 'green'
+  }
+]);
 
-
-const displayClueList = computed(() => clueList.value.slice(0, 15));
-
-onMounted(() => {
-  loadAll();
-  refreshTimer = window.setInterval(loadAll, 120000);
+onMounted(async () => {
+  await loadAll();
+  refreshTimer = window.setInterval(loadAll, 60000);
+  clockTimer = window.setInterval(() => {
+    now.value = new Date();
+  }, 1000);
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
   window.addEventListener('resize', resizeCharts);
+  document.body.classList.toggle('campus-dashboard-screen-mode', isScreenMode.value);
 });
 
 onBeforeUnmount(() => {
-  if (refreshTimer) window.clearInterval(refreshTimer);
-  if (scrollTimer) window.clearInterval(scrollTimer);
+  if (refreshTimer) {
+    window.clearInterval(refreshTimer);
+  }
+  if (clockTimer) {
+    window.clearInterval(clockTimer);
+  }
+  document.removeEventListener('fullscreenchange', handleFullscreenChange);
   window.removeEventListener('resize', resizeCharts);
-  trendChart?.dispose();
-  sentimentChart?.dispose();
-  sourceChart?.dispose();
+  document.body.classList.remove('campus-dashboard-screen-mode');
+  Object.values(charts).forEach((chart) => chart?.dispose());
 });
 
-async function loadAll() {
-  loading.value = true;
-  errorMessage.value = '';
-
-  const [statsResult, wcResult, trendResult, cluesResult] = await Promise.allSettled([
-    fetchDashboardStatistics(),
-    fetchWordCloud(),
-    fetchDashboardTrend(7),
-    fetchPendingClues()
-  ]);
-
-  if (statsResult.status === 'fulfilled') {
-    statistics.value = { ...emptyStatistics(), ...statsResult.value };
-  }
-  if (wcResult.status === 'fulfilled') {
-    wordCloudData.value = wcResult.value || [];
-  }
-  if (trendResult.status === 'fulfilled') {
-    trendData.value = trendResult.value || [];
-  }
-  if (cluesResult.status === 'fulfilled') {
-    clueList.value = cluesResult.value.list || [];
-  }
-
-  const hasError = [statsResult, wcResult, trendResult, cluesResult].some(
-    (r) => r.status === 'rejected'
-  );
-  if (hasError) {
-    errorMessage.value = '部分数据暂时不可用，已使用占位数据展示';
-  }
-
-  if (!wordCloudData.value.length) {
-    wordCloudData.value = DEFAULT_WORD_CLOUD;
-  }
-  if (!trendData.value.length) {
-    trendData.value = DEFAULT_TREND;
-  }
-  if (!clueList.value.length) {
-    clueList.value = [];
-  }
-
-  loading.value = false;
+watch(isScreenMode, async (mode) => {
+  document.body.classList.toggle('campus-dashboard-screen-mode', mode);
   await nextTick();
   renderCharts();
-  startTableScroll();
+  setTimeout(resizeCharts, 80);
+});
+
+watch(
+  [
+    monitorTrendRows,
+    trendRows,
+    riskRows,
+    eventRows,
+    alertRiskRows,
+    detectionRiskRows,
+    sourceRiskRows,
+    activeEvents,
+    sentimentRows,
+    sourceRows
+  ],
+  async () => {
+    await nextTick();
+    renderCharts();
+  },
+  { deep: true }
+);
+
+async function loadAll() {
+  await loadDashboard();
+  await nextTick();
+  renderCharts();
+}
+
+async function enterScreenMode() {
+  if (route.path !== '/situation' && route.query.mode !== 'screen') {
+    await router.push({ path: '/', query: { ...route.query, mode: 'screen' } });
+  }
+  await nextTick();
+  const target = pageRef.value;
+  if (target?.requestFullscreen && document.fullscreenElement !== target) {
+    target.requestFullscreen().catch(() => undefined);
+  }
+}
+
+async function exitScreenMode() {
+  syncingFullscreen = true;
+  if (document.fullscreenElement) {
+    await document.exitFullscreen().catch(() => undefined);
+  }
+  await routeToNormalMode();
+  syncingFullscreen = false;
+}
+
+function handleFullscreenChange() {
+  if (syncingFullscreen || document.fullscreenElement || !isScreenMode.value) {
+    return;
+  }
+  routeToNormalMode();
+}
+
+async function routeToNormalMode() {
+  if (route.path === '/situation') {
+    await router.replace('/');
+    return;
+  }
+  if (route.query.mode === 'screen') {
+    const query = { ...route.query };
+    delete query.mode;
+    await router.replace({ path: '/', query });
+  }
 }
 
 function renderCharts() {
+  renderMonitorTrendChart();
   renderTrendChart();
+  renderRiskGauge();
+  renderRiskChart();
+  renderEventStatusChart();
+  renderAlertRiskChart();
+  renderSourceRiskChart();
+  renderEventHeatChart();
   renderSentimentChart();
   renderSourceChart();
 }
 
-function renderTrendChart() {
-  if (!trendChartRef.value) return;
-  if (!trendChart) {
-    trendChart = echarts.init(trendChartRef.value);
-  }
-
-  const dates = trendData.value.map((d) => d.date);
-  const clues = trendData.value.map((d) => d.clueCount);
-  const alerts = trendData.value.map((d) => d.alertCount);
-
-  const option: EChartsOption = {
-    color: [TONE_BLUE, TONE_ORANGE],
+function renderMonitorTrendChart() {
+  const rows = monitorTrendRows.value;
+  const hasData = rows.some((item) => toNumber(item.monitorResultCount) + toNumber(item.monitorAlertCount) > 0);
+  setChartOption('monitorTrend', {
+    color: ['#2563eb', '#dc2626'],
     tooltip: { trigger: 'axis' },
-    legend: {
-      top: 0,
-      right: 8,
-      textStyle: { color: '#64748b', fontSize: 12 }
-    },
-    grid: { left: 12, right: 18, top: 36, bottom: 12, containLabel: true },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: dates,
-      axisLine: { lineStyle: { color: '#d8e0ea' } },
-      axisLabel: { color: '#64748b', fontSize: 11 }
-    },
+    legend: { top: 0, right: 8, textStyle: { color: chartTextColor.value } },
+    grid: { left: 12, right: 18, top: 42, bottom: 12, containLabel: true },
+    xAxis: buildCategoryAxis(rows.map((item) => item.name)),
+    yAxis: buildValueAxis(),
+    series: [
+      buildLineSeries('监测命中', rows.map((item) => toNumber(item.monitorResultCount))),
+      buildLineSeries('监测告警', rows.map((item) => toNumber(item.monitorAlertCount)))
+    ],
+    graphic: emptyGraphic(hasData)
+  });
+}
+
+function renderTrendChart() {
+  const rows = trendRows.value;
+  const hasData = rows.some((item) => toNumber(item.clueCount) + toNumber(item.alertCount) + toNumber(item.hitCount) + toNumber(item.eventCount) > 0);
+  setChartOption('trend', {
+    color: ['#2563eb', '#d97706', '#0f766e', '#dc2626'],
+    tooltip: { trigger: 'axis' },
+    legend: { top: 0, right: 8, textStyle: { color: chartTextColor.value } },
+    grid: { left: 12, right: 18, top: 42, bottom: 12, containLabel: true },
+    xAxis: buildCategoryAxis(rows.map((item) => item.name)),
+    yAxis: buildValueAxis(),
+    series: [
+      buildLineSeries('线索', rows.map((item) => toNumber(item.clueCount))),
+      buildLineSeries('预警', rows.map((item) => toNumber(item.alertCount))),
+      buildLineSeries('检测命中', rows.map((item) => toNumber(item.hitCount))),
+      buildLineSeries('事件', rows.map((item) => toNumber(item.eventCount)))
+    ],
+    graphic: emptyGraphic(hasData)
+  });
+}
+
+function renderRiskGauge() {
+  const score = riskScore.value;
+  const color = score >= 75 ? '#dc2626' : score >= 45 ? '#d97706' : '#0f766e';
+  setChartOption('riskGauge', {
+    series: [
+      {
+        type: 'gauge',
+        min: 0,
+        max: 100,
+        radius: '92%',
+        center: ['50%', '56%'],
+        startAngle: 210,
+        endAngle: -30,
+        pointer: { show: false },
+        progress: { show: true, roundCap: true, width: 16, itemStyle: { color } },
+        axisLine: { roundCap: true, lineStyle: { width: 16, color: [[1, isScreenMode.value ? '#24415f' : '#e5edf4']] } },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        title: { show: !isScreenMode.value, offsetCenter: [0, '42%'], color: chartMutedColor.value, fontSize: 13 },
+        detail: { valueAnimation: true, offsetCenter: [0, '4%'], formatter: '{value}', color: chartTitleColor.value, fontSize: 34, fontWeight: 700 },
+        data: [{ value: score, name: '风险压力指数' }]
+      }
+    ]
+  });
+}
+
+function renderRiskChart() {
+  const data = normalizeRiskRows(riskRows.value);
+  setChartOption('risk', {
+    color: data.map((item) => riskColors[item.rawName] || '#64748b'),
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0, textStyle: { color: chartTextColor.value } },
+    series: [
+      {
+        name: '事件风险',
+        type: 'pie',
+        radius: ['48%', '72%'],
+        center: ['50%', '44%'],
+        minAngle: 8,
+        avoidLabelOverlap: true,
+        label: { formatter: '{b} {c}', color: chartTitleColor.value },
+        data
+      }
+    ],
+    graphic: emptyGraphic(sumValues(riskRows.value) > 0)
+  });
+}
+
+function renderEventStatusChart() {
+  const rows = eventRows.value.map((item) => ({ ...item, name: statusLabel(item.name), value: toNumber(item.value) }));
+  setChartOption('eventStatus', {
+    color: ['#0f766e'],
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 10, right: 18, top: 8, bottom: 10, containLabel: true },
+    xAxis: buildValueAxis(),
     yAxis: {
-      type: 'value',
-      minInterval: 1,
-      splitLine: { lineStyle: { color: '#edf2f7' } },
-      axisLabel: { color: '#64748b', fontSize: 11 }
+      type: 'category',
+      data: rows.map((item) => item.name),
+      axisLine: { lineStyle: { color: chartAxisColor.value } },
+      axisLabel: { color: chartTitleColor.value }
+    },
+    series: [{ name: '事件数', type: 'bar', barWidth: 14, itemStyle: { borderRadius: [0, 6, 6, 0] }, data: rows.map((item) => item.value) }],
+    graphic: emptyGraphic(sumValues(eventRows.value) > 0)
+  });
+}
+
+function renderAlertRiskChart() {
+  const maxValue = Math.max(1, ...riskOrder.map((risk) => getDistributionValue(alertRiskRows.value, risk)), ...riskOrder.map((risk) => getDistributionValue(detectionRiskRows.value, risk)));
+  const hasData = sumValues(alertRiskRows.value) + sumValues(detectionRiskRows.value) > 0;
+  setChartOption('alertRisk', {
+    color: ['#d97706', '#2563eb'],
+    tooltip: { trigger: 'item' },
+    legend: { bottom: 0, textStyle: { color: chartTextColor.value } },
+    radar: {
+      radius: '62%',
+      center: ['50%', '43%'],
+      indicator: riskOrder.map((risk) => ({ name: riskLabel(risk), max: Math.max(maxValue, 4) })),
+      splitLine: { lineStyle: { color: chartGridColor.value } },
+      splitArea: { areaStyle: { color: isScreenMode.value ? ['#10243a', '#0d1d30'] : ['#ffffff', '#f8fafc'] } },
+      axisName: { color: chartTitleColor.value }
     },
     series: [
       {
-        name: '线索',
-        type: 'line',
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 7,
-        lineStyle: { width: 3 },
-        areaStyle: { opacity: 0.08 },
-        data: clues
-      },
-      {
-        name: '预警',
-        type: 'line',
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 7,
-        lineStyle: { width: 3 },
-        areaStyle: { opacity: 0.08 },
-        data: alerts
+        type: 'radar',
+        data: [
+          { name: '预警', value: riskOrder.map((risk) => getDistributionValue(alertRiskRows.value, risk)), areaStyle: { opacity: 0.16 } },
+          { name: '检测命中', value: riskOrder.map((risk) => getDistributionValue(detectionRiskRows.value, risk)), areaStyle: { opacity: 0.12 } }
+        ]
       }
-    ]
-  };
-  trendChart.setOption(option, true);
+    ],
+    graphic: emptyGraphic(hasData)
+  });
+}
+
+function renderSourceRiskChart() {
+  const rows = sourceRiskRows.value;
+  setChartOption('sourceRisk', {
+    color: [riskColors.normal, riskColors.concern, riskColors.major, riskColors.urgent],
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { top: 0, right: 8, textStyle: { color: chartTextColor.value } },
+    grid: { left: 12, right: 18, top: 42, bottom: 10, containLabel: true },
+    xAxis: buildValueAxis(),
+    yAxis: {
+      type: 'category',
+      data: rows.map((item) => sourceLabel(item.name)),
+      axisLine: { lineStyle: { color: chartAxisColor.value } },
+      axisLabel: { color: chartTitleColor.value }
+    },
+    series: [
+      buildStackBarSeries('一般', rows, 'normalCount'),
+      buildStackBarSeries('关注', rows, 'concernCount'),
+      buildStackBarSeries('较大', rows, 'majorCount'),
+      buildStackBarSeries('紧急', rows, 'urgentCount')
+    ],
+    graphic: emptyGraphic(rows.some((item) => toNumber(item.totalCount) > 0))
+  });
+}
+
+function renderEventHeatChart() {
+  const rows = activeEvents.value.slice(0, 6).map((item) => ({
+    name: item.eventTitle,
+    value: toNumber(item.currentHeat),
+    riskLevel: item.riskLevel || 'normal'
+  }));
+  setChartOption('eventHeat', {
+    color: ['#2563eb'],
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 8, right: 18, top: 8, bottom: 10, containLabel: true },
+    xAxis: buildValueAxis(),
+    yAxis: {
+      type: 'category',
+      data: rows.map((item) => truncateText(item.name, 12)),
+      axisLine: { lineStyle: { color: chartAxisColor.value } },
+      axisLabel: { color: chartTitleColor.value }
+    },
+    series: [
+      {
+        name: '热度',
+        type: 'bar',
+        barWidth: 14,
+        itemStyle: {
+          borderRadius: [0, 6, 6, 0],
+          color: (params: { dataIndex: number }) => riskColors[rows[params.dataIndex]?.riskLevel] || '#2563eb'
+        },
+        data: rows.map((item) => item.value || 1)
+      }
+    ],
+    graphic: emptyGraphic(rows.length > 0)
+  });
 }
 
 function renderSentimentChart() {
-  if (!sentimentChartRef.value) return;
-  if (!sentimentChart) {
-    sentimentChart = echarts.init(sentimentChartRef.value);
-  }
-
-  const distribution = getSentimentDistribution();
-  const data = distribution.map((d) => ({ name: sentimentLabel(d.name), value: d.value }));
-
-  const option: EChartsOption = {
+  const rows = sentimentRows.value.map((item) => ({ name: sentimentLabel(item.name), value: toNumber(item.value) }));
+  setChartOption('sentiment', {
     color: ['#10B981', '#F59E0B', '#EF4444', '#6B7280'],
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {c} ({d}%)'
-    },
-    legend: {
-      bottom: 0,
-      textStyle: { color: '#64748b', fontSize: 11 }
-    },
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { bottom: 0, textStyle: { color: chartTextColor.value, fontSize: 11 } },
     series: [
       {
         type: 'pie',
         radius: ['48%', '76%'],
         center: ['50%', '46%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 4,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: true,
-          position: 'outside',
-          formatter: '{b}\n{d}%',
-          fontSize: 11,
-          color: '#64748b'
-        },
-        emphasis: {
-          label: { show: true, fontSize: 14, fontWeight: 'bold' }
-        },
-        data
+        minAngle: 8,
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 4, borderColor: isScreenMode.value ? '#0b1726' : '#fff', borderWidth: 2 },
+        label: { formatter: '{b}\n{d}%', fontSize: 11, color: chartTextColor.value },
+        data: rows
       }
-    ]
-  };
-  sentimentChart.setOption(option, true);
+    ],
+    graphic: emptyGraphic(rows.length > 0)
+  });
 }
 
 function renderSourceChart() {
-  if (!sourceChartRef.value) return;
-  if (!sourceChart) {
-    sourceChart = echarts.init(sourceChartRef.value);
-  }
-
-  const sources = getSourceDistribution();
-  const names = sources.map((s) => sourceDisplayName(s.name));
-  const values = sources.map((s) => s.value);
-
-  const option: EChartsOption = {
-    color: [TONE_BLUE],
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' }
-    },
+  const rows = sourceRows.value;
+  setChartOption('source', {
+    color: ['#2563eb'],
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: 12, right: 18, top: 12, bottom: 24, containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: names,
-      axisLabel: { color: '#64748b', fontSize: 11, rotate: names.length > 6 ? 30 : 0 },
-      axisLine: { lineStyle: { color: '#d8e0ea' } }
-    },
-    yAxis: {
-      type: 'value',
-      minInterval: 1,
-      splitLine: { lineStyle: { color: '#edf2f7' } },
-      axisLabel: { color: '#64748b', fontSize: 11 }
-    },
+    xAxis: buildCategoryAxis(rows.map((item) => sourceLabel(item.name))),
+    yAxis: buildValueAxis(),
     series: [
       {
         type: 'bar',
@@ -372,185 +885,150 @@ function renderSourceChart() {
         itemStyle: {
           borderRadius: [4, 4, 0, 0],
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: TONE_BLUE },
-            { offset: 1, color: '#818CF8' }
+            { offset: 0, color: '#2563eb' },
+            { offset: 1, color: '#60a5fa' }
           ])
         },
-        data: values
+        data: rows.map((item) => toNumber(item.value))
       }
-    ]
-  };
-  sourceChart.setOption(option, true);
+    ],
+    graphic: emptyGraphic(rows.length > 0)
+  });
 }
 
-function getSentimentDistribution(): DistributionItem[] {
-  if (!clueList.value.length) return DEFAULT_SENTIMENT;
-  const counts: Record<string, number> = {};
-  for (const clue of clueList.value) {
-    const key = clue.sentiment || '未知';
-    counts[key] = (counts[key] || 0) + 1;
+function setChartOption(key: ChartKey, option: EChartsOption) {
+  const chart = ensureChart(key);
+  if (!chart) {
+    return;
   }
-  return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  chart.clear();
+  chart.setOption(option, true);
 }
 
-function getSourceDistribution(): DistributionItem[] {
-  const dist = statistics.value.clueSourceDistribution || [];
-  if (dist.length) return dist;
-  return DEFAULT_SOURCES;
+function ensureChart(key: ChartKey) {
+  const element = chartRefs[key].value;
+  if (!element) {
+    return undefined;
+  }
+  const chart = charts[key];
+  if (chart && chart.getDom() !== element) {
+    chart.dispose();
+    charts[key] = undefined;
+  }
+  if (!charts[key]) {
+    charts[key] = echarts.init(element);
+  }
+  return charts[key];
 }
 
 function resizeCharts() {
-  trendChart?.resize();
-  sentimentChart?.resize();
-  sourceChart?.resize();
+  Object.values(charts).forEach((chart) => chart?.resize());
 }
 
-function startTableScroll() {
-  if (scrollTimer) window.clearInterval(scrollTimer);
-  if (displayClueList.value.length <= 5) return;
-  scrollTimer = window.setInterval(() => {
-    const wrap = tableScrollRef.value?.querySelector('.el-table__body-wrapper');
-    if (!wrap) return;
-    const maxScroll = wrap.scrollHeight - wrap.clientHeight;
-    if (wrap.scrollTop >= maxScroll - 4) {
-      wrap.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      wrap.scrollBy({ top: 44, behavior: 'smooth' });
-    }
-  }, 3000);
-}
-
-function onWordClick(word: WordCloudItem) {
+function onWordClick(word: { name: string }) {
   router.push({ path: '/search', query: { q: word.name } });
 }
 
-function sentimentLabel(value?: string): string {
-  const labels: Record<string, string> = {
-    positive: '正面',
-    neutral: '中性',
-    negative: '负面',
-    unknown: '未知'
-  };
-  return labels[value || 'unknown'] || value || '未知';
-}
+const chartTextColor = computed(() => (isScreenMode.value ? '#b9c8d9' : '#64748b'));
+const chartTitleColor = computed(() => (isScreenMode.value ? '#e5eefb' : '#334155'));
+const chartMutedColor = computed(() => (isScreenMode.value ? '#94a3b8' : '#64748b'));
+const chartAxisColor = computed(() => (isScreenMode.value ? '#2f4d6c' : '#d8e0ea'));
+const chartGridColor = computed(() => (isScreenMode.value ? '#223c57' : '#edf2f7'));
 
-function sentimentClass(value?: string): string {
-  if (value === 'positive') return 'sentiment-positive';
-  if (value === 'neutral') return 'sentiment-neutral';
-  if (value === 'negative') return 'sentiment-negative';
-  return 'sentiment-unknown';
-}
-
-function sourceDisplayName(name: string): string {
-  return name.length > 6 ? name.slice(0, 5) + '...' : name;
-}
-
-function formatTime(value?: string | Date): string {
-  if (!value) return '-';
-  try {
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return '-';
-    return d.toLocaleString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return '-';
-  }
-}
-
-function emptyStatistics(): DashboardStatistics {
+function buildCategoryAxis(data: string[]) {
   return {
-    overview: {},
-    monitorOverview: {},
-    riskDistribution: [],
-    clueSourceDistribution: [],
-    eventStatusDistribution: [],
-    trendByDay: [],
-    monitorTrendByDay: [],
-    alertRiskDistribution: [],
-    detectionHitRiskDistribution: [],
-    sourceRiskDistribution: []
+    type: 'category' as const,
+    boundaryGap: false,
+    data,
+    axisLine: { lineStyle: { color: chartAxisColor.value } },
+    axisLabel: { color: chartTextColor.value, fontSize: 11 }
   };
 }
 
-const DEFAULT_WORD_CLOUD: WordCloudItem[] = [
-  { name: '校园安全', value: 120 },
-  { name: '食堂卫生', value: 95 },
-  { name: '宿舍管理', value: 88 },
-  { name: '教学质量', value: 76 },
-  { name: '就业指导', value: 68 },
-  { name: '心理健康', value: 62 },
-  { name: '奖学金', value: 55 },
-  { name: '校园活动', value: 50 },
-  { name: '考研', value: 46 },
-  { name: '课程安排', value: 42 },
-  { name: '实验室', value: 38 },
-  { name: '招生政策', value: 34 },
-  { name: '社团', value: 30 },
-  { name: '疫情防控', value: 28 },
-  { name: '交通出行', value: 24 },
-  { name: '图书馆', value: 22 },
-  { name: '校庆', value: 20 },
-  { name: '学术科研', value: 18 },
-  { name: '实习机会', value: 16 },
-  { name: '校园网络', value: 14 }
-];
+function buildValueAxis() {
+  return {
+    type: 'value' as const,
+    minInterval: 1,
+    splitLine: { lineStyle: { color: chartGridColor.value } },
+    axisLabel: { color: chartTextColor.value, fontSize: 11 }
+  };
+}
 
-const DEFAULT_TREND: DashboardTrendPoint[] = [
-  { date: '05-06', clueCount: 112, alertCount: 5 },
-  { date: '05-07', clueCount: 98, alertCount: 3 },
-  { date: '05-08', clueCount: 135, alertCount: 7 },
-  { date: '05-09', clueCount: 120, alertCount: 4 },
-  { date: '05-10', clueCount: 108, alertCount: 6 },
-  { date: '05-11', clueCount: 145, alertCount: 8 },
-  { date: '05-12', clueCount: 128, alertCount: 5 }
-];
+function buildLineSeries(name: string, data: number[]) {
+  return {
+    name,
+    type: 'line' as const,
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 7,
+    lineStyle: { width: 3 },
+    areaStyle: { opacity: 0.08 },
+    data
+  };
+}
 
-const DEFAULT_SENTIMENT: DistributionItem[] = [
-  { name: 'positive', value: 45 },
-  { name: 'neutral', value: 30 },
-  { name: 'negative', value: 20 },
-  { name: 'unknown', value: 5 }
-];
+function buildStackBarSeries(label: string, rows: SourceRiskDistributionItem[], key: keyof SourceRiskDistributionItem) {
+  return {
+    name: label,
+    type: 'bar' as const,
+    stack: 'sourceRisk',
+    barWidth: 16,
+    itemStyle: { borderRadius: 4 },
+    data: rows.map((item) => toNumber(item[key]))
+  };
+}
 
-const DEFAULT_SOURCES: DistributionItem[] = [
-  { name: '微博', value: 35 },
-  { name: '微信', value: 28 },
-  { name: '抖音', value: 22 },
-  { name: '知乎', value: 18 },
-  { name: '贴吧', value: 15 },
-  { name: '小红书', value: 12 },
-  { name: '头条', value: 10 }
-];
+function normalizeRiskRows(rows: DistributionItem[]) {
+  return rows.map((item) => ({
+    name: riskLabel(item.name),
+    rawName: item.name || 'unknown',
+    value: toNumber(item.value)
+  }));
+}
+
+function emptyGraphic(hasData: boolean) {
+  if (hasData) {
+    return undefined;
+  }
+  return {
+    type: 'text',
+    left: 'center',
+    top: 'middle',
+    style: {
+      text: '暂无数据',
+      fill: chartMutedColor.value,
+      fontSize: 14
+    }
+  };
+}
 </script>
 
 <style scoped>
-.dashboard-page {
-  gap: 18px;
+.dashboard-unified {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.dashboard-header {
-  min-height: 80px;
+.dashboard-hero {
+  min-height: 86px;
   padding: 18px 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  background: linear-gradient(135deg, #EEF1FF 0%, #ffffff 50%, #F5F3FF 100%);
+  background: linear-gradient(135deg, #f3f7ff 0%, #ffffff 50%, #eefbf6 100%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
 
-.dashboard-header span {
-  color: #3D5AFE;
+.dashboard-hero span {
+  color: var(--color-primary);
   font-size: 14px;
   line-height: 20px;
 }
 
-.dashboard-header h2 {
+.dashboard-hero h2 {
   margin: 4px 0 0;
   color: #0f172a;
   font-size: 24px;
@@ -560,86 +1038,298 @@ const DEFAULT_SOURCES: DistributionItem[] = [
 .dashboard-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.dashboard-summary {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 20px;
-  background: #ffffff;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  font-size: 13px;
-  color: var(--color-muted);
+  gap: 10px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.dashboard-summary strong {
-  color: #0f172a;
-  font-weight: 700;
-  margin-left: 4px;
+.dashboard-actions .lucide {
+  margin-right: 6px;
 }
 
-.dashboard-summary .tone-red {
-  color: #EF4444;
-}
-
-.summary-sep {
-  color: #e2e8f0;
-}
-
-.dashboard-table-wrap {
-  max-height: 260px;
-  overflow: hidden;
-}
-
-.dashboard-table-wrap .el-table__body-wrapper {
-  overflow-y: auto;
+.dashboard-top-grid {
+  grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.45fr);
 }
 
 .dashboard-clue-table {
   width: 100%;
 }
 
-.platform-label {
-  color: #64748b;
-  font-size: 12px;
-}
-
 .sentiment-tag {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .sentiment-positive {
   color: #059669;
-  background: #ECFDF5;
+  background: #ecfdf5;
 }
 
 .sentiment-neutral {
-  color: #D97706;
-  background: #FFFBEB;
+  color: #d97706;
+  background: #fffbeb;
 }
 
 .sentiment-negative {
-  color: #DC2626;
-  background: #FEF2F2;
+  color: #dc2626;
+  background: #fef2f2;
 }
 
+.sentiment-none,
 .sentiment-unknown {
-  color: #6B7280;
-  background: #F3F4F6;
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.screen-time {
+  color: #dbeafe;
+  font-size: 15px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+.dashboard-unified.is-screen-mode {
+  width: 100%;
+  height: 100vh;
+  min-height: 720px;
+  padding: 14px;
+  overflow: hidden;
+  gap: 12px;
+  background: #07111f;
+}
+
+.is-screen-mode .dashboard-hero {
+  min-height: 70px;
+  padding: 12px 16px;
+  background: #0b1726;
+  border-color: #1f3a56;
+  border-radius: 8px;
+}
+
+.is-screen-mode .dashboard-hero span {
+  color: #7dd3fc;
+}
+
+.is-screen-mode .dashboard-hero h2 {
+  color: #e5eefb;
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.is-screen-mode .dashboard-metrics {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.is-screen-mode .screen-card {
+  min-height: 78px;
+  padding: 10px 12px;
+  background: #0b1726;
+  border-color: #1f3a56;
+  border-radius: 8px;
+}
+
+.is-screen-mode .screen-card-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+.is-screen-mode .screen-card span {
+  color: #9db2c7;
+  font-size: 12px;
+}
+
+.is-screen-mode .screen-card strong {
+  color: #f8fafc;
+  font-size: 24px;
+  line-height: 28px;
+}
+
+.dashboard-screen-stage {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 212px;
+  gap: 12px;
+}
+
+.dashboard-screen-main {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.95fr) minmax(280px, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.dashboard-screen-bottom {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.screen-cell-wide {
+  grid-row: span 2;
+}
+
+.is-screen-mode .screen-panel {
+  min-height: 0;
+  padding: 12px;
+  overflow: hidden;
+  background: #0b1726;
+  border-color: #1f3a56;
+  border-radius: 8px;
+}
+
+.is-screen-mode .panel-header {
+  min-height: 26px;
+  margin-bottom: 8px;
+}
+
+.is-screen-mode .panel-header h2 {
+  color: #e5eefb;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.is-screen-mode .screen-chart {
+  height: calc(100% - 34px);
+  min-height: 150px;
+}
+
+.is-screen-mode .screen-chart-lg {
+  height: calc(100% - 34px);
+}
+
+.is-screen-mode .screen-chart-sm {
+  height: calc(100% - 34px);
+  min-height: 120px;
+}
+
+.is-screen-mode .screen-gauge {
+  height: calc(100% - 34px);
+  min-height: 90px;
+}
+
+.is-screen-mode .screen-list {
+  gap: 8px;
+}
+
+.compact-list {
+  max-height: calc(100% - 38px);
+  overflow: hidden;
+}
+
+.is-screen-mode .screen-list-row,
+.is-screen-mode .monitor-run-facts > div,
+.is-screen-mode .score-facts > div {
+  background: #10243a;
+  border-color: #1f3a56;
+  border-radius: 8px;
+}
+
+.is-screen-mode .screen-list-row span,
+.is-screen-mode .screen-list-main span,
+.is-screen-mode .score-facts strong,
+.is-screen-mode .monitor-run-facts strong {
+  color: #f8fafc;
+}
+
+.is-screen-mode .screen-list-main small,
+.is-screen-mode .score-facts span,
+.is-screen-mode .monitor-run-facts span,
+.is-screen-mode .monitor-run-facts small {
+  color: #9db2c7;
+}
+
+.is-screen-mode .score-facts {
+  display: none;
+}
+
+.is-screen-mode .score-facts > div {
+  padding: 8px;
+}
+
+.is-screen-mode .score-facts strong {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.is-screen-mode .monitor-run-facts {
+  height: calc(100% - 38px);
+  gap: 6px;
+}
+
+.is-screen-mode .monitor-run-facts > div {
+  min-height: 0;
+  padding: 6px 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-content: center;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.is-screen-mode .monitor-run-facts strong {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
+  font-size: 22px;
+  line-height: 24px;
+}
+
+.is-screen-mode .monitor-run-facts span,
+.is-screen-mode .monitor-run-facts small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-screen-mode .monitor-run-facts span {
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.is-screen-mode .monitor-run-facts small {
+  margin-top: 0;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-top-grid,
+  .dashboard-screen-main,
+  .dashboard-screen-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-unified.is-screen-mode {
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .dashboard-screen-stage {
+    grid-template-rows: auto;
+  }
 }
 
 @media (max-width: 768px) {
-  .dashboard-summary {
-    gap: 8px;
-    font-size: 12px;
+  .dashboard-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 </style>

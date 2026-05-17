@@ -342,7 +342,22 @@
                 AND event_id = #{eventId}
             </when>
             <otherwise>
-                <if test="keyword != null and keyword != ''">
+                <if test="keywords != null and keywords.size() > 0">
+                    AND (
+                    <foreach collection="keywords" item="kw" separator=" OR ">
+                        (
+                            clue_title LIKE CONCAT('%', #{kw}, '%')
+                            OR clue_content LIKE CONCAT('%', #{kw}, '%')
+                            OR keywords LIKE CONCAT('%', #{kw}, '%')
+                            OR involved_account LIKE CONCAT('%', #{kw}, '%')
+                            OR matched_school_terms LIKE CONCAT('%', #{kw}, '%')
+                            OR topic_category LIKE CONCAT('%', #{kw}, '%')
+                            OR topic_reason LIKE CONCAT('%', #{kw}, '%')
+                        )
+                    </foreach>
+                    )
+                </if>
+                <if test="(keywords == null or keywords.size() == 0) and keyword != null and keyword != ''">
                     AND (
                         clue_title LIKE CONCAT('%', #{keyword}, '%')
                         OR clue_content LIKE CONCAT('%', #{keyword}, '%')
@@ -355,6 +370,51 @@
                 </if>
             </otherwise>
         </choose>
+        <if test="excludeKeywords != null and excludeKeywords.size() > 0">
+            AND NOT (
+            <foreach collection="excludeKeywords" item="kw" separator=" OR ">
+                (
+                    clue_title LIKE CONCAT('%', #{kw}, '%')
+                    OR clue_content LIKE CONCAT('%', #{kw}, '%')
+                    OR keywords LIKE CONCAT('%', #{kw}, '%')
+                    OR involved_account LIKE CONCAT('%', #{kw}, '%')
+                    OR matched_school_terms LIKE CONCAT('%', #{kw}, '%')
+                    OR topic_category LIKE CONCAT('%', #{kw}, '%')
+                    OR topic_reason LIKE CONCAT('%', #{kw}, '%')
+                )
+            </foreach>
+            )
+        </if>
+        <if test="platforms != null and platforms.size() > 0">
+            AND source_platform IN
+            <foreach collection="platforms" item="platform" open="(" separator="," close=")">
+                #{platform}
+            </foreach>
+        </if>
+        <if test="riskLevels != null and riskLevels.size() > 0">
+            AND risk_level IN
+            <foreach collection="riskLevels" item="riskLevel" open="(" separator="," close=")">
+                #{riskLevel}
+            </foreach>
+        </if>
+        <if test="departmentIds != null and departmentIds.size() > 0">
+            AND involved_department_id IN
+            <foreach collection="departmentIds" item="departmentId" open="(" separator="," close=")">
+                #{departmentId}
+            </foreach>
+        </if>
+        <if test="monitorTaskIds != null and monitorTaskIds.size() > 0">
+            AND clue_id IN (
+                SELECT clue_id
+                FROM campus_monitor_result
+                WHERE deleted = 0
+                  AND clue_id IS NOT NULL
+                  AND monitor_task_id IN
+                  <foreach collection="monitorTaskIds" item="monitorTaskId" open="(" separator="," close=")">
+                      #{monitorTaskId}
+                  </foreach>
+            )
+        </if>
         <if test="startTime != null">
             AND COALESCE(publish_time, discover_time, create_time) &gt;= #{startTime}
         </if>
@@ -369,7 +429,22 @@
                 AND c.event_id = #{eventId}
             </when>
             <otherwise>
-                <if test="keyword != null and keyword != ''">
+                <if test="keywords != null and keywords.size() > 0">
+                    AND (
+                    <foreach collection="keywords" item="kw" separator=" OR ">
+                        (
+                            c.clue_title LIKE CONCAT('%', #{kw}, '%')
+                            OR c.clue_content LIKE CONCAT('%', #{kw}, '%')
+                            OR c.keywords LIKE CONCAT('%', #{kw}, '%')
+                            OR c.involved_account LIKE CONCAT('%', #{kw}, '%')
+                            OR c.matched_school_terms LIKE CONCAT('%', #{kw}, '%')
+                            OR c.topic_category LIKE CONCAT('%', #{kw}, '%')
+                            OR c.topic_reason LIKE CONCAT('%', #{kw}, '%')
+                        )
+                    </foreach>
+                    )
+                </if>
+                <if test="(keywords == null or keywords.size() == 0) and keyword != null and keyword != ''">
                     AND (
                         c.clue_title LIKE CONCAT('%', #{keyword}, '%')
                         OR c.clue_content LIKE CONCAT('%', #{keyword}, '%')
@@ -382,6 +457,51 @@
                 </if>
             </otherwise>
         </choose>
+        <if test="excludeKeywords != null and excludeKeywords.size() > 0">
+            AND NOT (
+            <foreach collection="excludeKeywords" item="kw" separator=" OR ">
+                (
+                    c.clue_title LIKE CONCAT('%', #{kw}, '%')
+                    OR c.clue_content LIKE CONCAT('%', #{kw}, '%')
+                    OR c.keywords LIKE CONCAT('%', #{kw}, '%')
+                    OR c.involved_account LIKE CONCAT('%', #{kw}, '%')
+                    OR c.matched_school_terms LIKE CONCAT('%', #{kw}, '%')
+                    OR c.topic_category LIKE CONCAT('%', #{kw}, '%')
+                    OR c.topic_reason LIKE CONCAT('%', #{kw}, '%')
+                )
+            </foreach>
+            )
+        </if>
+        <if test="platforms != null and platforms.size() > 0">
+            AND c.source_platform IN
+            <foreach collection="platforms" item="platform" open="(" separator="," close=")">
+                #{platform}
+            </foreach>
+        </if>
+        <if test="riskLevels != null and riskLevels.size() > 0">
+            AND c.risk_level IN
+            <foreach collection="riskLevels" item="riskLevel" open="(" separator="," close=")">
+                #{riskLevel}
+            </foreach>
+        </if>
+        <if test="departmentIds != null and departmentIds.size() > 0">
+            AND c.involved_department_id IN
+            <foreach collection="departmentIds" item="departmentId" open="(" separator="," close=")">
+                #{departmentId}
+            </foreach>
+        </if>
+        <if test="monitorTaskIds != null and monitorTaskIds.size() > 0">
+            AND c.clue_id IN (
+                SELECT clue_id
+                FROM campus_monitor_result
+                WHERE deleted = 0
+                  AND clue_id IS NOT NULL
+                  AND monitor_task_id IN
+                  <foreach collection="monitorTaskIds" item="monitorTaskId" open="(" separator="," close=")">
+                      #{monitorTaskId}
+                  </foreach>
+            )
+        </if>
         <if test="startTime != null">
             AND COALESCE(c.publish_time, c.discover_time, c.create_time) &gt;= #{startTime}
         </if>

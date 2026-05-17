@@ -1,7 +1,6 @@
 package com.stonedt.intelligence.service.impl.campus;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.stonedt.intelligence.service.campus.AiReportService;
 import com.stonedt.intelligence.service.campus.ai.CampusAiChatRequest;
@@ -10,17 +9,10 @@ import com.stonedt.intelligence.service.campus.ai.CampusAiChatService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
+import java.util.function.Consumer;
 
 /**
  * AI report generation service implementation.
@@ -31,15 +23,6 @@ public class AiReportServiceImpl implements AiReportService {
 
     private static final Logger log = LoggerFactory.getLogger(AiReportServiceImpl.class);
 
-    private static final int CONNECT_TIMEOUT_MS = 60_000;
-    private static final int READ_TIMEOUT_MS = 180_000;
-
-    @Value("${deepseek.api.url:https://api.deepseek.com/v1/chat/completions}")
-    private String apiUrl;
-
-    @Value("${deepseek.api.key:your-deepseek-api-key}")
-    private String apiKey;
-
     private final CampusAiChatService campusAiChatService;
 
     public AiReportServiceImpl(CampusAiChatService campusAiChatService) {
@@ -49,7 +32,21 @@ public class AiReportServiceImpl implements AiReportService {
     @Override
     public String generateReport(String reportType, String reportTitle, String dataJson,
                                   String periodStart, String periodEnd, StringBuilder streamOutput) {
-        String prompt = buildPrompt(reportType, reportTitle, dataJson, periodStart, periodEnd);
+        return generateReport(reportType, reportTitle, dataJson, periodStart, periodEnd, streamOutput, null);
+    }
+
+    @Override
+    public String generateReport(String reportType, String reportTitle, String dataJson,
+                                  String periodStart, String periodEnd, StringBuilder streamOutput,
+                                  Consumer<String> chunkConsumer) {
+        return generateReport(reportType, reportTitle, dataJson, periodStart, periodEnd, null, streamOutput, chunkConsumer);
+    }
+
+    @Override
+    public String generateReport(String reportType, String reportTitle, String dataJson,
+                                 String periodStart, String periodEnd, String aiUserPrompt,
+                                 StringBuilder streamOutput, Consumer<String> chunkConsumer) {
+        String prompt = buildPrompt(reportType, reportTitle, dataJson, periodStart, periodEnd, aiUserPrompt);
         log.info("AiReportService generating {} report, title: {}", reportType, reportTitle);
 
         boolean isStream = (streamOutput != null);
@@ -63,140 +60,17 @@ public class AiReportServiceImpl implements AiReportService {
             request.setTemperature(new BigDecimal("0.70"));
             request.setStream(isStream);
             CampusAiChatResponse response = isStream
-                    ? campusAiChatService.chatStreaming(request, streamOutput)
+                    ? campusAiChatService.chatStreaming(request, streamOutput, chunkConsumer)
                     : campusAiChatService.chat(request);
             return response == null ? "" : response.getContent();
         } catch (Exception e) {
             log.error("DeepSeek API call failed for {} report", reportType, e);
-            String errorMsg = "## AI报告生成失败\n\n> 错误信息: " + e.getMessage()
-                    + "\n\n> 请检查DeepSeek API配置是否正确，或稍后重试。";
-            if (streamOutput != null) {
-                streamOutput.append(errorMsg);
-            }
-            return errorMsg;
+            throw new IllegalStateException("AI报告生成失败：" + e.getMessage(), e);
         }
-    }
-
-    private String callNonStreamingApi(JSONObject requestBody) throws IOException {
-        HttpURLConnection conn = createConnection();
-        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        conn.setDoOutput(true);
-
-        byte[] bodyBytes = requestBody.toJSONString().getBytes(StandardCharsets.UTF_8);
-        try (OutputStream os = conn.getOutputStream()) {
-            os.write(bodyBytes);
-            os.flush();
-        }
-
-        int statusCode = conn.getResponseCode();
-        if (statusCode != 200) {
-            String errorBody = readStream(conn.getErrorStream());
-            log.error("DeepSeek API returned status {}: {}", statusCode, errorBody);
-            return "## AI报告生成失败\n\n> API返回错误状态码: " + statusCode + "\n\n> " + errorBody;
-        }
-
-        String responseBody = readStream(conn.getInputStream());
-        conn.disconnect();
-
-        JSONObject response = JSON.parseObject(responseBody);
-        JSONArray choices = response.getJSONArray("choices");
-        if (choices == null || choices.isEmpty()) {
-            return "## AI报告生成失败\n\n> API未返回有效内容。";
-        }
-        JSONObject firstChoice = choices.getJSONObject(0);
-        JSONObject message = firstChoice.getJSONObject("message");
-        if (message == null) {
-            return "## AI报告生成失败\n\n> API响应格式异常。";
-        }
-        return message.getString("content");
-    }
-
-    private String callStreamingApi(JSONObject requestBody, StringBuilder streamOutput) throws IOException {
-        HttpURLConnection conn = createConnection();
-        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-        conn.setRequestProperty("Accept", "text/event-stream");
-        conn.setDoOutput(true);
-
-        byte[] bodyBytes = requestBody.toJSONString().getBytes(StandardCharsets.UTF_8);
-        try (OutputStream os = conn.getOutputStream()) {
-            os.write(bodyBytes);
-            os.flush();
-        }
-
-        int statusCode = conn.getResponseCode();
-        if (statusCode != 200) {
-            String errorBody = readStream(conn.getErrorStream());
-            log.error("DeepSeek streaming API returned status {}: {}", statusCode, errorBody);
-            String errorMsg = "## AI报告生成失败\n\n> API返回错误状态码: " + statusCode + "\n\n> " + errorBody;
-            streamOutput.append(errorMsg);
-            return errorMsg;
-        }
-
-        StringBuilder fullContent = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.isEmpty()) {
-                    continue;
-                }
-                if (line.startsWith("data: ")) {
-                    String data = line.substring(6);
-                    if ("[DONE]".equals(data)) {
-                        break;
-                    }
-                    try {
-                        JSONObject chunk = JSON.parseObject(data);
-                        JSONArray choices = chunk.getJSONArray("choices");
-                        if (choices != null && !choices.isEmpty()) {
-                            JSONObject firstChoice = choices.getJSONObject(0);
-                            JSONObject delta = firstChoice.getJSONObject("delta");
-                            if (delta != null) {
-                                String content = delta.getString("content");
-                                if (content != null) {
-                                    fullContent.append(content);
-                                    streamOutput.append(content);
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to parse streaming chunk: {}", data, e);
-                    }
-                }
-            }
-        }
-        conn.disconnect();
-        return fullContent.toString();
-    }
-
-    private HttpURLConnection createConnection() throws IOException {
-        URL url = new URL(apiUrl);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        conn.setReadTimeout(READ_TIMEOUT_MS);
-        conn.setRequestProperty("Authorization", "Bearer " + apiKey);
-        conn.setRequestProperty("User-Agent", "Stonedt-Report/1.0");
-        return conn;
-    }
-
-    private String readStream(java.io.InputStream stream) throws IOException {
-        if (stream == null) {
-            return "";
-        }
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
-            }
-        }
-        return sb.toString();
     }
 
     private String buildPrompt(String reportType, String reportTitle, String dataJson,
-                               String periodStart, String periodEnd) {
+                               String periodStart, String periodEnd, String aiUserPrompt) {
         String typeLabel;
         String typePrompt;
 
@@ -233,11 +107,38 @@ public class AiReportServiceImpl implements AiReportService {
                 break;
         }
 
+        String profilePrompt = buildProfilePrompt(dataJson);
         return typePrompt + "\n\n"
+                + profilePrompt + "\n\n"
+                + buildUserPromptInstruction(aiUserPrompt) + "\n\n"
                 + "报告标题：" + StringUtils.defaultString(reportTitle, typeLabel) + "\n"
                 + "报告类型：" + typeLabel + "\n"
                 + "统计周期：" + StringUtils.defaultString(periodStart, "") + " 至 "
                 + StringUtils.defaultString(periodEnd, "") + "\n\n"
                 + "数据如下：\n" + StringUtils.defaultString(dataJson, "{}");
+    }
+
+    private String buildUserPromptInstruction(String aiUserPrompt) {
+        if (StringUtils.isBlank(aiUserPrompt)) {
+            return "本次没有额外生成要求，请基于规则统计数据进行客观分析。";
+        }
+        return "本次用户补充要求：\n" + aiUserPrompt.trim()
+                + "\n请在不改变统计口径和关键事实的前提下，按上述要求调整报告重点、表达方式和建议部分。";
+    }
+
+    private String buildProfilePrompt(String dataJson) {
+        String profile = "brief";
+        try {
+            JSONObject data = JSON.parseObject(StringUtils.defaultIfBlank(dataJson, "{}"));
+            profile = StringUtils.defaultIfBlank(data.getString("analysisProfile"), "brief");
+        } catch (Exception ignored) {
+        }
+        if ("risk".equals(profile)) {
+            return "分析档位：风险研判。请突出负面/预警线索、风险等级变化、传播扩散可能性和需重点盯防的问题。";
+        }
+        if ("disposal".equals(profile)) {
+            return "分析档位：处置建议。请突出责任分工、响应优先级、处置动作、复盘指标和后续跟踪建议。";
+        }
+        return "分析档位：概览简报。请突出总体态势、主要变化、关键数据和简明关注建议。";
     }
 }

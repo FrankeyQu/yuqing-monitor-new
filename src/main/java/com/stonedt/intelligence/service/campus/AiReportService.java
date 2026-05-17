@@ -1,5 +1,7 @@
 package com.stonedt.intelligence.service.campus;
 
+import java.util.function.Consumer;
+
 /**
  * AI-powered report generation service using DeepSeek-v4-pro.
  * Supports daily, weekly, monthly, and special report types.
@@ -19,4 +21,12 @@ public interface AiReportService {
      */
     String generateReport(String reportType, String reportTitle, String dataJson,
                            String periodStart, String periodEnd, StringBuilder streamOutput);
+
+    String generateReport(String reportType, String reportTitle, String dataJson,
+                          String periodStart, String periodEnd, StringBuilder streamOutput,
+                          Consumer<String> chunkConsumer);
+
+    String generateReport(String reportType, String reportTitle, String dataJson,
+                          String periodStart, String periodEnd, String aiUserPrompt,
+                          StringBuilder streamOutput, Consumer<String> chunkConsumer);
 }

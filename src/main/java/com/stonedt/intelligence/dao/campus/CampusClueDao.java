@@ -71,12 +71,24 @@ public interface CampusClueDao {
                                       @Param("endTime") Date endTime);
 
     List<CampusClue> listForReportScope(@Param("keyword") String keyword,
+                                        @Param("keywords") List<String> keywords,
+                                        @Param("excludeKeywords") List<String> excludeKeywords,
                                         @Param("eventId") Long eventId,
+                                        @Param("platforms") List<String> platforms,
+                                        @Param("riskLevels") List<String> riskLevels,
+                                        @Param("departmentIds") List<Long> departmentIds,
+                                        @Param("monitorTaskIds") List<Long> monitorTaskIds,
                                         @Param("startTime") Date startTime,
                                         @Param("endTime") Date endTime);
 
     List<Map<String, Object>> getReportDailyTrend(@Param("keyword") String keyword,
+                                                  @Param("keywords") List<String> keywords,
+                                                  @Param("excludeKeywords") List<String> excludeKeywords,
                                                   @Param("eventId") Long eventId,
+                                                  @Param("platforms") List<String> platforms,
+                                                  @Param("riskLevels") List<String> riskLevels,
+                                                  @Param("departmentIds") List<Long> departmentIds,
+                                                  @Param("monitorTaskIds") List<Long> monitorTaskIds,
                                                   @Param("startTime") Date startTime,
                                                   @Param("endTime") Date endTime,
                                                   @Param("days") int days);

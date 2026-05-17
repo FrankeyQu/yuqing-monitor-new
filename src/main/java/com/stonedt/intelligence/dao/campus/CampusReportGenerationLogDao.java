@@ -14,6 +14,7 @@ public interface CampusReportGenerationLogDao {
     int finish(@Param("generationLogId") Long generationLogId,
                @Param("reportId") Long reportId,
                @Param("runStatus") String runStatus,
+               @Param("durationMs") Long durationMs,
                @Param("errorMessage") String errorMessage);
 
     CampusReportGenerationLog selectByLogId(@Param("generationLogId") Long generationLogId);

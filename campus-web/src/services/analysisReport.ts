@@ -1,5 +1,6 @@
 import { apiGet, apiPost, http } from './http';
 import type {
+  ApiId,
   CampusAnalysisResult,
   CampusAnalysisTask,
   CampusReport,
@@ -84,7 +85,7 @@ export function saveReportTemplate(data: CampusReportTemplate) {
   return apiPost<CampusReportTemplate>('/campus/report/template/save', data);
 }
 
-export function deleteReportTemplate(templateId: number) {
+export function deleteReportTemplate(templateId: ApiId) {
   return apiPost<void>('/campus/report/template/delete', undefined, { templateId });
 }
 
@@ -92,7 +93,7 @@ export function listReports(params: ReportQuery) {
   return apiGet<PageResult<CampusReport>>('/campus/report/list', params);
 }
 
-export function getReportDetail(reportId: number) {
+export function getReportDetail(reportId: ApiId) {
   return apiGet<CampusReport>('/campus/report/detail', { reportId });
 }
 
@@ -100,20 +101,24 @@ export function saveReport(data: CampusReport) {
   return apiPost<CampusReport>('/campus/report/save', data);
 }
 
-export function generateReport(reportId: number) {
+export function generateReport(reportId: ApiId) {
   return apiPost<CampusReport>('/campus/report/generate', undefined, { reportId });
 }
 
-export function generateReportAi(reportId: number) {
-  return apiPost<CampusReport>('/campus/report/generate-ai', undefined, { reportId });
+export function generateReportAi(reportId: ApiId, aiUserPrompt?: string) {
+  return apiPost<CampusReport>('/campus/report/generate-ai', undefined, { reportId, aiUserPrompt });
 }
 
-export function getGenerateAiStreamUrl(reportId: number) {
+export function getGenerateAiStreamUrl(reportId: ApiId, aiUserPrompt?: string) {
   const base = http.defaults.baseURL || '';
-  return `${base}/campus/report/generate-ai-stream?reportId=${reportId}`;
+  const params = new URLSearchParams({ reportId: String(reportId) });
+  if (aiUserPrompt) {
+    params.set('aiUserPrompt', aiUserPrompt);
+  }
+  return `${base}/campus/report/generate-ai-stream?${params.toString()}`;
 }
 
-export async function downloadReportDocx(reportId: number) {
+export async function downloadReportDocx(reportId: ApiId) {
   const response = await http.get<Blob>('/campus/report/download-docx', {
     params: { reportId },
     responseType: 'blob'
@@ -121,7 +126,7 @@ export async function downloadReportDocx(reportId: number) {
   triggerBlobDownload(response, reportId, 'docx');
 }
 
-export async function downloadReportPptx(reportId: number) {
+export async function downloadReportPptx(reportId: ApiId) {
   const response = await http.get<Blob>('/campus/report/download-pptx', {
     params: { reportId },
     responseType: 'blob'
@@ -131,7 +136,7 @@ export async function downloadReportPptx(reportId: number) {
 
 function triggerBlobDownload(
   response: { data: Blob; headers: Record<string, unknown> },
-  reportId: number,
+  reportId: ApiId,
   ext: string
 ) {
   const disposition = String(response.headers['content-disposition'] || '');
@@ -147,15 +152,15 @@ function triggerBlobDownload(
   URL.revokeObjectURL(url);
 }
 
-export function archiveReport(reportId: number, archiveOpinion?: string) {
+export function archiveReport(reportId: ApiId, archiveOpinion?: string) {
   return apiPost<CampusReport>('/campus/report/archive', undefined, { reportId, archiveOpinion });
 }
 
-export function deleteReport(reportId: number) {
+export function deleteReport(reportId: ApiId) {
   return apiPost<void>('/campus/report/delete', undefined, { reportId });
 }
 
-export async function downloadReport(reportId: number) {
+export async function downloadReport(reportId: ApiId) {
   const response = await http.get<Blob>('/campus/report/download', {
     params: { reportId },
     responseType: 'blob'
@@ -171,21 +176,21 @@ export function saveReportJob(data: CampusReportJob) {
   return apiPost<CampusReportJob>('/campus/auto-report/job/save', data);
 }
 
-export function updateReportJobStatus(reportJobId: number, jobStatus: string) {
+export function updateReportJobStatus(reportJobId: ApiId, jobStatus: string) {
   return apiPost<CampusReportJob>('/campus/auto-report/job/update-status', undefined, {
     reportJobId,
     jobStatus
   });
 }
 
-export function deleteReportJob(reportJobId: number) {
+export function deleteReportJob(reportJobId: ApiId) {
   return apiPost<void>('/campus/auto-report/job/delete', undefined, { reportJobId });
 }
 
-export function runReportJob(reportJobId: number) {
+export function runReportJob(reportJobId: ApiId) {
   return apiPost<CampusReport>('/campus/auto-report/job/run', undefined, { reportJobId });
 }
 
-export function listReportGenerationLogs(reportJobId: number) {
+export function listReportGenerationLogs(reportJobId: ApiId) {
   return apiGet<CampusReportGenerationLog[]>('/campus/auto-report/log/list', { reportJobId });
 }

@@ -9,6 +9,15 @@
         <result column="report_title" property="reportTitle"/>
         <result column="report_type" property="reportType"/>
         <result column="report_status" property="reportStatus"/>
+        <result column="generation_mode" property="generationMode"/>
+        <result column="scope_type" property="scopeType"/>
+        <result column="scope_keywords" property="scopeKeywords"/>
+        <result column="exclude_keywords" property="excludeKeywords"/>
+        <result column="platform_scope" property="platformScope"/>
+        <result column="risk_levels" property="riskLevels"/>
+        <result column="department_scope" property="departmentScope"/>
+        <result column="monitor_task_ids" property="monitorTaskIds"/>
+        <result column="analysis_profile" property="analysisProfile"/>
         <result column="template_id" property="templateId"/>
         <result column="event_id" property="eventId"/>
         <result column="period_start_time" property="periodStartTime"/>
@@ -18,6 +27,9 @@
         <result column="report_format" property="reportFormat"/>
         <result column="file_name" property="fileName"/>
         <result column="file_path" property="filePath"/>
+        <result column="ai_model" property="aiModel"/>
+        <result column="ai_user_prompt" property="aiUserPrompt"/>
+        <result column="ai_prompt_snapshot" property="aiPromptSnapshot"/>
         <result column="generated_by" property="generatedBy"/>
         <result column="generate_time" property="generateTime"/>
         <result column="archive_user_id" property="archiveUserId"/>
@@ -31,23 +43,29 @@
     </resultMap>
 
     <sql id="BaseColumns">
-        id, report_id, report_title, report_type, report_status, template_id,
+        id, report_id, report_title, report_type, report_status, generation_mode,
+        scope_type, scope_keywords, exclude_keywords, platform_scope, risk_levels,
+        department_scope, monitor_task_ids, analysis_profile, template_id,
         event_id, period_start_time, period_end_time, report_summary, report_content,
-        report_format, file_name, file_path, generated_by, generate_time,
+        report_format, file_name, file_path, ai_model, ai_user_prompt, ai_prompt_snapshot, generated_by, generate_time,
         archive_user_id, archive_time, archive_opinion, deleted, create_user_id,
         update_user_id, create_time, update_time
     </sql>
 
     <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusReport">
         INSERT INTO campus_report (
-            report_id, report_title, report_type, report_status, template_id, event_id,
+            report_id, report_title, report_type, report_status, generation_mode,
+            scope_type, scope_keywords, exclude_keywords, platform_scope, risk_levels,
+            department_scope, monitor_task_ids, analysis_profile, template_id, event_id,
             period_start_time, period_end_time, report_summary, report_content,
-            report_format, file_name, file_path, generated_by, generate_time,
+            report_format, file_name, file_path, ai_model, ai_user_prompt, ai_prompt_snapshot, generated_by, generate_time,
             deleted, create_user_id, update_user_id
         ) VALUES (
-            #{reportId}, #{reportTitle}, #{reportType}, #{reportStatus}, #{templateId}, #{eventId},
+            #{reportId}, #{reportTitle}, #{reportType}, #{reportStatus}, #{generationMode},
+            #{scopeType}, #{scopeKeywords}, #{excludeKeywords}, #{platformScope}, #{riskLevels},
+            #{departmentScope}, #{monitorTaskIds}, #{analysisProfile}, #{templateId}, #{eventId},
             #{periodStartTime}, #{periodEndTime}, #{reportSummary}, #{reportContent},
-            #{reportFormat}, #{fileName}, #{filePath}, #{generatedBy}, #{generateTime},
+            #{reportFormat}, #{fileName}, #{filePath}, #{aiModel}, #{aiUserPrompt}, #{aiPromptSnapshot}, #{generatedBy}, #{generateTime},
             #{deleted}, #{createUserId}, #{updateUserId}
         )
     </insert>
@@ -58,6 +76,15 @@
             <if test="reportTitle != null">report_title = #{reportTitle},</if>
             <if test="reportType != null">report_type = #{reportType},</if>
             <if test="reportStatus != null">report_status = #{reportStatus},</if>
+            <if test="generationMode != null">generation_mode = #{generationMode},</if>
+            <if test="scopeType != null">scope_type = #{scopeType},</if>
+            <if test="scopeKeywords != null">scope_keywords = #{scopeKeywords},</if>
+            <if test="excludeKeywords != null">exclude_keywords = #{excludeKeywords},</if>
+            <if test="platformScope != null">platform_scope = #{platformScope},</if>
+            <if test="riskLevels != null">risk_levels = #{riskLevels},</if>
+            <if test="departmentScope != null">department_scope = #{departmentScope},</if>
+            <if test="monitorTaskIds != null">monitor_task_ids = #{monitorTaskIds},</if>
+            <if test="analysisProfile != null">analysis_profile = #{analysisProfile},</if>
             <if test="templateId != null">template_id = #{templateId},</if>
             <if test="eventId != null">event_id = #{eventId},</if>
             <if test="periodStartTime != null">period_start_time = #{periodStartTime},</if>
@@ -67,6 +94,9 @@
             <if test="reportFormat != null">report_format = #{reportFormat},</if>
             <if test="fileName != null">file_name = #{fileName},</if>
             <if test="filePath != null">file_path = #{filePath},</if>
+            <if test="aiModel != null">ai_model = #{aiModel},</if>
+            <if test="aiUserPrompt != null">ai_user_prompt = #{aiUserPrompt},</if>
+            <if test="aiPromptSnapshot != null">ai_prompt_snapshot = #{aiPromptSnapshot},</if>
             <if test="generatedBy != null">generated_by = #{generatedBy},</if>
             <if test="generateTime != null">generate_time = #{generateTime},</if>
             update_user_id = #{updateUserId}

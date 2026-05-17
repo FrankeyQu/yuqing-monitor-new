@@ -4,10 +4,10 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：Batch41-B47 蓝图 MVP 已发布，继续进入线上验收与细节修正
+- **当前阶段**：报告功能恢复与 AI 生成优化已发布，后续进入线上联调和细节体验回归
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`claude/batch33-monitor-admin` 分支，已推送到服务器远端 `deploy-vps`
-- **最近已发布功能提交**：commit `feat: unify monitor information workflow`
+- **当前 Git 状态**：`main` 已合并 `claude/report-ai-recovery`，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
+- **最近已发布功能提交**：commit `e06d5ae feat: restore AI report generation`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -15,7 +15,7 @@
 
 - **用户目标**：监测任务页增加 AI 体检；监测信息页支持手动单条/批量 AI 分析，给每条命中重新判断情感、生成一句话摘要、判断是否建议命中并归类校园主题。
 - **后端调整**：新增 `POST /campus/monitor/task/ai-diagnose` 和 `POST /campus/monitor/result/ai-analyze`；新增 `campus_monitor_result` AI 辅助字段 `ai_summary/ai_hit_recommendation/ai_hit_reason/ai_confidence/ai_analysis_time/ai_provider_code/ai_model_code`；监测命中 AI 分析成功后更新情感、AI摘要、AI建议、学校相关性和主题分类，已转未归档线索同步相关字段，已归档线索关联记录跳过写入。
-- **AI 能力配置**：新增功能绑定和提示词 `monitor_result_analysis`、`monitor_task_diagnosis`，继续通过 `campus_ai` 统一读取模型配置和记录脱敏调用日志。
+- **AI 能力配置**：新增功能绑定和提示词 `monitor_result_analysis`、`monitor_task_diagnosis`，继续通过 `campus_ai` 统一读取模型配置和记录脱敏调用日志；合并报告恢复分支后，监测 AI 迁移顺延为 `V1.46__CampusMonitorAiAnalysis.sql`，避免与生产已执行的 `V1.44__CampusReportPromptAndTemplates.sql` 冲突。
 - **前端调整**：`/admin/monitor-tasks` 增加“AI体检”操作和只读结果弹窗；`/monitor` 增加当前页 AI 分析、单条“更多 → AI分析”、批量 AI 分析和 AI 建议列，标题摘要优先展示 AI 摘要。
 - **业务边界**：AI 判断“不建议命中”只作为辅助建议展示，不自动忽略、不删除、不转预警、不改变风险等级或结果状态；任务 AI 体检不写回配置、不展示具体采集内容。
 - **本地验证**：`git diff --check` 通过（仅保留既有 CRLF 工作区提示）；`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` XML 解析通过；`.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
@@ -43,6 +43,19 @@
 - **样式修正**：按用户反馈将监测信息表格情感列从常驻下拉框恢复为原 `EmotionBadge` 标签样式，仅点击标签时弹出修改菜单；批量修改情感保留在批量操作弹窗内。
 - **样式修正验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 - **样式修正发布**：提交 `81b6aa6 fix: restore monitor sentiment badge style` 已推送 GitHub 和服务器远端；仅覆盖 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-195451-monitor-sentiment-style`；`https://yuqing.zhuoran.cc/monitor` 返回 200，线上静态资源已包含 `sentiment-badge-trigger` 且不再包含 `sentiment-select`。
+
+## 2026-05-17 报告功能恢复与 AI 生成优化
+
+- **执行边界**：从生产最新代码点 `53f77f1` 创建独立分支 `claude/report-ai-recovery` 和 worktree，未混入原工作区其它模块改动；不修改 `pom.xml` 和核心配置，不删除旧报告链路。
+- **ID 精度修复**：报告、模板、报告事件、自动报告任务和生成日志的 Long 业务 ID 增加字符串序列化；前端报告相关 API 改用 `ApiId`，避免 19 位 Snowflake ID 被浏览器 number 精度截断。
+- **字段与链路补齐**：实体和 Mapper 接入 `generation_mode`、AI 审计字段、scope 字段、自动报告调度锁、生成日志 `generation_mode/duration_ms`；自动报告按任务 `generationMode` 调用传统或 AI 生成。
+- **针对性分析与 AI 输出**：报告数据聚合统一使用关键词、排除词、平台、风险等级、部门、监测任务和事件 scope；`analysisProfile` 控制 AI Prompt 侧重点；AI 失败不再保存失败 markdown 为正式报告内容。
+- **自动调度与 SSE**：新增自动报告调度扫描组件，默认关闭，按 `active + nextRunTime` 加锁执行；AI SSE 改为边生成边发送 `message`，完成发送 `done`，失败发送 `error`。
+- **二次恢复与模板体验**：修复 AI 输入 JSON 快照中的 Fastjson `$ref` 问题；新增 `ai_user_prompt`、自动报告 `event_id`、事件下拉 ID 字符串序列化；报告/自动报告表单改为模板和事件下拉；模板管理拆为 `/report-templates` 独立列表与编辑页；新增高校日报、周报、月报、重大事件、招生就业、后勤服务、学生安全心理风险模板种子。
+- **本地验证**：使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过（19 个测试类，62 tests）；`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **GitHub 合并**：提交 `e06d5ae feat: restore AI report generation` 已推送到 GitHub `origin/claude/report-ai-recovery`，并 fast-forward 合并推送到 `origin/main`；服务器裸仓库已同步 `deploy-vps/claude/report-ai-recovery`，`deploy-vps/main` 与 GitHub 快照历史无共同祖先，本次未强推覆盖。
+- **生产发布**：发布前备份线上 jar、前端 web 和数据库到 `/home/ubuntu/yuqing-backups/deploy-20260517-214310-report-ai-template`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，重启 `yuqing` 并 reload `nginx`。
+- **线上验收**：Flyway 已从 `1.43` 迁移到 `1.44 CampusReportPromptAndTemplates` 且 success=1，7 个高校场景模板种子已落库；`yuqing/nginx/mariadb/redis-server` 均 active，后端监听 `8084`；`https://yuqing.zhuoran.cc/`、`/reports`、`/report-templates`、`/auto-reports` 返回 200，未登录 `/campus/report/list?pageNum=1&pageSize=1` 返回 302。
 
 ## 2026-05-17 校园事件单用户台账模式收敛
 

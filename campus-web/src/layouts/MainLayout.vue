@@ -277,6 +277,7 @@ const FRONT_MENU_PATHS = new Set([
   '/alerts',
   '/analysis',
   '/reports',
+  '/report-templates',
   '/auto-reports',
   '/compare',
   '/search'

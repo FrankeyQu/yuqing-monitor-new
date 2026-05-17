@@ -5,6 +5,7 @@ import com.stonedt.intelligence.entity.campus.CampusReport;
 import com.stonedt.intelligence.entity.campus.CampusReportGenerationLog;
 import com.stonedt.intelligence.entity.campus.CampusReportJob;
 
+import java.util.Date;
 import java.util.List;
 
 public interface CampusAutoReportService {
@@ -22,6 +23,14 @@ public interface CampusAutoReportService {
                                        String jobStatus);
 
     CampusReport runJob(Long reportJobId, Long operatorUserId);
+
+    List<CampusReportJob> listDueJobs(Date now, int limit);
+
+    boolean acquireScheduleLock(Long reportJobId, Date now, Date lockUntil, Long operatorUserId);
+
+    void releaseScheduleLock(Long reportJobId, Long operatorUserId);
+
+    CampusReport runScheduledJob(Long reportJobId, Long operatorUserId);
 
     List<CampusReportGenerationLog> listLogs(Long reportJobId);
 }

@@ -23,6 +23,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.function.Consumer;
 
 @Service
 public class CampusAiChatServiceImpl implements CampusAiChatService {
@@ -51,12 +52,25 @@ public class CampusAiChatServiceImpl implements CampusAiChatService {
 
     @Override
     public CampusAiChatResponse chatStreaming(CampusAiChatRequest request, StringBuilder streamOutput) {
-        return execute(request, true, streamOutput);
+        return execute(request, true, streamOutput, null);
+    }
+
+    @Override
+    public CampusAiChatResponse chatStreaming(CampusAiChatRequest request, StringBuilder streamOutput,
+                                              Consumer<String> chunkConsumer) {
+        return execute(request, true, streamOutput, chunkConsumer);
     }
 
     private CampusAiChatResponse execute(CampusAiChatRequest request,
                                          boolean stream,
                                          StringBuilder streamOutput) {
+        return execute(request, stream, streamOutput, null);
+    }
+
+    private CampusAiChatResponse execute(CampusAiChatRequest request,
+                                         boolean stream,
+                                         StringBuilder streamOutput,
+                                         Consumer<String> chunkConsumer) {
         CampusAiChatRequest safeRequest = request == null ? new CampusAiChatRequest() : request;
         String featureCode = StringUtils.defaultIfBlank(safeRequest.getFeatureCode(), DEFAULT_FEATURE_CODE);
         CampusAiRuntimeConfig config = campusAiRuntimeService.resolveFeature(featureCode,
@@ -92,7 +106,7 @@ public class CampusAiChatServiceImpl implements CampusAiChatService {
             }
 
             CampusAiChatResponse response = stream
-                    ? readStreamingResponse(conn.getInputStream(), streamOutput)
+                    ? readStreamingResponse(conn.getInputStream(), streamOutput, chunkConsumer)
                     : readNonStreamingResponse(conn.getInputStream());
             response.setHttpStatus(httpStatus);
             responseSnapshot = response.getContent();
@@ -190,7 +204,8 @@ public class CampusAiChatServiceImpl implements CampusAiChatService {
     }
 
     private CampusAiChatResponse readStreamingResponse(InputStream stream,
-                                                       StringBuilder streamOutput) throws Exception {
+                                                       StringBuilder streamOutput,
+                                                       Consumer<String> chunkConsumer) throws Exception {
         StringBuilder fullContent = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             String line;
@@ -217,6 +232,9 @@ public class CampusAiChatServiceImpl implements CampusAiChatService {
                     fullContent.append(content);
                     if (streamOutput != null) {
                         streamOutput.append(content);
+                    }
+                    if (chunkConsumer != null) {
+                        chunkConsumer.accept(content);
                     }
                 }
             }

@@ -632,6 +632,8 @@ analysis_result: pending → adopted / rejected
 | `campus_report_job.job_status` | `paused` | 暂停，默认值 |
 | `campus_report_job.job_status` | `disabled` | 禁用 |
 | `campus_report_generation_log.run_status` | `running/success/failed` | 运行中/成功/失败 |
+| `campus_report.generation_mode` | `template/ai` | 传统规则/AI 生成 |
+| `campus_report_job.generation_mode` | `template/ai` | 自动报告任务生成方式 |
 
 **允许流转**：
 ```
@@ -641,6 +643,10 @@ report: generated → published [待确认]
 job: paused ↔ active; active/paused → disabled
 generation_log: running → success/failed
 ```
+
+**调度规则**：`job_status=active` 且 `next_run_time <= now` 的自动报告任务可被调度器扫描；执行前写入 `schedule_lock_until`，成功或失败后释放锁并刷新下一次运行时间。手动运行同样使用锁避免重复生成。
+
+**AI 失败规则**：AI 调用失败时生成日志进入 `failed`，报告保持草稿或原状态，不允许把失败说明 markdown 写入正式 `report_content` 并标记为 `generated`。AI 生成前会先生成规则统计快照，`ai_user_prompt` 仅作为输出侧补充要求，不改变状态流转。
 
 ## 校园权限与基础数据状态
 

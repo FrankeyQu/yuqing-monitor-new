@@ -78,7 +78,8 @@ npm run build
 - AI 分析失败排查：线上 AI 调用日志显示 DeepSeek 返回成功，但返回体为根级 JSON 数组且字段名为 `hitAdvice/schoolRelevance/reason`；后端旧解析只接受 `{results:[...]}`，因此 20 条被批量标记为解析失败。
 - 兼容修复验证：`CampusMonitorServiceImpl` 已兼容根级数组、`results/data` 包装和旧字段别名，并在运行时追加监测命中 AI 分析 JSON 合同；执行 `.\mvnw.cmd -DskipTests compile` 通过。
 - 门禁验证：使用 JDK8 执行 `.\mvnw.cmd -DskipTests compile` 与 `.\mvnw.cmd clean -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
-- 待执行事项：部署当前 `main` 文件树到服务器并完成线上健康检查。
+- 生产发布：功能修复提交 `326322f` 已推送 GitHub `origin/main` 和服务器裸仓库 `deploy-vps/claude/monitor-ai-analysis-main`；发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-005633-main-ai-format`。
+- 线上健康检查：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`，后端监听 `8084`；`/monitor`、`/admin/monitor-tasks` 返回 200，未登录监测列表接口返回 302；Flyway `1.44/1.45/1.46` 均 success=1。
 
 ### 2026-05-18 main 追平生产代码验证
 - 合并目标：`main` 合并 `claude/fix-ingest-deleted-dedup`，使 GitHub 主线包含当前生产已部署的报告恢复、监测 AI、舆情态势工作台/大屏合并、`V1.46` 菜单迁移和接入软删除去重修复。

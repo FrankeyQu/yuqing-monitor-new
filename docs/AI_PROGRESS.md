@@ -4,10 +4,10 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/大屏合并和接入去重修复已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收，正在修复监测命中 AI 分析返回格式兼容问题并部署
+- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/大屏合并和接入去重修复已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收，监测命中 AI 分析返回格式兼容修复已发布
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`main` 以记录式合并纳入旧生产线 `claude/daily-monthly-reports`，文件内容保持当前生产代码
-- **最近已发布功能提交**：commit `6b30d00 Merge production ingest dedup and dashboard sync`
+- **当前 Git 状态**：`main` 已推送到 GitHub，旧生产线 `claude/daily-monthly-reports` 以功能等价吸收和本地保护分支方式留痕
+- **最近已发布功能提交**：commit `326322f fix: tolerate monitor ai analysis formats`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -26,6 +26,10 @@
 - **部署策略**：仍以当前 `main` 文件树打包并覆盖服务器；此次部署是确认 `main` 与生产代码保持一致，而不是回滚到旧日报/月报分支内容。
 - **AI 分析失败 20 条根因**：线上 `campus_ai_call_log` 显示 DeepSeek 调用 HTTP 200 且状态为 success，失败发生在应用层解析。AI 实际返回了根级 JSON 数组，并使用 `hitAdvice/schoolRelevance/reason` 等旧字段；后端只接受 `{ "results": [...] }` 且期望 `shouldHit/schoolRelevanceScore/hitReason/topicReason`，因此抛出“AI响应缺少results数组”，本次选择的 20 条被统一标记失败。
 - **兼容修复**：`CampusMonitorServiceImpl` 对监测命中 AI 分析追加运行时 JSON 合同约束；解析端兼容根级数组和 `data/results` 包装；字段归一兼容 `hitAdvice -> shouldHit`、`reason -> hitReason/topicReason`、`schoolRelevance(high/medium/low) -> schoolRelevanceScore`，避免同类模型输出导致整批失败。
+- **本地验证**：`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd clean -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **Git 同步**：功能修复提交 `326322f fix: tolerate monitor ai analysis formats` 已推送 GitHub `origin/main`，并同步服务器裸仓库 `deploy-vps/claude/monitor-ai-analysis-main`；带旧历史父节点的本地尝试提交保留在 `codex/daily-history-merge-unpushable`。
+- **生产发布**：发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-005633-main-ai-format`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`，后端包 SHA256 `748185da5b01032cec935b9ea2836f7caa921ebbbbaa33769ef0685ecddb7789`，前端包 SHA256 `3576b154f9d6933be0869db49dce9add0ac8c0bd7667e3d15670e26690db595e`。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0` 且监听 `8084`；`/monitor`、`/admin/monitor-tasks` 返回 200，未登录监测列表接口返回 302；Flyway `1.44/1.45/1.46` 均 success=1。
 
 ## 2026-05-17 多分支合并与生产部署收口
 

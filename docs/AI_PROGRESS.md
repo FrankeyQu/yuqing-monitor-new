@@ -4,10 +4,10 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告功能恢复已发布，监测任务与监测信息 AI 分析正在合并主线并准备发布
+- **当前阶段**：报告功能恢复与监测任务/监测信息 AI 分析均已发布，后续进入线上验收和细节体验回归
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`main` 正在合并 `claude/monitor-ai-analysis`，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
-- **最近已发布功能提交**：commit `e06d5ae feat: restore AI report generation`
+- **当前 Git 状态**：`main` 已合并 `claude/monitor-ai-analysis`，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
+- **最近已发布功能提交**：commit `9f4726f Merge monitor AI analysis`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -33,6 +33,10 @@
 - **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/TEST_CHECKLIST.md`、`docs/modules/campus_monitor/manifest.md`、`docs/modules/campus_ai/manifest.md` 和 `docs/modules/campus_clue/manifest.md`。
 - **本地验证**：`git diff --check` / `git diff --cached --check` 通过（仅换行提示）；`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` XML 解析通过；合并后 `.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过，编译 497 个 Java source files；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 - **Git 整理**：原提交曾误挂在 `claude/unify-dashboard-screen`；已 cherry-pick 为 `bf2c263 feat: add campus monitor ai analysis` 到 `claude/monitor-ai-analysis`，避免把大屏统一提交混入主线。
+- **主线合并与推送**：`main` merge commit `9f4726f Merge monitor AI analysis` 已推送 GitHub `origin/main`；服务器裸仓库 `deploy-vps/main` 非同源快进，未强推，另同步 `deploy-vps/claude/monitor-ai-analysis-main`。
+- **生产部署**：本地先执行 `.\mvnw.cmd clean -DskipTests package` 生成干净 jar，避免 Maven target 残留迁移文件；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-231343-monitor-ai-analysis`，包含 `app.jar`、`web.tar.gz` 和 `campus_yuqing.sql`。
+- **Flyway 修复**：首次发布因未 clean 打包混入旧 target 迁移残留，导致 `1.45` checksum mismatch；已用干净 jar 重新发布，并对 `flyway_schema_history` 的 `1.45 CampusMonitorAiAnalysis` 执行等价 repair，将 checksum 修正为 `1664895571`。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；Flyway `1.44 CampusReportPromptAndTemplates` 与 `1.45 CampusMonitorAiAnalysis` 均 success；`https://yuqing.zhuoran.cc/monitor` 和 `/admin/monitor-tasks` 返回 200，未登录 `/campus/monitor/information/list?pageNum=1&pageSize=1` 返回 302。
 
 ## 2026-05-17 监测信息情感人工校正
 

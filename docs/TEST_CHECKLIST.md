@@ -83,7 +83,11 @@ npm run build
 - 代码检查：`git diff --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。
 - XML 检查：`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` 可被 XML parser 正常解析。
 - 后端编译：使用 `.codex-tools/jdk8` 设置 `JAVA_HOME` 后执行 `.\mvnw.cmd -DskipTests compile` 通过，合并后编译 497 个 Java source files，仅有旧代码内部 API、deprecated、unchecked 警告。
+- 后端打包：`.\mvnw.cmd clean -DskipTests package` 通过，确认干净 jar 内只有 `V1.44__CampusReportPromptAndTemplates.sql` 和 `V1.45__CampusMonitorAiAnalysis.sql`，未混入大屏迁移残留。
 - 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- GitHub / 主线：`9f4726f Merge monitor AI analysis` 已推送 `origin/main`；服务器远端另推送 `deploy-vps/claude/monitor-ai-analysis-main`，未强推非快进的 `deploy-vps/main`。
+- 线上发布：备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-231343-monitor-ai-analysis`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`；Flyway `1.45 CampusMonitorAiAnalysis` success=1，checksum repair 为 `1664895571`。
+- 线上冒烟：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`/monitor`、`/admin/monitor-tasks` 返回 200；未登录 `/campus/monitor/information/list?pageNum=1&pageSize=1` 返回 302。
 - 验收口径：`/admin/monitor-tasks` 的 AI 体检只读返回配置建议；`/monitor` 的 AI 分析手动触发，最多 20 条，写入监测命中的情感、AI摘要、AI建议、学校相关性和主题分类；不自动忽略、不自动转预警、不改变风险等级/状态；已归档线索关联记录跳过写入。
 
 ### 2026-05-17 校园事件单用户台账模式验证

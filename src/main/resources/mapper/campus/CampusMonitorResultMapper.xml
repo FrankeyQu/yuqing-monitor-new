@@ -723,6 +723,65 @@
         ORDER BY value DESC
     </select>
 
+    <select id="monitorInformationSourceDistribution" resultType="java.util.Map">
+        SELECT COALESCE(NULLIF(platform, ''), '其它') AS name, COUNT(1) AS value
+        FROM (
+            <include refid="InformationUnion"/>
+        ) info
+        WHERE 1 = 1
+        <include refid="InformationQualityFilters"/>
+        <if test="hitScope == 'risk'">
+            AND risk_marked = 1
+        </if>
+        GROUP BY COALESCE(NULLIF(platform, ''), '其它')
+        ORDER BY value DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="monitorInformationSentimentDistribution" resultType="java.util.Map">
+        SELECT sentiment_name AS name, COUNT(1) AS value
+        FROM (
+            SELECT
+                CASE
+                    WHEN LOWER(IFNULL(sentiment, '')) = 'positive' OR sentiment LIKE '%正%' THEN 'positive'
+                    WHEN LOWER(IFNULL(sentiment, '')) = 'neutral' OR sentiment LIKE '%中%' THEN 'neutral'
+                    WHEN LOWER(IFNULL(sentiment, '')) = 'negative' OR sentiment LIKE '%负%' THEN 'negative'
+                    ELSE 'none'
+                END AS sentiment_name
+            FROM (
+                <include refid="InformationUnion"/>
+            ) info
+            WHERE 1 = 1
+            <include refid="InformationQualityFilters"/>
+            <if test="hitScope == 'risk'">
+                AND risk_marked = 1
+            </if>
+        ) sentiment_stats
+        GROUP BY sentiment_name
+        ORDER BY FIELD(sentiment_name, 'negative', 'neutral', 'positive', 'none')
+    </select>
+
+    <select id="monitorInformationTopicRiskDistribution" resultType="java.util.Map">
+        SELECT
+            COALESCE(NULLIF(topic_category, ''), 'other') AS name,
+            COUNT(1) AS totalCount,
+            SUM(CASE WHEN risk_level IS NULL OR risk_level = '' OR LOWER(risk_level) = 'normal' THEN 1 ELSE 0 END) AS normalCount,
+            SUM(CASE WHEN LOWER(risk_level) = 'concern' THEN 1 ELSE 0 END) AS concernCount,
+            SUM(CASE WHEN LOWER(risk_level) = 'major' THEN 1 ELSE 0 END) AS majorCount,
+            SUM(CASE WHEN LOWER(risk_level) = 'urgent' THEN 1 ELSE 0 END) AS urgentCount
+        FROM (
+            <include refid="InformationUnion"/>
+        ) info
+        WHERE 1 = 1
+        <include refid="InformationQualityFilters"/>
+        <if test="hitScope == 'risk'">
+            AND risk_marked = 1
+        </if>
+        GROUP BY COALESCE(NULLIF(topic_category, ''), 'other')
+        ORDER BY totalCount DESC
+        LIMIT #{limit}
+    </select>
+
     <select id="countInformationToday" resultType="int">
         SELECT COUNT(1)
         FROM (

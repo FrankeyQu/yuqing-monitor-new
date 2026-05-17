@@ -57,6 +57,8 @@ export function useCampusSituationDashboard() {
   const nowText = computed(() => now.value.toLocaleString('zh-CN', { hour12: false }));
   const monitorOverview = computed<MonitorDashboardOverview>(() => statistics.value.monitorOverview || {});
   const monitorTrendRows = computed<MonitorTrendItem[]>(() => statistics.value.monitorTrendByDay || []);
+  const monitorTrendAllRows = computed<MonitorTrendItem[]>(() => statistics.value.monitorTrendAllByDay?.length ? statistics.value.monitorTrendAllByDay : monitorTrendRows.value);
+  const monitorTrendRiskRows = computed<MonitorTrendItem[]>(() => statistics.value.monitorTrendRiskByDay?.length ? statistics.value.monitorTrendRiskByDay : monitorTrendRows.value);
   const trendRows = computed(() => statistics.value.trendByDay || []);
   const riskRows = computed(() => statistics.value.riskDistribution || []);
   const eventRows = computed(() => statistics.value.eventStatusDistribution || []);
@@ -65,14 +67,23 @@ export function useCampusSituationDashboard() {
   const sourceRiskRows = computed(() => statistics.value.sourceRiskDistribution || []);
   const sourceRows = computed(() => statistics.value.mediaDistribution || []);
   const sentimentRows = computed<DistributionItem[]>(() => statistics.value.sentimentDistribution || []);
+  const monitorSourceRows = computed<DistributionItem[]>(() => statistics.value.monitorSourceDistribution?.length ? statistics.value.monitorSourceDistribution : sourceRows.value);
+  const monitorSentimentRows = computed<DistributionItem[]>(() => statistics.value.monitorSentimentDistribution?.length ? statistics.value.monitorSentimentDistribution : sentimentRows.value);
+  const monitorTopicRiskRows = computed<SourceRiskDistributionItem[]>(() => statistics.value.monitorTopicRiskDistribution?.length ? statistics.value.monitorTopicRiskDistribution : statistics.value.topicRiskDistribution || []);
 
   const monitorNegativeRate = computed(() => {
-    const resultCount = toNumber(monitorOverview.value.todayResultCount);
-    const alertCount = toNumber(monitorOverview.value.todayAlertCount);
-    if (!resultCount) {
+    const backendRate = monitorOverview.value.negativeRate;
+    if (backendRate !== undefined && backendRate !== null) {
+      return Math.min(100, Math.max(0, Math.round(toNumber(backendRate))));
+    }
+    const total = sumValues(monitorSentimentRows.value);
+    if (!total) {
       return 0;
     }
-    return Math.min(100, Math.round((alertCount / resultCount) * 100));
+    const negative = monitorSentimentRows.value
+      .filter((item) => normalizeSentimentKey(item.name) === 'negative')
+      .reduce((sum, item) => sum + toNumber(item.value), 0);
+    return Math.min(100, Math.round((negative / total) * 100));
   });
 
   const monitorScheduleRate = computed(() => {
@@ -87,7 +98,7 @@ export function useCampusSituationDashboard() {
   const monitorRunFacts = computed(() => {
     const activeTaskCount = toNumber(monitorOverview.value.activeTaskCount);
     const scheduledTaskCount = toNumber(monitorOverview.value.scheduledTaskCount);
-    const todayResultCount = toNumber(monitorOverview.value.todayResultCount);
+    const todayResultCount = toNumber(monitorOverview.value.todayAllResultCount ?? monitorOverview.value.todayResultCount);
     const todayAlertCount = toNumber(monitorOverview.value.todayAlertCount);
     const pendingAlertCount = toNumber(monitorOverview.value.pendingAlertCount);
     return [
@@ -132,7 +143,8 @@ export function useCampusSituationDashboard() {
     return 'success';
   });
 
-  async function loadDashboard() {
+  async function loadDashboard(mode: DashboardMode = 'normal') {
+    const isScreen = mode === 'screen';
     loading.value = true;
     errorMessage.value = '';
     try {
@@ -155,9 +167,9 @@ export function useCampusSituationDashboard() {
         fetchPendingAlerts(),
         fetchPendingDetectionHits(),
         fetchActiveEvents(),
-        listMonitorTasks({ pageNum: 1, pageSize: 8, taskStatus: 'active' }),
-        listMonitorInformation({ pageNum: 1, pageSize: 8, hitScope: 'risk' }),
-        listMonitorAlerts({ pageNum: 1, pageSize: 6, alertStatus: 'pending' })
+        listMonitorTasks({ pageNum: 1, pageSize: isScreen ? 12 : 8, taskStatus: 'active' }),
+        listMonitorInformation({ pageNum: 1, pageSize: isScreen ? 16 : 8, hitScope: 'risk' }),
+        listMonitorAlerts({ pageNum: 1, pageSize: isScreen ? 10 : 6, alertStatus: 'pending' })
       ]);
 
       if (stats.status === 'fulfilled') {
@@ -229,7 +241,12 @@ export function useCampusSituationDashboard() {
     monitorResultTotal,
     monitorRunFacts,
     monitorScheduleRate,
+    monitorSourceRows,
+    monitorSentimentRows,
     monitorTasks,
+    monitorTopicRiskRows,
+    monitorTrendAllRows,
+    monitorTrendRiskRows,
     monitorTrendRows,
     now,
     nowText,
@@ -258,12 +275,17 @@ export function emptyStatistics(): DashboardStatistics {
     eventStatusDistribution: [],
     trendByDay: [],
     monitorTrendByDay: [],
+    monitorTrendAllByDay: [],
+    monitorTrendRiskByDay: [],
     alertRiskDistribution: [],
     detectionHitRiskDistribution: [],
     sourceRiskDistribution: [],
     topicRiskDistribution: [],
     sentimentDistribution: [],
     mediaDistribution: [],
+    monitorSourceDistribution: [],
+    monitorSentimentDistribution: [],
+    monitorTopicRiskDistribution: [],
     governanceMetrics: {}
   };
 }
@@ -445,6 +467,20 @@ export function sentimentLabel(value?: string) {
     unknown: '未知'
   };
   return labels[value || 'unknown'] || value || '未知';
+}
+
+export function normalizeSentimentKey(value?: string) {
+  const text = (value || '').trim().toLowerCase();
+  if (text === 'positive' || text.includes('正')) {
+    return 'positive';
+  }
+  if (text === 'neutral' || text.includes('中')) {
+    return 'neutral';
+  }
+  if (text === 'negative' || text.includes('负')) {
+    return 'negative';
+  }
+  return 'none';
 }
 
 export function formatTime(value?: string | Date) {

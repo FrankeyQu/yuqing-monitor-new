@@ -56,10 +56,25 @@ public class CampusDashboardServiceImpl implements CampusDashboardService {
         Map<String, Object> statistics = new LinkedHashMap<>();
         Map<String, Object> monitorOverview = campusDashboardDao.monitorOverview();
         List<Map<String, Object>> monitorTrend = campusDashboardDao.monitorTrendByDay();
+        List<Map<String, Object>> monitorTrendAll = monitorTrend;
+        List<Map<String, Object>> monitorTrendRisk = monitorTrend;
+        List<Map<String, Object>> monitorSourceDistribution = new ArrayList<>();
+        List<Map<String, Object>> monitorSentimentDistribution = new ArrayList<>();
+        List<Map<String, Object>> monitorTopicRiskDistribution = new ArrayList<>();
         if (campusMonitorResultDao != null) {
             monitorOverview = monitorOverview == null ? new LinkedHashMap<>() : new LinkedHashMap<>(monitorOverview);
-            monitorOverview.put("todayResultCount", campusMonitorResultDao.countInformationToday("risk"));
-            monitorTrend = campusMonitorResultDao.monitorInformationTrendByDay("risk", 7);
+            int todayAllResultCount = campusMonitorResultDao.countInformationToday("all");
+            int todayRiskResultCount = campusMonitorResultDao.countInformationToday("risk");
+            monitorSentimentDistribution = campusMonitorResultDao.monitorInformationSentimentDistribution("all");
+            monitorOverview.put("todayAllResultCount", todayAllResultCount);
+            monitorOverview.put("todayRiskResultCount", todayRiskResultCount);
+            monitorOverview.put("negativeRate", calculateNegativeRate(monitorSentimentDistribution));
+            monitorOverview.put("todayResultCount", todayRiskResultCount);
+            monitorTrendAll = campusMonitorResultDao.monitorInformationTrendByDay("all", 7);
+            monitorTrendRisk = campusMonitorResultDao.monitorInformationTrendByDay("risk", 7);
+            monitorTrend = monitorTrendRisk;
+            monitorSourceDistribution = campusMonitorResultDao.monitorInformationSourceDistribution("all", 12);
+            monitorTopicRiskDistribution = campusMonitorResultDao.monitorInformationTopicRiskDistribution("all", 12);
         }
         statistics.put("overview", campusDashboardDao.overview());
         statistics.put("monitorOverview", monitorOverview);
@@ -68,6 +83,8 @@ public class CampusDashboardServiceImpl implements CampusDashboardService {
         statistics.put("eventStatusDistribution", campusDashboardDao.eventStatusDistribution());
         statistics.put("trendByDay", campusDashboardDao.trendByDay());
         statistics.put("monitorTrendByDay", monitorTrend);
+        statistics.put("monitorTrendAllByDay", monitorTrendAll);
+        statistics.put("monitorTrendRiskByDay", monitorTrendRisk);
         statistics.put("alertRiskDistribution", campusDashboardDao.alertRiskDistribution());
         statistics.put("detectionHitRiskDistribution", campusDashboardDao.detectionHitRiskDistribution());
         statistics.put("sourceRiskDistribution", campusDashboardDao.sourceRiskDistribution());
@@ -75,7 +92,38 @@ public class CampusDashboardServiceImpl implements CampusDashboardService {
         statistics.put("governanceMetrics", campusDashboardDao.governanceMetrics());
         statistics.put("sentimentDistribution", campusClueDao.countBySentiment());
         statistics.put("mediaDistribution", campusDashboardDao.mediaDistribution());
+        statistics.put("monitorSourceDistribution", monitorSourceDistribution);
+        statistics.put("monitorSentimentDistribution", monitorSentimentDistribution);
+        statistics.put("monitorTopicRiskDistribution", monitorTopicRiskDistribution);
         return statistics;
+    }
+
+    private int calculateNegativeRate(List<Map<String, Object>> distribution) {
+        int total = 0;
+        int negative = 0;
+        for (Map<String, Object> item : distribution) {
+            int value = toInt(item.get("value"));
+            total += value;
+            Object name = item.get("name");
+            if ("negative".equals(String.valueOf(name))) {
+                negative += value;
+            }
+        }
+        if (total <= 0) {
+            return 0;
+        }
+        return Math.min(100, Math.round(negative * 100f / total));
+    }
+
+    private int toInt(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignored) {
+            return 0;
+        }
     }
 
     @Override

@@ -11,6 +11,16 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 校园舆情智能驾驶舱大屏改造
+
+- **工作分支 / worktree**：`claude/dashboard-smart-cockpit`，`D:\PRJ\yuqing`。
+- **用户目标**：将 `/situation` 从后台首页放大式大屏升级为正式 BI 风格“校园舆情智能驾驶舱”，重点解决来源排行不清晰、情感分布未展示、大分辨率承载内容不足的问题。
+- **后端调整**：`/campus/dashboard/statistics` 保持原响应兼容，新增驾驶舱统计字段：`monitorOverview.todayAllResultCount/todayRiskResultCount/negativeRate`、`monitorTrendAllByDay/monitorTrendRiskByDay`、`monitorSourceDistribution`、`monitorSentimentDistribution`、`monitorTopicRiskDistribution`；不新增表、不新增状态流转、不改权限种子。
+- **前端调整**：`/situation` 和 `/?mode=screen` 使用独立驾驶舱布局：顶部标题与刷新状态、6 个核心指标、近 7 日全部/风险/预警趋势主图、媒体来源横向排行、情感环图与数字块、来源风险、主题风险、负面告警、事件热度和底部监测任务运行条；普通首页 `/` 保持工作台布局。
+- **文档同步**：已更新 `docs/API_CONTRACT.md`、`docs/TEST_CHECKLIST.md`、`docs/campus-web-runbook.md` 记录新增统计字段和大屏验收口径。
+- **本地验证**：`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd -DskipTests package`、`campus-web npm run build` 均通过；`CampusMonitorResultMapper.xml` XML 解析通过；`git diff --check` 通过（仅 CRLF 提示）；Playwright mock 数据验证普通 `/` 工作台保留“大屏模式”入口，点击进入 `/?mode=screen` 后 1920x1080 一屏无滚动；`/situation` 在 2560x1440 下标题、来源排行、情感分布、6 个图表画布和任务底栏均正常展示。
+- **生产部署**：待合并 `main` 后执行。
+
 ## 2026-05-18 隐藏监测相似合并筛选
 
 - **工作分支 / worktree**：`claude/hide-monitor-dedup-controls`，`D:\PRJ\yuqing-report-ai-recovery`。

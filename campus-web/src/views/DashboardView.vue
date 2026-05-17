@@ -1,24 +1,44 @@
 <template>
   <section ref="pageRef" class="dashboard-unified" :class="{ 'is-screen-mode': isScreenMode }">
-    <header class="dashboard-hero">
+    <header v-if="!isScreenMode" class="dashboard-hero">
       <div>
-        <span>{{ isScreenMode ? '校园舆情态势大屏' : '校园舆情监测' }}</span>
-        <h2>{{ isScreenMode ? '任务运行、关键词命中、负面告警闭环' : '舆情态势工作台' }}</h2>
+        <span>校园舆情监测</span>
+        <h2>舆情态势工作台</h2>
       </div>
       <div class="dashboard-actions">
-        <strong v-if="isScreenMode" class="screen-time">{{ nowText }}</strong>
         <el-button type="primary" plain :loading="loading" @click="loadAll">
           <RefreshCw :size="16" />
           刷新
         </el-button>
-        <el-button v-if="!isScreenMode" type="primary" @click="enterScreenMode">
+        <el-button type="primary" @click="enterScreenMode">
           <Maximize2 :size="16" />
           大屏模式
         </el-button>
-        <el-button v-else type="primary" plain @click="exitScreenMode">
+      </div>
+    </header>
+
+    <header v-else class="cockpit-header">
+      <div class="cockpit-header-side">
+        <span>{{ productName }} · 校园版</span>
+        <strong>{{ productSubtitle }}</strong>
+      </div>
+      <div class="cockpit-title-block">
+        <span>监测 · 研判 · 预警 · 处置态势</span>
+        <h1>校园舆情智能驾驶舱</h1>
+      </div>
+      <div class="cockpit-header-side cockpit-header-right">
+        <strong class="screen-time">{{ nowText }}</strong>
+        <span>{{ lastRefreshText }}</span>
+        <div class="cockpit-actions">
+          <el-button type="primary" plain :loading="loading" @click="loadAll">
+            <RefreshCw :size="16" />
+            刷新
+          </el-button>
+          <el-button type="primary" plain @click="exitScreenMode">
           <Minimize2 :size="16" />
           退出大屏
         </el-button>
+        </div>
       </div>
     </header>
 
@@ -31,7 +51,7 @@
       :closable="false"
     />
 
-    <section class="screen-metrics dashboard-metrics">
+    <section v-if="!isScreenMode" class="screen-metrics dashboard-metrics">
       <article v-for="card in metricCards" :key="card.label" class="screen-card" :class="`tone-${card.tone}`">
         <div class="screen-card-icon">
           <component :is="card.icon" :size="24" />
@@ -39,6 +59,19 @@
         <div>
           <span>{{ card.label }}</span>
           <strong>{{ card.value }}</strong>
+        </div>
+      </article>
+    </section>
+
+    <section v-else class="cockpit-metrics">
+      <article v-for="card in screenMetricCards" :key="card.label" class="cockpit-metric-card" :class="`tone-${card.tone}`">
+        <div class="screen-card-icon">
+          <component :is="card.icon" :size="22" />
+        </div>
+        <div>
+          <span>{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
+          <small>{{ card.note }}</small>
         </div>
       </article>
     </section>
@@ -279,117 +312,113 @@
     </template>
 
     <template v-else>
-      <section class="dashboard-screen-stage">
-        <div class="dashboard-screen-main">
-          <article class="screen-panel screen-cell-wide">
+      <section class="dashboard-screen-stage cockpit-stage">
+        <div class="cockpit-grid">
+          <article class="screen-panel cockpit-panel cockpit-source-panel">
             <div class="panel-header">
-              <h2>监测近 7 日趋势</h2>
-              <el-tag effect="plain" type="warning">命中 / 告警</el-tag>
+              <h2>媒体来源排行</h2>
+              <el-tag effect="plain" type="info">Top {{ Math.min(monitorSourceRows.length, 8) }}</el-tag>
             </div>
-            <div ref="monitorTrendChartRef" class="screen-chart screen-chart-lg" />
+            <div ref="sourceChartRef" class="screen-chart cockpit-chart" />
           </article>
 
-          <article class="screen-panel monitor-command-panel">
+          <article class="screen-panel cockpit-panel cockpit-trend-panel">
             <div class="panel-header">
-              <h2>监测运行</h2>
-              <el-tag effect="plain" type="success">任务 / 频率</el-tag>
+              <h2>近 7 日监测态势</h2>
+              <el-tag effect="plain" type="warning">全部 / 风险 / 预警</el-tag>
             </div>
-            <div class="monitor-run-facts">
-              <div v-for="item in monitorRunFacts" :key="item.label">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-                <small>{{ item.note }}</small>
-              </div>
-            </div>
+            <div ref="monitorTrendChartRef" class="screen-chart cockpit-main-chart" />
           </article>
 
-          <article class="screen-panel score-panel">
+          <article class="screen-panel cockpit-panel cockpit-sentiment-panel">
             <div class="panel-header">
-              <h2>风险压力指数</h2>
-              <el-tag :type="riskScoreTag" effect="plain">{{ riskScoreLevel }}</el-tag>
+              <h2>情感分布</h2>
+              <el-tag effect="plain" :type="monitorNegativeRate >= 30 ? 'danger' : monitorNegativeRate >= 15 ? 'warning' : 'success'">
+                负面 {{ monitorNegativeRate }}%
+              </el-tag>
             </div>
-            <div ref="riskGaugeRef" class="screen-chart screen-gauge" />
-            <div class="score-facts">
-              <div>
-                <span>高风险</span>
-                <strong>{{ statistics.overview.highRiskEventCount ?? 0 }}</strong>
-              </div>
-              <div>
-                <span>待处理</span>
-                <strong>{{ statistics.overview.pendingAlertCount ?? 0 }}</strong>
-              </div>
-              <div>
-                <span>超期</span>
-                <strong>{{ statistics.overview.overdueDisposalCount ?? 0 }}</strong>
+            <div class="sentiment-cockpit-body">
+              <div ref="sentimentChartRef" class="screen-chart sentiment-donut" />
+              <div class="sentiment-fact-grid">
+                <div v-for="item in screenSentimentFacts" :key="item.key" :class="['sentiment-fact', `tone-${item.key}`]">
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                  <small>{{ item.percent }}%</small>
+                </div>
               </div>
             </div>
           </article>
 
-          <article class="screen-panel">
+          <article class="screen-panel cockpit-panel cockpit-source-risk-panel">
+            <div class="panel-header">
+              <h2>来源风险构成</h2>
+            </div>
+            <div ref="sourceRiskChartRef" class="screen-chart cockpit-chart" />
+          </article>
+
+          <article class="screen-panel cockpit-panel cockpit-feed-panel">
             <div class="panel-header">
               <div class="panel-title-line">
-                <h2>最新监测命中</h2>
+                <h2>最新风险命中</h2>
                 <el-tag v-if="monitorResultTotal" effect="plain" type="info">共 {{ monitorResultTotal }}</el-tag>
               </div>
             </div>
-            <div class="screen-list compact-list">
-              <div v-for="item in monitorResults.slice(0, 6)" :key="item.monitorResultId || item.title" class="screen-list-row screen-feed-row">
+            <div class="screen-list cockpit-feed-list">
+              <div v-for="item in monitorResults.slice(0, 10)" :key="item.monitorResultId || item.title" class="screen-list-row screen-feed-row">
                 <div class="screen-list-main">
                   <span>{{ item.title || '未命名内容' }}</span>
-                  <small>{{ item.platform || item.sourcePlatform || '监测命中' }} · {{ item.matchedKeywords || item.matchedNegativeWords || '-' }}</small>
+                  <small>
+                    {{ sourceLabel(item.platform || item.sourcePlatform) }} ·
+                    {{ item.aiSummary ? `AI摘要：${item.aiSummary}` : (item.matchedNegativeWords || item.matchedKeywords || '监测命中') }}
+                  </small>
                 </div>
-                <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
+                <div class="cockpit-row-side">
+                  <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
+                  <small>{{ formatTime(item.collectTime || item.publishTime) }}</small>
+                </div>
               </div>
-              <el-empty v-if="!monitorResults.length && !loading" description="暂无监测命中" />
+              <el-empty v-if="!monitorResults.length && !loading" description="暂无风险命中" />
             </div>
           </article>
 
-          <article class="screen-panel">
+          <article class="screen-panel cockpit-panel cockpit-alert-panel">
             <div class="panel-header">
               <h2>待处理负面告警</h2>
             </div>
-            <div class="screen-list compact-list">
-              <div v-for="item in monitorAlerts.slice(0, 6)" :key="item.alertId" class="screen-list-row">
+            <div class="screen-list cockpit-side-list">
+              <div v-for="item in monitorAlerts.slice(0, 8)" :key="item.alertId" class="screen-list-row">
                 <div class="screen-list-main">
                   <span>{{ item.alertTitle }}</span>
-                  <small>{{ item.matchedKeywords || alertSourceLabel(item.alertSource) }}</small>
+                  <small>{{ item.matchedKeywords || alertSourceLabel(item.alertSource) }} · {{ formatTime(item.createTime) }}</small>
                 </div>
                 <el-tag :type="riskTagType(item.riskLevel)" effect="plain">{{ riskLabel(item.riskLevel) }}</el-tag>
               </div>
               <el-empty v-if="!monitorAlerts.length && !loading" description="暂无待处理告警" />
             </div>
           </article>
-        </div>
 
-        <div class="dashboard-screen-bottom">
-          <article class="screen-panel">
+          <article class="screen-panel cockpit-panel cockpit-topic-panel">
             <div class="panel-header">
-              <h2>事件处置状态</h2>
+              <h2>主题风险分布</h2>
             </div>
-            <div ref="eventStatusChartRef" class="screen-chart screen-chart-sm" />
+            <div ref="topicRiskChartRef" class="screen-chart cockpit-chart" />
           </article>
 
-          <article class="screen-panel">
-            <div class="panel-header">
-              <h2>来源风险构成</h2>
-            </div>
-            <div ref="sourceRiskChartRef" class="screen-chart screen-chart-sm" />
-          </article>
-
-          <article class="screen-panel">
+          <article class="screen-panel cockpit-panel cockpit-event-panel">
             <div class="panel-header">
               <h2>处置中事件热度</h2>
             </div>
-            <div ref="eventHeatChartRef" class="screen-chart screen-chart-sm" />
+            <div ref="eventHeatChartRef" class="screen-chart cockpit-chart" />
           </article>
         </div>
 
-        <article class="screen-panel task-strip-panel">
+        <article class="screen-panel cockpit-task-strip task-strip-panel">
           <div class="panel-header">
             <h2>运行中的监测任务</h2>
+            <el-tag effect="plain" type="success">自动巡航</el-tag>
           </div>
           <div class="task-strip-list">
-            <div v-for="item in monitorTasks.slice(0, 4)" :key="item.monitorTaskId || item.taskName" class="task-strip-row">
+            <div v-for="item in monitorTasks.slice(0, 8)" :key="item.monitorTaskId || item.taskName" class="task-strip-row">
               <div class="task-strip-main">
                 <span>{{ item.taskName }}</span>
                 <small>{{ item.monitorSubject || '未设置主体' }}</small>
@@ -435,6 +464,7 @@ import {
   riskColors,
   riskLabel,
   riskOrder,
+  normalizeSentimentKey,
   riskTagType,
   sentimentLabel,
   sourceLabel,
@@ -450,6 +480,7 @@ import {
   useCampusSituationDashboard
 } from '../composables/useCampusSituationDashboard';
 import type { DistributionItem, SourceRiskDistributionItem } from '../types/api';
+import { PRODUCT_NAME, PRODUCT_SUBTITLE } from '../config/brand';
 
 type ChartKey =
   | 'trend'
@@ -460,6 +491,7 @@ type ChartKey =
   | 'alertRisk'
   | 'sourceRisk'
   | 'eventHeat'
+  | 'topicRisk'
   | 'sentiment'
   | 'source';
 
@@ -468,6 +500,7 @@ interface MetricCard {
   value: string | number;
   icon: Component;
   tone: string;
+  note?: string;
 }
 
 const router = useRouter();
@@ -481,6 +514,7 @@ const eventStatusChartRef = ref<HTMLElement | null>(null);
 const alertRiskChartRef = ref<HTMLElement | null>(null);
 const sourceRiskChartRef = ref<HTMLElement | null>(null);
 const eventHeatChartRef = ref<HTMLElement | null>(null);
+const topicRiskChartRef = ref<HTMLElement | null>(null);
 const sentimentChartRef = ref<HTMLElement | null>(null);
 const sourceChartRef = ref<HTMLElement | null>(null);
 
@@ -493,6 +527,7 @@ const chartRefs: Record<ChartKey, Ref<HTMLElement | null>> = {
   alertRisk: alertRiskChartRef,
   sourceRisk: sourceRiskChartRef,
   eventHeat: eventHeatChartRef,
+  topicRisk: topicRiskChartRef,
   sentiment: sentimentChartRef,
   source: sourceChartRef
 };
@@ -514,6 +549,11 @@ const {
   monitorResultTotal,
   monitorRunFacts,
   monitorTasks,
+  monitorSourceRows,
+  monitorSentimentRows,
+  monitorTopicRiskRows,
+  monitorTrendAllRows,
+  monitorTrendRiskRows,
   monitorTrendRows,
   now,
   nowText,
@@ -535,8 +575,12 @@ const {
 let refreshTimer: number | undefined;
 let clockTimer: number | undefined;
 let syncingFullscreen = false;
+const productName = PRODUCT_NAME;
+const productSubtitle = PRODUCT_SUBTITLE;
+const lastRefreshAt = ref(new Date());
 
 const isScreenMode = computed(() => route.path === '/situation' || route.query.mode === 'screen');
+const lastRefreshText = computed(() => `最近刷新 ${lastRefreshAt.value.toLocaleTimeString('zh-CN', { hour12: false })}`);
 const riskGaugeData = computed(() => ({
   score: riskScore.value,
   level: riskScoreLevel.value,
@@ -555,6 +599,69 @@ const metricCards = computed<MetricCard[]>(() => [
     tone: riskScore.value >= 75 ? 'red' : riskScore.value >= 45 ? 'orange' : 'green'
   }
 ]);
+const screenMetricCards = computed<MetricCard[]>(() => [
+  {
+    label: '今日全部命中',
+    value: monitorOverview.value.todayAllResultCount ?? monitorOverview.value.todayResultCount ?? 0,
+    icon: Target,
+    tone: 'blue',
+    note: '监测任务真实命中'
+  },
+  {
+    label: '风险命中',
+    value: monitorOverview.value.todayRiskResultCount ?? monitorOverview.value.todayResultCount ?? 0,
+    icon: Siren,
+    tone: 'red',
+    note: '负面词/风险等级/已预警'
+  },
+  {
+    label: '负面占比',
+    value: `${monitorNegativeRate.value}%`,
+    icon: Gauge,
+    tone: monitorNegativeRate.value >= 30 ? 'red' : monitorNegativeRate.value >= 15 ? 'orange' : 'green',
+    note: '按监测情感统计'
+  },
+  {
+    label: '待处理预警',
+    value: monitorOverview.value.pendingAlertCount ?? statistics.value.overview.pendingAlertCount ?? 0,
+    icon: BellRing,
+    tone: 'orange',
+    note: '预警中心待处理'
+  },
+  {
+    label: '处置中事件',
+    value: statistics.value.overview.activeEventCount ?? 0,
+    icon: RadioTower,
+    tone: 'cyan',
+    note: '未归档事件'
+  },
+  {
+    label: '运行任务',
+    value: monitorOverview.value.activeTaskCount ?? 0,
+    icon: ScanSearch,
+    tone: 'green',
+    note: `${monitorOverview.value.scheduledTaskCount ?? 0} 个自动调度`
+  }
+]);
+const screenSentimentFacts = computed(() => {
+  const order = [
+    { key: 'positive', label: '正面' },
+    { key: 'neutral', label: '中性' },
+    { key: 'negative', label: '负面' },
+    { key: 'none', label: '未识别' }
+  ];
+  const total = Math.max(1, sumValues(monitorSentimentRows.value));
+  return order.map((item) => {
+    const value = monitorSentimentRows.value
+      .filter((row) => normalizeSentimentKey(row.name) === item.key)
+      .reduce((sum, row) => sum + toNumber(row.value), 0);
+    return {
+      ...item,
+      value,
+      percent: Math.round((value / total) * 100)
+    };
+  });
+});
 
 onMounted(async () => {
   await loadAll();
@@ -583,7 +690,7 @@ onBeforeUnmount(() => {
 watch(isScreenMode, async (mode) => {
   document.body.classList.toggle('campus-dashboard-screen-mode', mode);
   await nextTick();
-  renderCharts();
+  await loadAll();
   setTimeout(resizeCharts, 80);
 });
 
@@ -595,6 +702,11 @@ watch(
     eventRows,
     alertRiskRows,
     detectionRiskRows,
+    monitorSourceRows,
+    monitorSentimentRows,
+    monitorTopicRiskRows,
+    monitorTrendAllRows,
+    monitorTrendRiskRows,
     sourceRiskRows,
     activeEvents,
     sentimentRows,
@@ -608,7 +720,8 @@ watch(
 );
 
 async function loadAll() {
-  await loadDashboard();
+  await loadDashboard(isScreenMode.value ? 'screen' : 'normal');
+  lastRefreshAt.value = new Date();
   await nextTick();
   renderCharts();
 }
@@ -661,11 +774,37 @@ function renderCharts() {
   renderAlertRiskChart();
   renderSourceRiskChart();
   renderEventHeatChart();
+  renderTopicRiskChart();
   renderSentimentChart();
   renderSourceChart();
 }
 
 function renderMonitorTrendChart() {
+  if (isScreenMode.value) {
+    const names = Array.from(new Set([
+      ...monitorTrendAllRows.value.map((item) => item.name),
+      ...monitorTrendRiskRows.value.map((item) => item.name)
+    ]));
+    const allValues = names.map((name) => getMonitorTrendValue(monitorTrendAllRows.value, name, 'monitorResultCount'));
+    const riskValues = names.map((name) => getMonitorTrendValue(monitorTrendRiskRows.value, name, 'monitorResultCount'));
+    const alertValues = names.map((name) => getMonitorTrendValue(monitorTrendAllRows.value, name, 'monitorAlertCount'));
+    const hasData = [...allValues, ...riskValues, ...alertValues].some((value) => value > 0);
+    setChartOption('monitorTrend', {
+      color: ['#38bdf8', '#fb7185', '#f59e0b'],
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0, right: 8, textStyle: { color: chartTextColor.value, fontSize: 12 } },
+      grid: { left: 18, right: 24, top: 44, bottom: 18, containLabel: true },
+      xAxis: buildCategoryAxis(names),
+      yAxis: buildValueAxis(),
+      series: [
+        buildLineSeries('全部命中', allValues),
+        buildLineSeries('风险命中', riskValues),
+        buildLineSeries('监测预警', alertValues)
+      ],
+      graphic: emptyGraphic(hasData)
+    });
+    return;
+  }
   const rows = monitorTrendRows.value;
   const hasData = rows.some((item) => toNumber(item.monitorResultCount) + toNumber(item.monitorAlertCount) > 0);
   setChartOption('monitorTrend', {
@@ -855,21 +994,46 @@ function renderEventHeatChart() {
   });
 }
 
+function renderTopicRiskChart() {
+  const rows = monitorTopicRiskRows.value.slice(0, 6);
+  setChartOption('topicRisk', {
+    color: [riskColors.normal, riskColors.concern, riskColors.major, riskColors.urgent],
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { top: 0, right: 8, textStyle: { color: chartTextColor.value, fontSize: 11 } },
+    grid: { left: 10, right: 18, top: 36, bottom: 8, containLabel: true },
+    xAxis: buildValueAxis(),
+    yAxis: {
+      type: 'category',
+      data: rows.map((item) => topicLabel(item.name)),
+      axisLine: { lineStyle: { color: chartAxisColor.value } },
+      axisLabel: { color: chartTitleColor.value, fontSize: 11 }
+    },
+    series: [
+      buildStackBarSeries('一般', rows, 'normalCount'),
+      buildStackBarSeries('关注', rows, 'concernCount'),
+      buildStackBarSeries('较大', rows, 'majorCount'),
+      buildStackBarSeries('紧急', rows, 'urgentCount')
+    ],
+    graphic: emptyGraphic(rows.some((item) => toNumber(item.totalCount) > 0))
+  });
+}
+
 function renderSentimentChart() {
-  const rows = sentimentRows.value.map((item) => ({ name: sentimentLabel(item.name), value: toNumber(item.value) }));
+  const source = isScreenMode.value ? monitorSentimentRows.value : sentimentRows.value;
+  const rows = normalizeSentimentRows(source);
   setChartOption('sentiment', {
     color: ['#10B981', '#F59E0B', '#EF4444', '#6B7280'],
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { bottom: 0, textStyle: { color: chartTextColor.value, fontSize: 11 } },
+    legend: { bottom: 0, textStyle: { color: chartTextColor.value, fontSize: isScreenMode.value ? 12 : 11 } },
     series: [
       {
         type: 'pie',
-        radius: ['48%', '76%'],
-        center: ['50%', '46%'],
+        radius: isScreenMode.value ? ['52%', '76%'] : ['48%', '76%'],
+        center: isScreenMode.value ? ['50%', '45%'] : ['50%', '46%'],
         minAngle: 8,
         avoidLabelOverlap: true,
         itemStyle: { borderRadius: 4, borderColor: isScreenMode.value ? '#0b1726' : '#fff', borderWidth: 2 },
-        label: { formatter: '{b}\n{d}%', fontSize: 11, color: chartTextColor.value },
+        label: { formatter: '{b}\n{d}%', fontSize: isScreenMode.value ? 12 : 11, color: chartTextColor.value },
         data: rows
       }
     ],
@@ -878,6 +1042,56 @@ function renderSentimentChart() {
 }
 
 function renderSourceChart() {
+  if (isScreenMode.value) {
+    const rows = monitorSourceRows.value.slice(0, 8).reverse();
+    const total = Math.max(1, sumValues(monitorSourceRows.value));
+    setChartOption('source', {
+      color: ['#38bdf8'],
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (params: unknown) => {
+          const item = Array.isArray(params) ? params[0] as { name?: string; value?: number } : undefined;
+          const value = toNumber(item?.value);
+          return `${item?.name || '来源'}<br/>数量：${value}<br/>占比：${Math.round((value / total) * 100)}%`;
+        }
+      },
+      grid: { left: 76, right: 46, top: 12, bottom: 10, containLabel: false },
+      xAxis: buildValueAxis(),
+      yAxis: {
+        type: 'category',
+        data: rows.map((item) => truncateText(sourceLabel(item.name), 8)),
+        axisLine: { lineStyle: { color: chartAxisColor.value } },
+        axisLabel: { color: chartTitleColor.value, fontSize: 12 }
+      },
+      series: [
+        {
+          type: 'bar',
+          barWidth: 14,
+          itemStyle: {
+            borderRadius: [0, 7, 7, 0],
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: '#0ea5e9' },
+              { offset: 1, color: '#67e8f9' }
+            ])
+          },
+          label: {
+            show: true,
+            position: 'right',
+            color: chartTitleColor.value,
+            fontSize: 11,
+            formatter: (params: { value?: unknown }) => {
+              const value = toNumber(params.value);
+              return `${value} / ${Math.round((value / total) * 100)}%`;
+            }
+          },
+          data: rows.map((item) => toNumber(item.value))
+        }
+      ],
+      graphic: emptyGraphic(rows.length > 0)
+    });
+    return;
+  }
   const rows = sourceRows.value;
   setChartOption('source', {
     color: ['#2563eb'],
@@ -985,12 +1199,51 @@ function buildStackBarSeries(label: string, rows: SourceRiskDistributionItem[], 
   };
 }
 
+function getMonitorTrendValue(
+  rows: Array<{ name: string; monitorResultCount?: number; monitorAlertCount?: number }>,
+  name: string,
+  key: 'monitorResultCount' | 'monitorAlertCount'
+) {
+  const row = rows.find((item) => item.name === name);
+  return toNumber(row?.[key]);
+}
+
 function normalizeRiskRows(rows: DistributionItem[]) {
   return rows.map((item) => ({
     name: riskLabel(item.name),
     rawName: item.name || 'unknown',
     value: toNumber(item.value)
   }));
+}
+
+function normalizeSentimentRows(rows: DistributionItem[]) {
+  const order = ['positive', 'neutral', 'negative', 'none'];
+  return order
+    .map((key) => ({
+      name: sentimentLabel(key),
+      value: rows
+        .filter((item) => normalizeSentimentKey(item.name) === key)
+        .reduce((sum, item) => sum + toNumber(item.value), 0)
+    }))
+    .filter((item) => item.value > 0);
+}
+
+function topicLabel(value?: string) {
+  const text = (value || '').trim();
+  const labels: Record<string, string> = {
+    safety: '安全稳定',
+    stability: '安全稳定',
+    teacher_ethics: '师德师风',
+    teaching: '教学管理',
+    food: '食品宿舍',
+    logistics: '后勤服务',
+    student_rights: '学生权益',
+    employment: '招生就业',
+    public_opinion: '综合舆情',
+    other: '未分类',
+    unknown: '未分类'
+  };
+  return labels[text] || labels[text.toLowerCase()] || text || '未分类';
 }
 
 function emptyGraphic(hasData: boolean) {
@@ -1158,6 +1411,150 @@ function emptyGraphic(hasData: boolean) {
   white-space: nowrap;
 }
 
+.cockpit-header {
+  min-height: 84px;
+  padding: 12px 18px;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(420px, 1.4fr) minmax(280px, 1fr);
+  align-items: center;
+  gap: 16px;
+  background:
+    linear-gradient(90deg, rgba(14, 165, 233, 0.18), rgba(7, 17, 31, 0.82) 28%, rgba(20, 184, 166, 0.14)),
+    #0b1726;
+  border: 1px solid #1f3a56;
+  border-radius: 10px;
+  box-shadow: 0 0 32px rgba(14, 165, 233, 0.12) inset;
+}
+
+.cockpit-header-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cockpit-header-side span {
+  color: #7dd3fc;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cockpit-header-side strong {
+  color: #e5eefb;
+  font-size: 14px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cockpit-title-block {
+  min-width: 0;
+  text-align: center;
+}
+
+.cockpit-title-block span {
+  color: #93c5fd;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.cockpit-title-block h1 {
+  margin: 2px 0 0;
+  color: #f8fafc;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 800;
+  text-shadow: 0 0 18px rgba(56, 189, 248, 0.28);
+}
+
+.cockpit-header-right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.cockpit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cockpit-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cockpit-metric-card {
+  min-width: 0;
+  min-height: 78px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(16, 36, 58, 0.96), rgba(11, 23, 38, 0.96));
+  border: 1px solid #1f3a56;
+  border-radius: 10px;
+}
+
+.cockpit-metric-card > div:last-child {
+  min-width: 0;
+}
+
+.cockpit-metric-card span,
+.cockpit-metric-card small {
+  display: block;
+  overflow: hidden;
+  color: #9db2c7;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cockpit-metric-card span {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.cockpit-metric-card small {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.cockpit-metric-card strong {
+  display: block;
+  margin-top: 2px;
+  color: #f8fafc;
+  font-size: 24px;
+  line-height: 28px;
+}
+
+.cockpit-metric-card.tone-blue .screen-card-icon {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.14);
+}
+
+.cockpit-metric-card.tone-cyan .screen-card-icon {
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.13);
+}
+
+.cockpit-metric-card.tone-green .screen-card-icon {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.13);
+}
+
+.cockpit-metric-card.tone-orange .screen-card-icon,
+.cockpit-metric-card.tone-amber .screen-card-icon {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.cockpit-metric-card.tone-red .screen-card-icon {
+  color: #fb7185;
+  background: rgba(251, 113, 133, 0.14);
+}
+
 .dashboard-unified.is-screen-mode {
   width: 100%;
   height: 100vh;
@@ -1224,6 +1621,58 @@ function emptyGraphic(hasData: boolean) {
   gap: 12px;
 }
 
+.cockpit-stage {
+  grid-template-rows: minmax(0, 1fr) 112px;
+}
+
+.cockpit-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(270px, 0.92fr) minmax(560px, 1.65fr) minmax(300px, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.92fr);
+  grid-template-areas:
+    "source trend sentiment"
+    "sourceRisk trend alerts"
+    "topic feed events";
+  gap: 12px;
+}
+
+.cockpit-source-panel {
+  grid-area: source;
+}
+
+.cockpit-trend-panel {
+  grid-area: trend;
+}
+
+.cockpit-sentiment-panel {
+  grid-area: sentiment;
+}
+
+.cockpit-source-risk-panel {
+  grid-area: sourceRisk;
+}
+
+.cockpit-feed-panel {
+  grid-area: feed;
+}
+
+.cockpit-alert-panel {
+  grid-area: alerts;
+}
+
+.cockpit-topic-panel {
+  grid-area: topic;
+}
+
+.cockpit-event-panel {
+  grid-area: events;
+}
+
+.cockpit-task-strip {
+  min-height: 0;
+}
+
 .dashboard-screen-main {
   min-height: 0;
   display: grid;
@@ -1247,9 +1696,12 @@ function emptyGraphic(hasData: boolean) {
   min-height: 0;
   padding: 12px;
   overflow: hidden;
-  background: #0b1726;
+  background:
+    linear-gradient(180deg, rgba(12, 28, 46, 0.98), rgba(8, 20, 35, 0.98)),
+    #0b1726;
   border-color: #1f3a56;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(8, 145, 178, 0.08) inset;
 }
 
 .is-screen-mode .panel-header {
@@ -1266,6 +1718,79 @@ function emptyGraphic(hasData: boolean) {
 .is-screen-mode .screen-chart {
   height: calc(100% - 34px);
   min-height: 150px;
+}
+
+.is-screen-mode .cockpit-main-chart {
+  height: calc(100% - 34px);
+  min-height: 300px;
+}
+
+.is-screen-mode .cockpit-chart {
+  height: calc(100% - 34px);
+  min-height: 118px;
+}
+
+.sentiment-cockpit-body {
+  height: calc(100% - 34px);
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 116px;
+  gap: 8px;
+}
+
+.is-screen-mode .sentiment-donut {
+  height: 100%;
+  min-height: 128px;
+}
+
+.sentiment-fact-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.sentiment-fact {
+  min-width: 0;
+  padding: 6px 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 8px;
+  background: rgba(16, 36, 58, 0.92);
+  border: 1px solid #1f3a56;
+  border-radius: 8px;
+}
+
+.sentiment-fact span,
+.sentiment-fact small {
+  color: #9db2c7;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.sentiment-fact strong {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: #f8fafc;
+  font-size: 18px;
+  line-height: 22px;
+}
+
+.sentiment-fact.tone-positive {
+  border-color: rgba(16, 185, 129, 0.38);
+}
+
+.sentiment-fact.tone-neutral {
+  border-color: rgba(245, 158, 11, 0.38);
+}
+
+.sentiment-fact.tone-negative {
+  border-color: rgba(239, 68, 68, 0.48);
+}
+
+.sentiment-fact.tone-none {
+  border-color: rgba(148, 163, 184, 0.32);
 }
 
 .is-screen-mode .screen-chart-lg {
@@ -1289,6 +1814,27 @@ function emptyGraphic(hasData: boolean) {
 .compact-list {
   max-height: calc(100% - 38px);
   overflow: hidden;
+}
+
+.cockpit-feed-list,
+.cockpit-side-list {
+  max-height: calc(100% - 38px);
+  overflow: hidden;
+}
+
+.cockpit-row-side {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cockpit-row-side small {
+  color: #7992ad;
+  font-size: 10px;
+  line-height: 12px;
+  white-space: nowrap;
 }
 
 .is-screen-mode .screen-list-row,
@@ -1408,12 +1954,65 @@ function emptyGraphic(hasData: boolean) {
   display: none;
 }
 
+@media (min-width: 2200px) {
+  .dashboard-unified.is-screen-mode {
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .cockpit-header {
+    min-height: 96px;
+  }
+
+  .cockpit-title-block h1 {
+    font-size: 38px;
+    line-height: 46px;
+  }
+
+  .cockpit-stage {
+    grid-template-rows: minmax(0, 1fr) 128px;
+  }
+
+  .cockpit-grid {
+    grid-template-columns: minmax(340px, 0.95fr) minmax(760px, 1.7fr) minmax(380px, 1fr);
+  }
+
+  .cockpit-metric-card strong {
+    font-size: 30px;
+    line-height: 34px;
+  }
+
+  .is-screen-mode .panel-header h2 {
+    font-size: 16px;
+  }
+
+  .is-screen-mode .task-strip-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1180px) {
   .dashboard-top-grid,
   .dashboard-monitor-grid,
   .dashboard-screen-main,
-  .dashboard-screen-bottom {
+  .dashboard-screen-bottom,
+  .cockpit-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cockpit-header {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .cockpit-title-block,
+  .cockpit-header-right {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .cockpit-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-unified.is-screen-mode {
@@ -1423,6 +2022,15 @@ function emptyGraphic(hasData: boolean) {
 
   .dashboard-screen-stage {
     grid-template-rows: auto;
+  }
+
+  .cockpit-grid {
+    grid-template-areas: none;
+  }
+
+  .cockpit-grid > .screen-panel {
+    grid-area: auto;
+    min-height: 260px;
   }
 
   .task-strip-row,

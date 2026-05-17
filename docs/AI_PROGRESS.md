@@ -22,6 +22,14 @@
 - **线上验收**：`yuqing` 为 active，后端监听 `8084`；Flyway `1.44 CampusReportPromptAndTemplates`、`1.45 CampusMonitorAiAnalysis`、`1.46 CampusDashboardScreenUnification` 均 success=1；菜单 `workbench` 已改为“舆情态势”且 `situation` 已隐藏；`/`、`/situation`、`/monitor`、`/reports`、`/report-templates`、`/auto-reports` 返回 200，未登录 dashboard、监测 AI、报告列表接口返回 302；线上静态资源包含“大屏模式”“AI分析”“报告模板”。
 - **遗留观察**：启动后接入调度出现重复 `external_id` 的业务告警，属于接入去重数据问题，不影响本次发布启动和页面/API 冒烟，后续可单独排查。
 
+## 2026-05-17 接入软删除记录去重修复
+
+- **用户目标**：修复生产接入调度里 `Duplicate entry ... uk_campus_ingest_record_external` 告警，避免软删除历史记录导致同一来源外部 ID 重复插入失败。
+- **根因确认**：`campus_ingest_record` 数据库唯一索引 `uk_campus_ingest_record_external(source_id, external_id)` 和 `uk_campus_ingest_record_hash(source_id, content_hash)` 不区分 `deleted`；应用层查重却过滤 `deleted=0`，导致历史清理软删除记录仍占用唯一键，但新接入无法识别为重复。
+- **后端修复**：`CampusIngestRecordMapper` 中唯一键对应的 `selectDuplicate`、`selectDuplicateByExternalId`、`selectDuplicateByContentHash` 不再过滤 `deleted=0`；软删除历史记录会被判为 duplicate，不恢复显示、不重新插入，保持历史清理结果。
+- **测试补充**：新增 `CampusIngestRecordMapperContractTest`，锁定外部 ID / 内容哈希查重必须覆盖软删除记录，同时保留平台标题近似去重只查可见记录。
+- **本地验证**：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd "-Dtest=CampusIngestRecordMapperContractTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过；`.\mvnw.cmd clean -DskipTests package` 通过。
+
 ## 2026-05-17 监测任务与监测信息 AI 分析
 
 - **用户目标**：监测任务页增加 AI 体检；监测信息页支持手动单条/批量 AI 分析，给每条命中重新判断情感、生成一句话摘要、判断是否建议命中并归类校园主题。

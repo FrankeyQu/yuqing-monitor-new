@@ -73,7 +73,6 @@
         SELECT <include refid="BaseColumns"/>
         FROM campus_ingest_record
         WHERE source_id = #{sourceId}
-          AND deleted = 0
           AND (
             <if test="externalId != null and externalId != ''">
                 external_id = #{externalId}
@@ -96,7 +95,6 @@
         FROM campus_ingest_record
         WHERE source_id = #{sourceId}
           AND external_id = #{externalId}
-          AND deleted = 0
         LIMIT 1
     </select>
 
@@ -105,7 +103,6 @@
         FROM campus_ingest_record
         WHERE source_id = #{sourceId}
           AND content_hash = #{contentHash}
-          AND deleted = 0
         LIMIT 1
     </select>
 

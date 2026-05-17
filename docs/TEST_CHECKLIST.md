@@ -71,6 +71,11 @@ npm run build
 
 ## 最近验证记录
 
+### 2026-05-17 接入软删除去重修复验证
+- 根因验证：生产任务 `2054608482077904896` 的重复 `external_id` 对应记录存在且 `deleted=1`，数据库唯一索引仍占用 `(source_id, external_id)`。
+- 代码修复：`CampusIngestRecordMapper` 中外部 ID、内容哈希唯一键查重不再过滤软删除记录，避免插入阶段才触发唯一键异常；平台标题近似去重仍只查可见记录。
+- 自动测试：`.\mvnw.cmd "-Dtest=CampusIngestRecordMapperContractTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过，1 test；`.\mvnw.cmd clean -DskipTests package` 通过。
+
 ### 2026-05-17 多分支合并生产发布验证
 - 后端打包：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd clean -DskipTests package` 通过，编译 497 个 Java source files，仅保留旧代码内部 API、deprecated、unchecked 警告。
 - 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。

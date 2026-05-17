@@ -29,6 +29,8 @@
 - **后端修复**：`CampusIngestRecordMapper` 中唯一键对应的 `selectDuplicate`、`selectDuplicateByExternalId`、`selectDuplicateByContentHash` 不再过滤 `deleted=0`；软删除历史记录会被判为 duplicate，不恢复显示、不重新插入，保持历史清理结果。
 - **测试补充**：新增 `CampusIngestRecordMapperContractTest`，锁定外部 ID / 内容哈希查重必须覆盖软删除记录，同时保留平台标题近似去重只查可见记录。
 - **本地验证**：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd "-Dtest=CampusIngestRecordMapperContractTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过；`.\mvnw.cmd clean -DskipTests package` 通过。
+- **生产发布**：提交 `7dda184 fix: deduplicate soft deleted ingest records` 已推送 GitHub `origin/claude/fix-ingest-deleted-dedup` 和服务器远端；发布前备份 jar 到 `/home/ubuntu/yuqing-backups/deploy-20260517-234447-ingest-deleted-dedup`，已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 并重启 `yuqing`。
+- **线上验证**：`yuqing` active，后端监听 `8084`；`/`、`/monitor` 返回 200，未登录 `/campus/ingest/runs` 返回 302；手动将问题任务 `2054608482077904896` 的 `next_run_time` 拨到当前时间触发一次调度，最新 run `2056039386365169664` 为 `success`，`fetched_count=20/duplicate_count=20/fail_count=0/error_type=NULL`，任务 `consecutive_fail_count` 清零且 `last_error_type=NULL`。
 
 ## 2026-05-17 监测任务与监测信息 AI 分析
 

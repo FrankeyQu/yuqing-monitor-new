@@ -19,6 +19,13 @@
         <result column="matched_keywords" property="matchedKeywords"/>
         <result column="matched_negative_words" property="matchedNegativeWords"/>
         <result column="sentiment" property="sentiment"/>
+        <result column="ai_summary" property="aiSummary"/>
+        <result column="ai_hit_recommendation" property="aiHitRecommendation"/>
+        <result column="ai_hit_reason" property="aiHitReason"/>
+        <result column="ai_confidence" property="aiConfidence"/>
+        <result column="ai_analysis_time" property="aiAnalysisTime"/>
+        <result column="ai_provider_code" property="aiProviderCode"/>
+        <result column="ai_model_code" property="aiModelCode"/>
         <result column="risk_level" property="riskLevel"/>
         <result column="risk_score" property="riskScore"/>
         <result column="school_relevance_score" property="schoolRelevanceScore"/>
@@ -73,6 +80,13 @@
         <result column="matched_negative_words" property="matchedNegativeWords"/>
         <result column="keywords" property="keywords"/>
         <result column="sentiment" property="sentiment"/>
+        <result column="ai_summary" property="aiSummary"/>
+        <result column="ai_hit_recommendation" property="aiHitRecommendation"/>
+        <result column="ai_hit_reason" property="aiHitReason"/>
+        <result column="ai_confidence" property="aiConfidence"/>
+        <result column="ai_analysis_time" property="aiAnalysisTime"/>
+        <result column="ai_provider_code" property="aiProviderCode"/>
+        <result column="ai_model_code" property="aiModelCode"/>
         <result column="risk_level" property="riskLevel"/>
         <result column="risk_score" property="riskScore"/>
         <result column="school_relevance_score" property="schoolRelevanceScore"/>
@@ -97,7 +111,9 @@
         id, monitor_result_id, monitor_task_id, ingest_record_id, title,
         content, original_url, platform, author_name, publish_time, language,
         matched_subjects, matched_keywords, matched_negative_words,
-        sentiment, risk_level, risk_score, school_relevance_score, school_relevance_reason,
+        sentiment, ai_summary, ai_hit_recommendation, ai_hit_reason, ai_confidence,
+        ai_analysis_time, ai_provider_code, ai_model_code,
+        risk_level, risk_score, school_relevance_score, school_relevance_reason,
         matched_school_terms, excluded_reason, topic_category, topic_sub_category, topic_reason,
         result_status, alert_id, clue_id,
         like_count, comment_count, share_count, collect_count, view_count,
@@ -181,7 +197,7 @@
             mr.ingest_record_id,
             COALESCE(NULLIF(mr.title, ''), ir.title) AS title,
             <include refid="MonitorResultInfoContentExpr"/> AS content,
-            LEFT(<include refid="MonitorResultInfoContentExpr"/>, 220) AS summary,
+            COALESCE(NULLIF(mr.ai_summary, ''), LEFT(<include refid="MonitorResultInfoContentExpr"/>, 220)) AS summary,
             CASE
                 WHEN <include refid="MonitorResultInfoContentExpr"/> IS NULL
                   OR <include refid="MonitorResultInfoContentExpr"/> = ''
@@ -227,6 +243,13 @@
             mr.matched_negative_words,
             CONCAT_WS(',', mr.matched_keywords, mr.matched_negative_words) AS keywords,
             mr.sentiment,
+            mr.ai_summary,
+            mr.ai_hit_recommendation,
+            mr.ai_hit_reason,
+            mr.ai_confidence,
+            mr.ai_analysis_time,
+            mr.ai_provider_code,
+            mr.ai_model_code,
             mr.risk_level,
             mr.risk_score,
             mr.school_relevance_score,
@@ -237,7 +260,7 @@
             mr.topic_sub_category,
             mr.topic_reason,
             mr.result_status,
-            CASE WHEN mr.clue_id IS NULL THEN NULL ELSE 'converted' END AS clue_status,
+            CASE WHEN mr.clue_id IS NULL THEN NULL ELSE COALESCE(c.clue_status, 'converted') END AS clue_status,
             mr.alert_id,
             CASE
                 WHEN IFNULL(mr.matched_negative_words, '') != ''
@@ -272,6 +295,9 @@
         LEFT JOIN campus_ingest_record ir
           ON ir.record_id = mr.ingest_record_id
          AND ir.deleted = 0
+        LEFT JOIN campus_clue c
+          ON c.clue_id = mr.clue_id
+         AND c.deleted = 0
         WHERE mr.deleted = 0
     </sql>
 
@@ -373,7 +399,7 @@
         <if test="sentiment != null and sentiment != ''">
             <choose>
                 <when test="sentiment == 'none'">
-                    AND (sentiment IS NULL OR sentiment = '')
+                    AND (sentiment IS NULL OR sentiment = '' OR LOWER(sentiment) = 'none' OR sentiment = '未知')
                 </when>
                 <otherwise>
                     AND (
@@ -480,6 +506,38 @@
           AND deleted = 0
     </update>
 
+    <update id="updateSentiment">
+        UPDATE campus_monitor_result
+        SET sentiment = #{sentiment},
+            update_user_id = #{updateUserId}
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateAiAnalysis">
+        UPDATE campus_monitor_result
+        SET sentiment = #{sentiment},
+            ai_summary = #{aiSummary},
+            ai_hit_recommendation = #{aiHitRecommendation},
+            ai_hit_reason = #{aiHitReason},
+            ai_confidence = #{aiConfidence},
+            ai_analysis_time = #{aiAnalysisTime},
+            ai_provider_code = #{aiProviderCode},
+            ai_model_code = #{aiModelCode},
+            school_relevance_score = #{schoolRelevanceScore},
+            school_relevance_reason = #{schoolRelevanceReason},
+            matched_school_terms = #{matchedSchoolTerms},
+            <if test="excludedReason != null">
+            excluded_reason = #{excludedReason},
+            </if>
+            topic_category = #{topicCategory},
+            topic_sub_category = #{topicSubCategory},
+            topic_reason = #{topicReason},
+            update_user_id = #{updateUserId}
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+    </update>
+
     <update id="updateSnapshot">
         UPDATE campus_monitor_result
         SET title = CASE
@@ -550,6 +608,28 @@
           AND ingest_record_id = #{ingestRecordId}
           AND deleted = 0
         LIMIT 1
+    </select>
+
+    <select id="listByResultIds" resultMap="CampusMonitorResultResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_result
+        WHERE deleted = 0
+          AND monitor_result_id IN
+          <foreach collection="monitorResultIds" item="monitorResultId" open="(" separator="," close=")">
+            #{monitorResultId}
+          </foreach>
+        ORDER BY id DESC
+    </select>
+
+    <select id="listRecentForAi" resultMap="CampusMonitorResultResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_result
+        WHERE deleted = 0
+        <if test="monitorTaskId != null">
+            AND monitor_task_id = #{monitorTaskId}
+        </if>
+        ORDER BY create_time DESC, id DESC
+        LIMIT #{limit}
     </select>
 
     <select id="list" resultMap="CampusMonitorResultResultMap">

@@ -43,6 +43,13 @@ public class CampusMonitorInformation {
     private String matchedNegativeWords;
     private String keywords;
     private String sentiment;
+    private String aiSummary;
+    private String aiHitRecommendation;
+    private String aiHitReason;
+    private Integer aiConfidence;
+    private Date aiAnalysisTime;
+    private String aiProviderCode;
+    private String aiModelCode;
     private String riskLevel;
     private Integer riskScore;
     private Integer schoolRelevanceScore;

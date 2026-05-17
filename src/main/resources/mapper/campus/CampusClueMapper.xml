@@ -124,6 +124,33 @@
           AND deleted = 0
     </update>
 
+    <update id="updateSentiment">
+        UPDATE campus_clue
+        SET sentiment = #{sentiment},
+            update_user_id = #{updateUserId}
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+          AND (clue_status IS NULL OR clue_status != 'archived')
+    </update>
+
+    <update id="updateAnalysisFromMonitor">
+        UPDATE campus_clue
+        SET sentiment = #{sentiment},
+            school_relevance_score = #{schoolRelevanceScore},
+            school_relevance_reason = #{schoolRelevanceReason},
+            matched_school_terms = #{matchedSchoolTerms},
+            <if test="excludedReason != null">
+            excluded_reason = #{excludedReason},
+            </if>
+            topic_category = #{topicCategory},
+            topic_sub_category = #{topicSubCategory},
+            topic_reason = #{topicReason},
+            update_user_id = #{updateUserId}
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+          AND (clue_status IS NULL OR clue_status != 'archived')
+    </update>
+
     <update id="markConverted">
         UPDATE campus_clue
         SET clue_status = 'converted',
@@ -195,7 +222,7 @@
         <if test="sentiment != null and sentiment != ''">
             <choose>
                 <when test="sentiment == 'none'">
-                    AND (sentiment IS NULL OR sentiment = '')
+                    AND (sentiment IS NULL OR sentiment = '' OR LOWER(sentiment) = 'none' OR sentiment = '未知')
                 </when>
                 <otherwise>
                     AND (

@@ -2,6 +2,9 @@ package com.stonedt.intelligence.controller.campus;
 
 import com.alibaba.fastjson.JSON;
 import com.github.pagehelper.PageInfo;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeRequest;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeResponse;
+import com.stonedt.intelligence.dto.campus.CampusMonitorTaskAiDiagnosis;
 import com.stonedt.intelligence.entity.User;
 import com.stonedt.intelligence.entity.campus.CampusAlert;
 import com.stonedt.intelligence.entity.campus.CampusClue;
@@ -273,6 +276,60 @@ public class CampusMonitorController {
         } catch (Exception e) {
             campusAuditLogService.record(request, "监测任务", "忽略监测结果", "campus_monitor_result",
                     String.valueOf(monitorResultId), params, false, e.getMessage());
+            return ResultVO.error(400, e.getMessage());
+        }
+    }
+
+    @PostMapping("/task/ai-diagnose")
+    public ResultVO<CampusMonitorTaskAiDiagnosis> diagnoseTask(@RequestParam Long monitorTaskId,
+                                                               HttpServletRequest request) {
+        String params = "monitorTaskId=" + monitorTaskId;
+        try {
+            User user = userUtil.getuser(request);
+            CampusMonitorTaskAiDiagnosis diagnosis = campusMonitorService.diagnoseTask(monitorTaskId, user.getUser_id());
+            campusAuditLogService.record(request, "监测任务", "AI体检监测任务", "campus_monitor_task",
+                    String.valueOf(monitorTaskId), params, true, null);
+            return ResultVO.success(diagnosis);
+        } catch (Exception e) {
+            campusAuditLogService.record(request, "监测任务", "AI体检监测任务", "campus_monitor_task",
+                    String.valueOf(monitorTaskId), params, false, e.getMessage());
+            return ResultVO.error(400, e.getMessage());
+        }
+    }
+
+    @PostMapping("/result/sentiment")
+    public ResultVO<CampusMonitorResult> updateResultSentiment(@RequestParam Long monitorResultId,
+                                                               @RequestParam String sentiment,
+                                                               HttpServletRequest request) {
+        String params = "monitorResultId=" + monitorResultId + "&sentiment=" + sentiment;
+        try {
+            User user = userUtil.getuser(request);
+            CampusMonitorResult saved = campusMonitorService.updateResultSentiment(monitorResultId,
+                    sentiment, user.getUser_id(), user.getUsername());
+            campusAuditLogService.record(request, "监测任务", "修改监测结果情感", "campus_monitor_result",
+                    String.valueOf(monitorResultId), params, true, null);
+            return ResultVO.success(saved);
+        } catch (Exception e) {
+            campusAuditLogService.record(request, "监测任务", "修改监测结果情感", "campus_monitor_result",
+                    String.valueOf(monitorResultId), params, false, e.getMessage());
+            return ResultVO.error(400, e.getMessage());
+        }
+    }
+
+    @PostMapping("/result/ai-analyze")
+    public ResultVO<CampusMonitorAiAnalyzeResponse> analyzeResults(@RequestBody CampusMonitorAiAnalyzeRequest analyzeRequest,
+                                                                   HttpServletRequest request) {
+        String params = JSON.toJSONString(analyzeRequest);
+        try {
+            User user = userUtil.getuser(request);
+            CampusMonitorAiAnalyzeResponse result = campusMonitorService.analyzeResults(analyzeRequest,
+                    user.getUser_id(), user.getUsername());
+            campusAuditLogService.record(request, "监测任务", "AI分析监测命中", "campus_monitor_result",
+                    null, params, true, null);
+            return ResultVO.success(result);
+        } catch (Exception e) {
+            campusAuditLogService.record(request, "监测任务", "AI分析监测命中", "campus_monitor_result",
+                    null, params, false, e.getMessage());
             return ResultVO.error(400, e.getMessage());
         }
     }

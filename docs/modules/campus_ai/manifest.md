@@ -9,7 +9,7 @@ AI 能力管理模块负责统一管理校园舆情中可配置的智能能力�
 - `campus_report`：报告生成和自动报告读取 AI 功能绑定、模型和提示词模板。
 - `campus_clue`：少数民族语言研判、关键词/词云提取读取 AI 功能绑定。
 - `campus_ingest`：TikHub、百度千帆、Jina Reader 等外部智能接入读取供应商接入点配置。
-- `campus_monitor`：监测信息词云和后续 AI 摘要增强读取 AI 功能绑定。
+- `campus_monitor`：监测信息词云、监测任务 AI 体检、监测命中 AI 分析和后续 AI 摘要增强读取 AI 功能绑定。
 
 ## 数据模型
 
@@ -45,6 +45,7 @@ AI 能力管理模块负责统一管理校园舆情中可配置的智能能力�
 
 - AI 供应商保存不得写入明文密钥；只能写 `credentialRef`。
 - DeepSeek 报告、少数民族研判和词云提取应优先读取 `campus_ai_feature_binding`，不可用时按功能失败策略降级。
+- 监测任务 AI 体检使用功能码 `monitor_task_diagnosis`；监测命中 AI 分析使用功能码 `monitor_result_analysis`；AI 输出只能作为辅助建议，业务数据写入由 `campus_monitor` Service 控制。
 - TikHub、百度千帆、Jina Reader 读取 `campus_ai_provider` 的 Base URL 和密钥引用，保留原 Spring 配置作为兼容兜底。
 - AI 调用日志必须脱敏，不能保存完整密钥、Authorization header 或超长原文。
 - DeepSeek 词云提取失败时必须回退到现有命中词/关键词统计，不影响首页访问。

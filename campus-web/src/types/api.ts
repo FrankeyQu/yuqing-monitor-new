@@ -175,6 +175,13 @@ export interface CampusMonitorResult {
   matchedKeywords?: string;
   matchedNegativeWords?: string;
   sentiment?: string;
+  aiSummary?: string;
+  aiHitRecommendation?: 'hit' | 'not_hit' | 'uncertain' | string;
+  aiHitReason?: string;
+  aiConfidence?: number;
+  aiAnalysisTime?: string;
+  aiProviderCode?: string;
+  aiModelCode?: string;
   riskLevel?: string;
   riskScore?: number;
   schoolRelevanceScore?: number;
@@ -225,6 +232,13 @@ export interface CampusMonitorInformation {
   matchedNegativeWords?: string;
   keywords?: string;
   sentiment?: string;
+  aiSummary?: string;
+  aiHitRecommendation?: 'hit' | 'not_hit' | 'uncertain' | string;
+  aiHitReason?: string;
+  aiConfidence?: number;
+  aiAnalysisTime?: string | Date;
+  aiProviderCode?: string;
+  aiModelCode?: string;
   riskLevel?: string;
   riskScore?: number;
   schoolRelevanceScore?: number;
@@ -263,6 +277,51 @@ export interface CampusMonitorWatchTarget {
   remark?: string;
   createTime?: string;
   updateTime?: string;
+}
+
+export interface CampusMonitorAiAnalyzeRequest {
+  monitorResultIds?: ApiId[];
+  monitorTaskId?: ApiId;
+  limit?: number;
+}
+
+export interface CampusMonitorAiAnalyzeItem {
+  monitorResultId?: ApiId;
+  success?: boolean;
+  skipped?: boolean;
+  message?: string;
+  sentiment?: string;
+  aiSummary?: string;
+  aiHitRecommendation?: string;
+  aiHitReason?: string;
+  aiConfidence?: number;
+  schoolRelevanceScore?: number;
+  topicCategory?: string;
+  topicSubCategory?: string;
+}
+
+export interface CampusMonitorAiAnalyzeResponse {
+  successCount?: number;
+  failCount?: number;
+  skipCount?: number;
+  items?: CampusMonitorAiAnalyzeItem[];
+}
+
+export interface CampusMonitorTaskAiDiagnosis {
+  monitorTaskId?: ApiId;
+  taskName?: string;
+  summary?: string;
+  keywordSuggestions?: string[];
+  negativeWordSuggestions?: string[];
+  excludeWordSuggestions?: string[];
+  platformSuggestions?: string[];
+  frequencySuggestion?: string;
+  alertModeSuggestion?: string;
+  risks?: string[];
+  suggestions?: string[];
+  rawText?: string;
+  providerCode?: string;
+  modelCode?: string;
 }
 
 export interface CampusMonitorRunLog {

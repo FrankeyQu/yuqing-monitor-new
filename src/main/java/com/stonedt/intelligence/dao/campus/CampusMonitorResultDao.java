@@ -25,6 +25,28 @@ public interface CampusMonitorResultDao {
                    @Param("clueId") Long clueId,
                    @Param("updateUserId") Long updateUserId);
 
+    int updateSentiment(@Param("monitorResultId") Long monitorResultId,
+                        @Param("sentiment") String sentiment,
+                        @Param("updateUserId") Long updateUserId);
+
+    int updateAiAnalysis(@Param("monitorResultId") Long monitorResultId,
+                         @Param("sentiment") String sentiment,
+                         @Param("aiSummary") String aiSummary,
+                         @Param("aiHitRecommendation") String aiHitRecommendation,
+                         @Param("aiHitReason") String aiHitReason,
+                         @Param("aiConfidence") Integer aiConfidence,
+                         @Param("aiAnalysisTime") Date aiAnalysisTime,
+                         @Param("aiProviderCode") String aiProviderCode,
+                         @Param("aiModelCode") String aiModelCode,
+                         @Param("schoolRelevanceScore") Integer schoolRelevanceScore,
+                         @Param("schoolRelevanceReason") String schoolRelevanceReason,
+                         @Param("matchedSchoolTerms") String matchedSchoolTerms,
+                         @Param("excludedReason") String excludedReason,
+                         @Param("topicCategory") String topicCategory,
+                         @Param("topicSubCategory") String topicSubCategory,
+                         @Param("topicReason") String topicReason,
+                         @Param("updateUserId") Long updateUserId);
+
     int updateSnapshot(@Param("monitorResultId") Long monitorResultId,
                        @Param("record") CampusIngestRecord record,
                        @Param("updateUserId") Long updateUserId);
@@ -33,6 +55,11 @@ public interface CampusMonitorResultDao {
 
     CampusMonitorResult selectByTaskAndRecord(@Param("monitorTaskId") Long monitorTaskId,
                                               @Param("ingestRecordId") Long ingestRecordId);
+
+    List<CampusMonitorResult> listByResultIds(@Param("monitorResultIds") List<Long> monitorResultIds);
+
+    List<CampusMonitorResult> listRecentForAi(@Param("monitorTaskId") Long monitorTaskId,
+                                              @Param("limit") Integer limit);
 
     List<CampusMonitorResult> list(@Param("monitorTaskId") Long monitorTaskId,
                                    @Param("keyword") String keyword,

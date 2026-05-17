@@ -194,6 +194,16 @@
           </span>
         </div>
         <div class="toolbar-right">
+          <el-button
+            size="small"
+            type="primary"
+            plain
+            :loading="aiAnalyzingPage"
+            :disabled="!canMonitorOperate || currentPageMonitorResultIds.length === 0"
+            @click="analyzeCurrentPage"
+          >
+            <Sparkles :size="14" /> AI分析
+          </el-button>
           <el-button size="small" @click="refreshInfoList">
             <RefreshCw :size="14" /> 刷新
           </el-button>
@@ -260,10 +270,33 @@
           </template>
           <template #default="{ row, $index }">
             <span v-if="col.key === 'index'">{{ rowIndex($index) }}</span>
-            <EmotionBadge v-else-if="col.key === 'sentiment'" :emotion="row.sentiment || ''" />
+            <div v-else-if="col.key === 'sentiment'" class="sentiment-edit-cell" :title="sentimentEditDisabledReason(row)">
+              <el-dropdown
+                v-if="canEditMonitorSentiment(row)"
+                trigger="click"
+                @command="onMonitorSentimentCommand(row, $event)"
+              >
+                <button class="sentiment-badge-trigger" type="button" :disabled="isSentimentUpdating(row)">
+                  <EmotionBadge :emotion="row.sentiment || ''" />
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="option in sentimentEditOptions"
+                      :key="option.value"
+                      :command="option.value"
+                      :disabled="normalizeSentimentValue(row.sentiment) === option.value"
+                    >
+                      {{ option.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <EmotionBadge v-else :emotion="row.sentiment || ''" />
+            </div>
             <div v-else-if="col.key === 'title'" class="title-summary-cell">
               <div class="clue-title" v-html="highlightTitle(row.title || '')" />
-              <div class="clue-summary">{{ row.summary || row.content || '' }}</div>
+              <div class="clue-summary">{{ row.aiSummary || row.summary || row.content || '' }}</div>
             </div>
             <span v-else-if="col.key === 'publishTime'">{{ publishTimeLabel(row) }}</span>
             <PlatformBadge v-else-if="col.key === 'platform'" :platform="row.platform || row.sourcePlatform || ''" />
@@ -286,6 +319,15 @@
               {{ topicLabel(row.topicCategory) }}
             </el-tag>
             <span v-else-if="col.key === 'schoolRelevance'">{{ relevanceLabel(row) }}</span>
+            <el-tooltip
+              v-else-if="col.key === 'aiHitRecommendation'"
+              placement="top"
+              :content="aiHitReasonLabel(row)"
+            >
+              <el-tag :type="aiHitTagType(row.aiHitRecommendation)" effect="plain" size="small" class="ai-suggestion-tag">
+                {{ aiHitLabel(row.aiHitRecommendation) }}
+              </el-tag>
+            </el-tooltip>
             <el-tag v-else-if="col.key === 'language'" :type="languageTagType(row.language)" effect="plain" size="small">
               {{ languageLabel(row.language) }}
             </el-tag>
@@ -308,6 +350,7 @@
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
+                    <el-dropdown-item v-if="row.monitorResultId" :disabled="!canMonitorOperate || isAiAnalyzing(row)" @click="analyzeSingleMonitorInformation(row)">AI分析</el-dropdown-item>
                     <el-dropdown-item v-if="row.monitorResultId && !row.clueId" :disabled="!canMonitorOperate" @click="convertResult(toMonitorResult(row))">转线索</el-dropdown-item>
                     <el-dropdown-item v-if="row.clueId" @click="joinClue(toClue(row))">加入事件</el-dropdown-item>
                     <el-dropdown-item v-if="row.clueId && row.clueStatus !== 'archived'" @click="openEditClue(toClue(row))">编辑线索</el-dropdown-item>
@@ -697,9 +740,25 @@
         <el-radio value="convert" :disabled="selectedMonitorResultCount === 0">批量转线索 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
         <el-radio value="alert" :disabled="selectedMonitorResultCount === 0">批量转预警 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
         <el-radio value="ignore" :disabled="selectedMonitorResultCount === 0">批量忽略 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
+        <el-radio value="sentiment" :disabled="selectedMonitorResultCount === 0">批量修改情感 — 处理 {{ selectedMonitorResultCount }} 条监测信息</el-radio>
+        <el-radio value="aiAnalyze" :disabled="selectedMonitorResultCount === 0">批量AI分析 — 处理 {{ selectedMonitorResultCount }} 条监测信息</el-radio>
         <el-radio value="judge" :disabled="selectedClueCount === 0">批量研判 — 处理 {{ selectedClueCount }} 条已转线索</el-radio>
         <el-radio value="joinEvent" :disabled="selectedClueCount === 0">批量加入事件 — 处理 {{ selectedClueCount }} 条已转线索</el-radio>
       </el-radio-group>
+      <div v-if="batchAction === 'sentiment'" style="margin-top: 16px;">
+        <el-form label-position="top">
+          <el-form-item label="目标情感" required>
+            <el-select v-model="batchSentiment" placeholder="请选择情感" style="width: 100%">
+              <el-option
+                v-for="option in sentimentEditOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
       <div v-if="batchAction === 'judge'" style="margin-top: 16px;">
         <el-form label-position="top">
           <el-form-item label="风险级别" required>
@@ -817,7 +876,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { ArrowDown, Plus, RefreshCw, Settings2 } from 'lucide-vue-next';
+import { ArrowDown, Plus, RefreshCw, Settings2, Sparkles } from 'lucide-vue-next';
 import * as echarts from 'echarts';
 import type { ECharts, EChartsOption } from 'echarts';
 import EmotionBadge from '../components/EmotionBadge.vue';
@@ -831,6 +890,8 @@ import {
   listMonitorResults,
   alertMonitorResult,
   ignoreMonitorResult,
+  updateMonitorResultSentiment,
+  analyzeMonitorResults,
   convertMonitorResultToClue,
   createMonitorWatchTargetFromResult,
   listMonitorWatchTargets,
@@ -973,6 +1034,7 @@ const infoColumns = ref<InfoColumn[]>([
   { key: 'riskLevel', label: '风险等级', width: 90, align: 'center', visible: true },
   { key: 'topicCategory', label: '主题', width: 112, align: 'center', visible: true },
   { key: 'schoolRelevance', label: '相关性', width: 96, align: 'center', visible: true },
+  { key: 'aiHitRecommendation', label: 'AI建议', width: 96, align: 'center', visible: true },
   { key: 'language', label: '语言', width: 76, align: 'center', visible: true },
   { key: 'status', label: '状态', width: 100, align: 'center', visible: true },
   { key: 'infoTime', label: '采集时间', width: 155, align: 'center', visible: true },
@@ -1226,6 +1288,7 @@ const batchJudgeForm = reactive({
   riskLevel: 'concern',
   judgeOpinion: ''
 });
+const batchSentiment = ref('negative');
 const batchJoinEventId = ref<ApiId | null>(null);
 const eventOptions = ref<CampusEvent[]>([]);
 const eventSearchLoading = ref(false);
@@ -1234,6 +1297,7 @@ function resetBatchForm() {
   batchAction.value = selectedMonitorResultCount.value > 0 ? 'convert' : 'judge';
   batchJudgeForm.riskLevel = 'concern';
   batchJudgeForm.judgeOpinion = '';
+  batchSentiment.value = 'negative';
   batchJoinEventId.value = null;
   eventOptions.value = [];
 }
@@ -1299,6 +1363,58 @@ async function executeBatchOp() {
     showBatchResult('批量操作完成', successCount, failCount, skipCount);
     batchOpVisible.value = false;
     loadData();
+  } else if (batchAction.value === 'sentiment') {
+    if (!canMonitorOperate.value) {
+      ElMessage.warning('当前账号没有监测操作权限');
+      return;
+    }
+    const targets = selectedInfos.value.filter((row) => row.monitorResultId);
+    if (targets.length === 0) {
+      ElMessage.warning('当前操作没有可处理的监测信息');
+      return;
+    }
+    if (!batchSentiment.value) {
+      ElMessage.warning('请选择目标情感');
+      return;
+    }
+    const normalized = normalizeSentimentValue(batchSentiment.value);
+    batchExecuting.value = true;
+    let successCount = 0;
+    let failCount = 0;
+    let skipCount = selectedInfos.value.length - targets.length;
+    for (const row of targets) {
+      if (isArchivedLinkedClue(row) || normalizeSentimentValue(row.sentiment) === normalized) {
+        skipCount++;
+        continue;
+      }
+      try {
+        await updateMonitorResultSentiment(row.monitorResultId!, normalized);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    batchExecuting.value = false;
+    showBatchResult(`批量修改情感为${sentimentOptionLabel(normalized)}完成`, successCount, failCount, skipCount);
+    batchOpVisible.value = false;
+    await Promise.all([loadMonitorResults(), refreshInfoList()]);
+  } else if (batchAction.value === 'aiAnalyze') {
+    if (!canMonitorOperate.value) {
+      ElMessage.warning('当前账号没有监测操作权限');
+      return;
+    }
+    const targets = selectedInfos.value.filter((row) => row.monitorResultId);
+    if (targets.length === 0) {
+      ElMessage.warning('当前操作没有可处理的监测信息');
+      return;
+    }
+    batchExecuting.value = true;
+    try {
+      await analyzeMonitorRows(targets);
+      batchOpVisible.value = false;
+    } finally {
+      batchExecuting.value = false;
+    }
   } else if (batchAction.value === 'judge') {
     if (selectedClues.value.length === 0) {
       ElMessage.warning('当前操作没有可处理的已转线索');
@@ -1416,6 +1532,104 @@ const sentimentTags = [
   { label: '正面', value: 'positive', color: '#67c23a' },
   { label: '未知', value: 'none', color: '#909399' }
 ];
+const sentimentEditOptions = [
+  { label: '负面', value: 'negative' },
+  { label: '中性', value: 'neutral' },
+  { label: '正面', value: 'positive' },
+  { label: '未识别', value: 'none' }
+];
+const sentimentUpdatingIds = ref<Set<string>>(new Set());
+const aiAnalyzingIds = ref<Set<string>>(new Set());
+const aiAnalyzingPage = ref(false);
+const currentPageMonitorResultIds = computed(() => monitorInfos.value
+  .map((row) => row.monitorResultId)
+  .filter((id): id is ApiId => Boolean(id))
+  .slice(0, 20));
+
+function normalizeSentimentValue(value?: string | null): string {
+  const raw = String(value || '').trim();
+  if (!raw) return 'none';
+  const lower = raw.toLowerCase();
+  if (lower.includes('negative') || lower.includes('neg') || raw.includes('负')) return 'negative';
+  if (lower.includes('positive') || lower.includes('pos') || raw.includes('正')) return 'positive';
+  if (lower.includes('neutral') || raw.includes('中')) return 'neutral';
+  return 'none';
+}
+
+function sentimentOptionLabel(value?: string | null): string {
+  const normalized = normalizeSentimentValue(value);
+  return sentimentEditOptions.find((item) => item.value === normalized)?.label || '未识别';
+}
+
+function isArchivedLinkedClue(row: CampusMonitorInformation): boolean {
+  return Boolean(row.clueId && row.clueStatus === 'archived');
+}
+
+function sentimentEditDisabledReason(row: CampusMonitorInformation): string {
+  if (!row.monitorResultId) return '当前记录缺少监测结果ID';
+  if (!canMonitorOperate.value) return '当前账号没有监测操作权限';
+  if (isArchivedLinkedClue(row)) return '已归档线索不能修改情感';
+  return '';
+}
+
+function canEditMonitorSentiment(row: CampusMonitorInformation): boolean {
+  return !sentimentEditDisabledReason(row) && !isSentimentUpdating(row);
+}
+
+function isSentimentUpdating(row: CampusMonitorInformation): boolean {
+  return row.monitorResultId ? sentimentUpdatingIds.value.has(String(row.monitorResultId)) : false;
+}
+
+function setSentimentUpdating(monitorResultId: ApiId, updating: boolean) {
+  const next = new Set(sentimentUpdatingIds.value);
+  const key = String(monitorResultId);
+  if (updating) {
+    next.add(key);
+  } else {
+    next.delete(key);
+  }
+  sentimentUpdatingIds.value = next;
+}
+
+function onMonitorSentimentCommand(row: CampusMonitorInformation, value: string | number | boolean) {
+  updateMonitorSentiment(row, String(value));
+}
+
+function isAiAnalyzing(row: CampusMonitorInformation): boolean {
+  return row.monitorResultId ? aiAnalyzingIds.value.has(String(row.monitorResultId)) : false;
+}
+
+function setAiAnalyzing(ids: ApiId[], analyzing: boolean) {
+  const next = new Set(aiAnalyzingIds.value);
+  for (const id of ids) {
+    const key = String(id);
+    if (analyzing) {
+      next.add(key);
+    } else {
+      next.delete(key);
+    }
+  }
+  aiAnalyzingIds.value = next;
+}
+
+function aiHitLabel(value?: string): string {
+  if (value === 'hit') return '建议保留';
+  if (value === 'not_hit') return '建议忽略';
+  if (value === 'uncertain') return '需人工看';
+  return '未分析';
+}
+
+function aiHitTagType(value?: string) {
+  if (value === 'hit') return 'success';
+  if (value === 'not_hit') return 'warning';
+  if (value === 'uncertain') return 'info';
+  return 'info';
+}
+
+function aiHitReasonLabel(row: CampusMonitorInformation): string {
+  const confidence = row.aiConfidence === undefined || row.aiConfidence === null ? '' : `｜置信度 ${row.aiConfidence}`;
+  return `${aiHitLabel(row.aiHitRecommendation)}${confidence}${row.aiHitReason ? `｜${row.aiHitReason}` : ''}`;
+}
 
 // ========== 线索 CRUD 函数 ==========
 function resetClueForm() {
@@ -2130,6 +2344,10 @@ function toMonitorResult(row: CampusMonitorInformation): CampusMonitorResult {
     matchedKeywords: row.matchedKeywords || row.keywords,
     matchedNegativeWords: row.matchedNegativeWords,
     sentiment: row.sentiment,
+    aiSummary: row.aiSummary,
+    aiHitRecommendation: row.aiHitRecommendation,
+    aiHitReason: row.aiHitReason,
+    aiConfidence: row.aiConfidence,
     riskLevel: row.riskLevel,
     riskScore: row.riskScore,
     resultStatus: row.resultStatus,
@@ -2160,7 +2378,7 @@ function toClue(row: CampusMonitorInformation): CampusClue {
     sentiment: row.sentiment || '',
     riskLevel: row.riskLevel || 'normal',
     clueStatus: row.clueStatus,
-    summary: row.summary || row.content || ''
+    summary: row.aiSummary || row.summary || row.content || ''
   };
 }
 
@@ -2173,7 +2391,7 @@ function informationDetailContent(row?: CampusMonitorInformation | null): string
   if (!row) {
     return '';
   }
-  return row.content || row.summary || row.title || '暂无正文';
+  return row.content || row.aiSummary || row.summary || row.title || '暂无正文';
 }
 
 function safeOriginalUrl(url?: string | null): string {
@@ -2488,6 +2706,77 @@ async function convertResult(row: CampusMonitorResult) {
     await Promise.all([loadMonitorResults(), refreshInfoList()]);
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '转线索失败');
+  }
+}
+
+async function updateMonitorSentiment(row: CampusMonitorInformation, sentiment: string) {
+  if (!row.monitorResultId) {
+    ElMessage.warning('当前记录缺少监测结果ID，请刷新后重试');
+    return;
+  }
+  if (!canMonitorOperate.value) {
+    ElMessage.warning('当前账号没有监测操作权限');
+    return;
+  }
+  if (isArchivedLinkedClue(row)) {
+    ElMessage.warning('已归档线索不能修改情感');
+    return;
+  }
+  const normalized = normalizeSentimentValue(sentiment);
+  if (normalizeSentimentValue(row.sentiment) === normalized) {
+    return;
+  }
+  setSentimentUpdating(row.monitorResultId, true);
+  try {
+    const saved = await updateMonitorResultSentiment(row.monitorResultId, normalized);
+    row.sentiment = saved.sentiment || normalized;
+    ElMessage.success(`情感已修改为${sentimentOptionLabel(normalized)}`);
+    await Promise.all([loadMonitorResults(), refreshInfoList()]);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '情感修改失败');
+  } finally {
+    setSentimentUpdating(row.monitorResultId, false);
+  }
+}
+
+async function analyzeMonitorRows(rows: CampusMonitorInformation[]) {
+  if (!canMonitorOperate.value) {
+    ElMessage.warning('当前账号没有监测操作权限');
+    return;
+  }
+  const ids = rows
+    .map((row) => row.monitorResultId)
+    .filter((id): id is ApiId => Boolean(id))
+    .slice(0, 20);
+  if (ids.length === 0) {
+    ElMessage.warning('当前没有可分析的监测信息');
+    return;
+  }
+  setAiAnalyzing(ids, true);
+  try {
+    const result = await analyzeMonitorResults({ monitorResultIds: ids, limit: ids.length });
+    const success = result.successCount || 0;
+    const failed = result.failCount || 0;
+    const skipped = result.skipCount || 0;
+    showBatchResult('AI分析完成', success, failed, skipped);
+    await Promise.all([loadMonitorResults(), refreshInfoList()]);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'AI分析失败');
+  } finally {
+    setAiAnalyzing(ids, false);
+  }
+}
+
+async function analyzeSingleMonitorInformation(row: CampusMonitorInformation) {
+  await analyzeMonitorRows([row]);
+}
+
+async function analyzeCurrentPage() {
+  aiAnalyzingPage.value = true;
+  try {
+    await analyzeMonitorRows(monitorInfos.value);
+  } finally {
+    aiAnalyzingPage.value = false;
   }
 }
 
@@ -3008,6 +3297,26 @@ function resizeTopicCharts() {
   background: #f0f2f5;
 }
 
+.sentiment-edit-cell {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.sentiment-badge-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sentiment-badge-trigger:disabled {
+  cursor: wait;
+}
+
 .toolbar-right {
   display: flex;
   align-items: center;
@@ -3116,6 +3425,10 @@ function resizeTopicCharts() {
 }
 
 .status-tag-with-reason {
+  cursor: help;
+}
+
+.ai-suggestion-tag {
   cursor: help;
 }
 

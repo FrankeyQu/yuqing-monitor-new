@@ -4,9 +4,9 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告功能恢复与 AI 生成优化已发布，后续进入线上联调和细节体验回归
+- **当前阶段**：报告功能恢复已发布，监测任务与监测信息 AI 分析正在合并主线并准备发布
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
-- **当前 Git 状态**：`main` 已合并 `claude/report-ai-recovery`，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
+- **当前 Git 状态**：`main` 正在合并 `claude/monitor-ai-analysis`，独立 worktree `D:\PRJ\yuqing-report-ai-recovery`
 - **最近已发布功能提交**：commit `e06d5ae feat: restore AI report generation`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
@@ -24,6 +24,30 @@
 - **生产发布**：发布前备份线上 jar、前端 web 和数据库到 `/home/ubuntu/yuqing-backups/deploy-20260517-214310-report-ai-template`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，重启 `yuqing` 并 reload `nginx`。
 - **线上验收**：Flyway 已从 `1.43` 迁移到 `1.44 CampusReportPromptAndTemplates` 且 success=1，7 个高校场景模板种子已落库；`yuqing/nginx/mariadb/redis-server` 均 active，后端监听 `8084`；`https://yuqing.zhuoran.cc/`、`/reports`、`/report-templates`、`/auto-reports` 返回 200，未登录 `/campus/report/list?pageNum=1&pageSize=1` 返回 302。
 
+## 2026-05-17 监测任务与监测信息 AI 分析
+
+- **用户目标**：在监测任务页增加 AI 体检，在监测信息页增加手动 AI 分析；AI 可辅助判断情感、摘要、是否建议命中、校园主题和学校相关性，但不自动忽略、不自动转预警、不改变事件流程。
+- **后端调整**：新增 `POST /campus/monitor/task/ai-diagnose` 和 `POST /campus/monitor/result/ai-analyze`；新增监测 AI DTO、监测结果 AI 字段、`V1.45__CampusMonitorAiAnalysis.sql` 和 AI 功能绑定/提示词；AI 分析最多处理 20 条，失败不写入结果。
+- **同步口径**：AI 分析写入 `campus_monitor_result` 的情感、AI 摘要、AI 建议、学校相关性和主题分类；已转未归档线索同步情感、学校相关性和主题；已归档线索关联记录跳过写入。
+- **前端调整**：`/admin/monitor-tasks` 每行增加“AI体检”；`/monitor` 增加当前页 AI 分析、单条 AI 分析、批量 AI 分析、AI 建议列，并优先展示 AI 摘要。
+- **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/TEST_CHECKLIST.md`、`docs/modules/campus_monitor/manifest.md`、`docs/modules/campus_ai/manifest.md` 和 `docs/modules/campus_clue/manifest.md`。
+- **本地验证**：`git diff --check` / `git diff --cached --check` 通过（仅换行提示）；`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` XML 解析通过；合并后 `.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过，编译 497 个 Java source files；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **Git 整理**：原提交曾误挂在 `claude/unify-dashboard-screen`；已 cherry-pick 为 `bf2c263 feat: add campus monitor ai analysis` 到 `claude/monitor-ai-analysis`，避免把大屏统一提交混入主线。
+
+## 2026-05-17 监测信息情感人工校正
+
+- **用户目标**：监测信息页每条信息的情感可人工修改，并评估后确认采用“监测信息为入口，已转线索同步修正，已归档线索禁止修改”的校园单用户模式。
+- **后端调整**：新增 `POST /campus/monitor/result/sentiment`，统一写入 `positive/neutral/negative/none`；更新 `campus_monitor_result.sentiment`，已关联线索时同步 `campus_clue.sentiment` 并写入线索操作日志；关联线索已归档时返回失败，不改监测结果或线索。
+- **前端调整**：`/monitor` 监测信息表格“情感”列改为可操作下拉；批量操作新增“批量修改情感”；无监测操作权限、缺少监测结果 ID 或关联已归档线索时禁止修改。
+- **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/TEST_CHECKLIST.md`、`docs/modules/campus_monitor/manifest.md` 和 `docs/modules/campus_clue/manifest.md`，记录接口、同步口径和验收点。
+- **本地验证**：`git diff --check` 通过（仅换行提示）；`.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **GitHub / 服务器同步**：提交 `d1e7e41 feat: allow campus monitor sentiment edits` 已推送 GitHub `origin/claude/fix-campus-monitor-id-precision` 和服务器远端 `deploy-vps/claude/fix-campus-monitor-id-precision`。
+- **生产部署**：已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`；发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-193923-monitor-sentiment`，包含 `app.jar` 与 `web.tar.gz`。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均为 active，后端监听 `8084`；`https://yuqing.zhuoran.cc/monitor` 返回 200；未登录访问 `POST /campus/monitor/result/sentiment?monitorResultId=1&sentiment=negative` 返回 302，符合鉴权预期；线上静态资源已包含“批量修改情感”。
+- **样式修正**：按用户反馈将监测信息表格情感列从常驻下拉框恢复为原 `EmotionBadge` 标签样式，仅点击标签时弹出修改菜单；批量修改情感保留在批量操作弹窗内。
+- **样式修正验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **样式修正发布**：提交 `81b6aa6 fix: restore monitor sentiment badge style` 已推送 GitHub 和服务器远端；仅覆盖 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-195451-monitor-sentiment-style`；`https://yuqing.zhuoran.cc/monitor` 返回 200，线上静态资源已包含 `sentiment-badge-trigger` 且不再包含 `sentiment-select`。
+
 ## 2026-05-17 校园事件单用户台账模式收敛
 
 - **用户目标**：事件处置先按单用户平台使用，不在系统内确定部门、反馈人和复核人；学校内部协同、反馈和复核暂时走线下流程。
@@ -31,6 +55,8 @@
 - **前端调整**：`/events` 从“处置任务”收敛为“处置记录”，主操作改为“记录线下处置”；相似线索增加“加入事件”按钮；`/monitor` 批量/单条“加入事件”改为调用事件归集接口，不再伪装成线索保存。
 - **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/TEST_CHECKLIST.md` 和 `docs/modules/campus_event/manifest.md`，记录单用户事件台账模式、接口、状态流转和验证结果。
 - **本地验证**：使用 `.codex-tools/jdk8` 执行 `.\mvnw.cmd -DskipTests compile` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **GitHub / 服务器同步**：提交 `53f77f1 feat: simplify campus event workflow` 已推送 GitHub `origin/claude/fix-campus-monitor-id-precision` 和服务器远端 `deploy-vps/claude/fix-campus-monitor-id-precision`。
+- **生产部署**：本地 `.\mvnw.cmd -DskipTests package` 与 `campus-web npm run build` 通过后，已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`；发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-185919-event-single-user`；`yuqing/nginx/mariadb/redis-server` 均为 active，`https://yuqing.zhuoran.cc/events` 返回 200，未登录访问 `/campus/event/list?pageNum=1&pageSize=1` 返回 302，符合鉴权预期。
 
 ## 2026-05-17 Batch1-Batch6 新界面业务闭环修正
 

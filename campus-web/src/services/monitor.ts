@@ -3,11 +3,14 @@ import type {
   ApiId,
   CampusAlert,
   CampusClue,
+  CampusMonitorAiAnalyzeRequest,
+  CampusMonitorAiAnalyzeResponse,
   CampusMonitorInformation,
   CampusMonitorOverview,
   CampusMonitorResult,
   CampusMonitorRunLog,
   CampusMonitorTask,
+  CampusMonitorTaskAiDiagnosis,
   CampusMonitorWatchTarget,
   ClueAdvancedQuery,
   PageResult
@@ -98,6 +101,10 @@ export function runMonitorTask(monitorTaskId: ApiId) {
   return apiPost<CampusMonitorRunLog>('/campus/monitor/task/run', undefined, { monitorTaskId });
 }
 
+export function diagnoseMonitorTask(monitorTaskId: ApiId) {
+  return apiPost<CampusMonitorTaskAiDiagnosis>('/campus/monitor/task/ai-diagnose', undefined, { monitorTaskId });
+}
+
 export function listMonitorRunLogs(params: { pageNum: number; pageSize: number; monitorTaskId: ApiId }) {
   return apiGet<PageResult<CampusMonitorRunLog>>('/campus/monitor/task/run-log/list', params);
 }
@@ -124,6 +131,17 @@ export function alertMonitorResult(monitorResultId: ApiId) {
 
 export function ignoreMonitorResult(monitorResultId: ApiId) {
   return apiPost<CampusMonitorResult>('/campus/monitor/result/ignore', undefined, { monitorResultId });
+}
+
+export function updateMonitorResultSentiment(monitorResultId: ApiId, sentiment: string) {
+  return apiPost<CampusMonitorResult>('/campus/monitor/result/sentiment', undefined, {
+    monitorResultId,
+    sentiment
+  });
+}
+
+export function analyzeMonitorResults(data: CampusMonitorAiAnalyzeRequest) {
+  return apiPost<CampusMonitorAiAnalyzeResponse>('/campus/monitor/result/ai-analyze', data);
 }
 
 export function convertMonitorResultToClue(monitorResultId: ApiId) {

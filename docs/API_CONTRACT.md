@@ -495,7 +495,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | 模块 | 核心路径 | 说明 |
 |------|----------|------|
 | 监测任务 | `GET /campus/monitor/overview` | 监测概览 |
-| 监测任务 | `/campus/monitor/task/list/save/update-status/update-display/delete/run` | 监测任务 CRUD、启停、前台展示、手动运行；自动维护接入任务 |
+| 监测任务 | `/campus/monitor/task/list/save/update-status/update-display/delete/run/ai-diagnose` | 监测任务 CRUD、启停、前台展示、手动运行、AI体检；自动维护接入任务 |
 | 监测信息 | `/campus/monitor/information/list/count-by-platform` | 只展示已命中监测任务的 `campus_monitor_result` 数据，默认排除暂停、禁用、已隐藏或已删除任务数据 |
 | 监测结果 | `/campus/monitor/result/list/alert/ignore/convert-clue` | 监测结果查询、转预警、忽略、转线索 |
 | 任务内重点目标 | `/campus/monitor/watch-target/list/save/create-from-result/delete` | 本任务重点账号/指定链接维护 |
@@ -517,6 +517,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | POST | `/campus/monitor/task/update-display` | `monitorTaskId,displayEnabled(1/0)` | `ResultVO<CampusMonitorTask>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/task/delete` | `monitorTaskId` | `ResultVO<Void>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/task/run` | `monitorTaskId` | `ResultVO<CampusMonitorRunLog>` | `campus:monitor:operate` |
+| POST | `/campus/monitor/task/ai-diagnose` | `monitorTaskId` | `ResultVO<CampusMonitorTaskAiDiagnosis>` | `campus:monitor:operate` |
 | GET | `/campus/monitor/task/run-log/list` | `pageNum,pageSize,monitorTaskId` | `ResultVO<PageInfo<CampusMonitorRunLog>>` | `campus:monitor:read` |
 | GET | `/campus/monitor/information/list` | `pageNum,pageSize,keyword?,monitorTaskId?,sourcePlatform?,sourceSubPlatform?,riskLevel?,clueStatus?,language?,sentiment?,resultStatus?,publishTimeStart?,publishTimeEnd?,collectTimeStart?,collectTimeEnd?,matchScope?,similarDedup?,hitScope?(risk/all),sortBy?` | `ResultVO<PageInfo<CampusMonitorInformation>>` | `campus:monitor:read` |
 | GET | `/campus/monitor/information/count-by-platform` | 同上，不含分页和排序 | `ResultVO<List<{name,value}>>` | `campus:monitor:read` |
@@ -524,6 +525,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | GET | `/campus/monitor/result/list` | `pageNum,pageSize,monitorTaskId?,keyword?,riskLevel?,resultStatus?,platform?,language?,converted?` | `ResultVO<PageInfo<CampusMonitorResult>>` | `campus:monitor:read` 或业务操作权限 |
 | POST | `/campus/monitor/result/convert-clue` | `monitorResultId` | `ResultVO<CampusClue>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/result/sentiment` | `monitorResultId,sentiment(positive/neutral/negative/none)` | `ResultVO<CampusMonitorResult>` | `campus:monitor:operate` |
+| POST | `/campus/monitor/result/ai-analyze` | JSON：`monitorResultIds?`, `monitorTaskId?`, `limit?(默认20,最大20)` | `ResultVO<CampusMonitorAiAnalyzeResponse>` | `campus:monitor:operate` |
 | GET | `/campus/monitor/watch-target/list` | `pageNum,pageSize,monitorTaskId?,targetType?,platform?,keyword?,targetStatus?` | `ResultVO<PageInfo<CampusMonitorWatchTarget>>` | `campus:monitor:read` |
 | POST | `/campus/monitor/watch-target/save` | `CampusMonitorWatchTarget` JSON | `ResultVO<CampusMonitorWatchTarget>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/watch-target/create-from-result` | `monitorResultId,monitorTaskId,targetType(account/link)` | `ResultVO<CampusMonitorWatchTarget>` | `campus:monitor:operate` |
@@ -532,6 +534,10 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 监测信息推荐参数：`hitScope=all/risk`，默认 `all`；`sortBy=publishTime/collectTime/relevance/sentiment`，旧值 `value/siteLevel` 后端仅兼容并落到默认发布时间排序；`sentiment=positive/neutral/negative/none`，多选用逗号分隔。
 
 监测信息页允许通过 `/campus/monitor/result/sentiment` 人工校正单条监测命中的情感。后端只写入 `positive/neutral/negative/none`；若该监测命中已关联线索，同步更新 `campus_clue.sentiment` 并记录线索操作日志；若关联线索已归档，接口返回失败，不修改监测结果或线索。修改情感不会自动转预警、不会加入事件、不会改变 `riskMarked/resultStatus/clueStatus`。
+
+监测任务 AI 体检通过 `/campus/monitor/task/ai-diagnose` 手动触发，只读取任务配置和近期聚合统计，返回 `summary/keywordSuggestions/negativeWordSuggestions/excludeWordSuggestions/platformSuggestions/frequencySuggestion/alertModeSuggestion/risks/suggestions`，不写回任务配置，也不展示具体采集内容。
+
+监测命中 AI 分析通过 `/campus/monitor/result/ai-analyze` 手动触发。AI 输出只接受：`sentiment=positive/neutral/negative/none`、`shouldHit=hit/not_hit/uncertain`、`summary`、`hitReason`、`confidence(0-100)`、`schoolRelevanceScore(0-100)`、`matchedSchoolTerms`、`topicCategory/topicSubCategory/topicReason`。成功后写入 `campus_monitor_result.sentiment/ai_summary/ai_hit_recommendation/ai_hit_reason/ai_confidence/ai_analysis_time/ai_provider_code/ai_model_code/school_relevance*/matched_school_terms/topic*`；若已转线索且线索未归档，同步更新 `campus_clue.sentiment/school_relevance*/matched_school_terms/topic*` 并记录线索操作日志；已归档线索关联的监测命中跳过写入。AI 判断“不建议命中”只写 `ai_hit_recommendation=not_hit` 和理由，不自动忽略、不自动删除、不自动转预警、不改变 `resultStatus/riskLevel/riskScore/alertId`。
 
 监测模块返回的 Snowflake 业务 ID 必须按字符串序列化，避免浏览器把 19 位 Long 当作 `number` 后丢失精度。范围包括 `CampusMonitorInformation`、`CampusMonitorResult`、`CampusMonitorTask`、`CampusMonitorWatchTarget`、`CampusMonitorRunLog`、`CampusAlert` 中会被前端再次提交的 ID 字段，如 `monitorResultId`、`monitorTaskId`、`clueId`、`alertId`、`targetId`、`sourceObjectId`。对应 POST/GET 参数仍按 Long 绑定，前端可提交原样字符串或兼容数字。
 
@@ -543,7 +549,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 
 `CampusMonitorResult` 新增展示字段：`language`、`clueId`、`likeCount`、`commentCount`、`shareCount`、`collectCount`、`viewCount`、`schoolRelevanceScore`、`schoolRelevanceReason`、`matchedSchoolTerms`、`excludedReason`、`topicCategory`、`topicSubCategory`、`topicReason`。互动数字由接入层尽量解析，平台无返回时保持空值。学校相关性和主题分类由监测扫描时基于主体词、校园语境词、命中词和 `campus_event_topic` 字典生成。`convert-clue` 会优先复用 `campus_ingest_record.target_type=clue` 已绑定线索，避免监测结果和线索库重复生成；新建线索时会携带相关性和主题字段。
 
-`CampusMonitorInformation` 是监测信息工作台的统一返回模型，不新增表。数据源仅为 `campus_monitor_result` 的只读视图，核心字段包括：`infoType,infoId,monitorResultId,clueId,title,content,summary,contentCaptureStatus,contentCaptureLabel,originalUrl,platform,sourcePlatform,sourceSubPlatform,authorName,publishTime,collectTime,publishTimeStatus,infoTime,matchedKeywords,matchedNegativeWords,keywords,sentiment,riskLevel,riskMarked,resultStatus,clueStatus,likeCount,commentCount,shareCount,collectCount,viewCount,schoolRelevanceScore,schoolRelevanceReason,matchedSchoolTerms,topicCategory,topicSubCategory,topicReason`。`contentCaptureStatus` 取值为 `full/partial/missing`，用于区分完整正文、摘要/标题和未采集；`publishTimeStatus` 取值为 `known/missing/inferred`，发布时间缺失时前端展示“发布时间未知”并使用 `collectTime` 辅助排序和展示。统一列表默认 `hitScope=all`，只读取 active 且 `displayEnabled=1` 的真实 `campus_monitor_result`，不混入普通线索、搜索页沉淀内容和手工新增线索；`hitScope=risk` 仅返回 `riskMarked=true` 的关键词命中。新命中逻辑只以 `keywords` 作为命中条件，`monitorSubject/subjectAliases/matchedSubjects` 仅保留展示与历史兼容语义；负面词只生成风险标记，不再决定普通命中是否展示。`sentiment` 统一使用 `positive/neutral/negative/none`，后端兼容历史中文“疑似/确认”值。`similarDedup=true` 时按 `content_hash → 有效原文链接 → 标题+平台` 合并相似展示，并影响列表分页和平台统计。前端“详情”必须先展示站内内容详情，只有详情页/弹窗中的“查看原链接”才打开外部原文；非 `http/https` 原文链接不得作为可点击外链；“转线索/转预警/忽略/加重点账号/加指定链接”仅对有 `monitorResultId` 的行开放。
+`CampusMonitorInformation` 是监测信息工作台的统一返回模型，不新增表。数据源仅为 `campus_monitor_result` 的只读视图，核心字段包括：`infoType,infoId,monitorResultId,clueId,title,content,summary,contentCaptureStatus,contentCaptureLabel,originalUrl,platform,sourcePlatform,sourceSubPlatform,authorName,publishTime,collectTime,publishTimeStatus,infoTime,matchedKeywords,matchedNegativeWords,keywords,sentiment,aiSummary,aiHitRecommendation,aiHitReason,aiConfidence,aiAnalysisTime,aiProviderCode,aiModelCode,riskLevel,riskMarked,resultStatus,clueStatus,likeCount,commentCount,shareCount,collectCount,viewCount,schoolRelevanceScore,schoolRelevanceReason,matchedSchoolTerms,topicCategory,topicSubCategory,topicReason`。`summary` 优先返回 `aiSummary`，无 AI 摘要时回退内容截断。`contentCaptureStatus` 取值为 `full/partial/missing`，用于区分完整正文、摘要/标题和未采集；`publishTimeStatus` 取值为 `known/missing/inferred`，发布时间缺失时前端展示“发布时间未知”并使用 `collectTime` 辅助排序和展示。统一列表默认 `hitScope=all`，只读取 active 且 `displayEnabled=1` 的真实 `campus_monitor_result`，不混入普通线索、搜索页沉淀内容和手工新增线索；`hitScope=risk` 仅返回 `riskMarked=true` 的关键词命中。新命中逻辑只以 `keywords` 作为命中条件，`monitorSubject/subjectAliases/matchedSubjects` 仅保留展示与历史兼容语义；负面词只生成风险标记，不再决定普通命中是否展示。`sentiment` 统一使用 `positive/neutral/negative/none`，后端兼容历史中文“疑似/确认”值。`similarDedup=true` 时按 `content_hash → 有效原文链接 → 标题+平台` 合并相似展示，并影响列表分页和平台统计。前端“详情”必须先展示站内内容详情，只有详情页/弹窗中的“查看原链接”才打开外部原文；非 `http/https` 原文链接不得作为可点击外链；“转线索/转预警/忽略/加重点账号/加指定链接”仅对有 `monitorResultId` 的行开放。
 
 `CampusMonitorWatchTarget` 用于任务内重点账号/链接约束，核心字段：`monitorTaskId,targetType,platform,accountId,accountName,accountUid,linkUrl,sourceObjectType,sourceObjectId,authorizationScope,keywordScope,targetStatus`。DPI 或其它平台推送账号应复用该模型或账号模块保存入口，不能直接写库。
 
@@ -570,7 +576,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | AI 能力管理 | `/campus/ai/overview` | AI 供应商、功能和 24 小时调用概览 |
 | AI 供应商 | `/campus/ai/provider/list/save/delete/test` | DeepSeek、TikHub、百度千帆、Jina Reader 和历史能力接入点配置；只保存 `credentialRef` |
 | AI 模型 | `/campus/ai/model/list/save/delete` | 模型编码、上下文、温度、最大 token、流式支持和启停 |
-| AI 功能绑定 | `/campus/ai/feature/list/save` | 报告、自动报告、研判、词云、接入、正文提取、历史能力与供应商/模型绑定 |
+| AI 功能绑定 | `/campus/ai/feature/list/save` | 报告、自动报告、研判、词云、监测AI分析、接入、正文提取、历史能力与供应商/模型绑定 |
 | AI 提示词 | `/campus/ai/prompt/list/save/delete` | 功能级 system/user prompt 和输出格式模板 |
 | AI 调用日志 | `/campus/ai/call-log/list` | DeepSeek 等通过 AI 管理层发起的脱敏调用日志 |
 | 重点账号 | `/campus/account/list/detail/save/audit/update-status/delete` | 账号库、审核、启停/删除 |

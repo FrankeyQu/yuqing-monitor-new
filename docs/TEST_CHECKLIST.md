@@ -41,6 +41,10 @@ npm run build  # 大屏 Vue 2 构建，仅修改 large_screen 时需要
 - [ ] 发布时间为空时显示“发布时间未知”，并按采集时间在未知发布时间记录内部倒序；`collectTimeStart/End` 只过滤采集时间。
 - [ ] 情感筛选只展示全部、正面、中性、负面、未知；接口参数使用 `positive/neutral/negative/none` 并兼容历史中文值。
 - [ ] 监测信息页单条和批量修改情感可用；未转线索只更新监测结果，已转未归档线索同步更新线索情感，已归档线索关联记录提示失败且不写入。
+- [ ] 监测信息页单条、选中批量和当前页 AI 分析可用；成功后刷新情感、AI摘要、AI建议、主题和相关性；失败、跳过、成功数量反馈清晰。
+- [ ] AI 判断“不建议命中”后只展示 AI 建议和理由，不自动忽略、不自动转预警、不改变风险等级和结果状态。
+- [ ] 已转未归档线索关联的监测命中 AI 分析成功后同步线索情感、学校相关性和主题；已归档线索关联记录跳过写入。
+- [ ] 后台监测任务管理页 AI 体检只展示任务配置建议，不写回任务配置，不展示具体采集内容。
 - [ ] 排序只展示发布时间、采集时间、相关度、情感；旧 `value/siteLevel` 请求不报错并落到默认排序。
 - [ ] “合并相似信息”开启后，列表分页总数、媒体类型统计与实际列表一致。
 - [ ] “新增人工线索”保存后进入线索库，不新增普通监测命中；“添加文章”入口不可见。
@@ -66,6 +70,13 @@ npm run build
 ```
 
 ## 最近验证记录
+
+### 2026-05-17 监测任务与监测信息 AI 分析验证
+- 代码检查：`git diff --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。
+- XML 检查：`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` 可被 XML parser 正常解析。
+- 后端编译：使用 `.codex-tools/jdk8` 设置 `JAVA_HOME` 后执行 `.\mvnw.cmd -DskipTests compile` 通过，编译 495 个 Java source files，仅有旧代码内部 API、deprecated、unchecked 警告。
+- 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- 验收口径：`/admin/monitor-tasks` 的 AI 体检只读返回配置建议；`/monitor` 的 AI 分析手动触发，最多 20 条，写入监测命中的情感、AI摘要、AI建议、学校相关性和主题分类；不自动忽略、不自动转预警、不改变风险等级/状态；已归档线索关联记录跳过写入。
 
 ### 2026-05-17 校园事件单用户台账模式验证
 - 代码检查：`git diff --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。

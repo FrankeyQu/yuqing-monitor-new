@@ -237,7 +237,7 @@
             mr.create_time AS discover_time,
             mr.create_time,
             COALESCE(mr.publish_time, ir.publish_time, ir.create_time, mr.create_time) AS info_time,
-            COALESCE(NULLIF(mr.language, ''), ir.language) AS language,
+            COALESCE(NULLIF(mr.language, ''), NULLIF(ir.language, ''), 'zh') AS language,
             mr.matched_subjects,
             mr.matched_keywords,
             mr.matched_negative_words,
@@ -394,7 +394,7 @@
             )
         </if>
         <if test="language != null and language != ''">
-            AND language = #{language}
+            AND COALESCE(NULLIF(language, ''), 'zh') = #{language}
         </if>
         <if test="sentiment != null and sentiment != ''">
             <choose>
@@ -492,6 +492,17 @@
         UPDATE campus_monitor_result
         SET result_status = #{resultStatus},
             alert_id = #{alertId},
+            update_user_id = #{updateUserId}
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateStatusAndRisk">
+        UPDATE campus_monitor_result
+        SET result_status = #{resultStatus},
+            alert_id = #{alertId},
+            risk_level = #{riskLevel},
+            risk_score = #{riskScore},
             update_user_id = #{updateUserId}
         WHERE monitor_result_id = #{monitorResultId}
           AND deleted = 0
@@ -663,7 +674,7 @@
             AND platform = #{platform}
         </if>
         <if test="language != null and language != ''">
-            AND language = #{language}
+            AND COALESCE(NULLIF(language, ''), 'zh') = #{language}
         </if>
         <if test="converted != null and converted == true">
             AND clue_id IS NOT NULL

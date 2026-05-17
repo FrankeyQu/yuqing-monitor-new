@@ -79,7 +79,7 @@
             <el-radio-button value="">全部</el-radio-button>
             <el-radio-button value="pending">待处理</el-radio-button>
             <el-radio-button value="alerted">已预警</el-radio-button>
-            <el-radio-button value="ignored">已忽略</el-radio-button>
+            <el-radio-button value="ignored">已取消预警</el-radio-button>
             <el-radio-button value="handled">已处理</el-radio-button>
             <el-radio-button value="converted">已转线索</el-radio-button>
           </el-radio-group>
@@ -348,7 +348,7 @@
               :disabled="!monitorInformationStatusReason(row)"
               :content="monitorInformationStatusReason(row)"
             >
-              <el-tag effect="plain" size="small" class="status-tag-with-reason">
+              <el-tag :type="monitorResultStatusTagType(row.resultStatus, row.clueId)" effect="plain" size="small" class="status-tag-with-reason">
                 {{ monitorInformationStatusLabel(row) }}
               </el-tag>
             </el-tooltip>
@@ -369,7 +369,7 @@
                     <el-dropdown-item v-if="row.clueId && row.clueStatus !== 'archived'" @click="openArchiveClue(toClue(row))">归档</el-dropdown-item>
                     <el-dropdown-item v-if="row.clueId" divided @click="handleDeleteClue(toClue(row))">删除线索</el-dropdown-item>
                     <el-dropdown-item v-if="row.monitorResultId" :disabled="!canMonitorOperate || row.resultStatus === 'alerted'" @click="alertResult(toMonitorResult(row))">转预警</el-dropdown-item>
-                    <el-dropdown-item v-if="row.monitorResultId" :disabled="!canMonitorOperate || row.resultStatus === 'ignored'" @click="ignoreResult(toMonitorResult(row))">忽略</el-dropdown-item>
+                    <el-dropdown-item v-if="row.monitorResultId" :disabled="!canMonitorOperate || row.resultStatus === 'ignored'" @click="ignoreResult(toMonitorResult(row))">取消预警</el-dropdown-item>
                     <el-dropdown-item v-if="row.monitorResultId" :disabled="!canMonitorOperate" @click="addResultWatchTarget(toMonitorResult(row), 'account')">加入重点账号</el-dropdown-item>
                     <el-dropdown-item v-if="row.monitorResultId" :disabled="!canMonitorOperate" @click="addResultWatchTarget(toMonitorResult(row), 'link')">加入指定链接</el-dropdown-item>
                   </el-dropdown-menu>
@@ -408,7 +408,7 @@
           <el-select v-model="resultQuery.resultStatus" clearable placeholder="状态">
             <el-option label="待处理" value="pending" />
             <el-option label="已预警" value="alerted" />
-            <el-option label="已忽略" value="ignored" />
+            <el-option label="已取消预警" value="ignored" />
             <el-option label="已处理" value="handled" />
             <el-option label="已转线索" value="converted" />
           </el-select>
@@ -517,7 +517,7 @@
         </el-table-column>
         <el-table-column prop="resultStatus" label="状态" width="92">
           <template #default="{ row }">
-            <el-tag effect="plain">{{ monitorResultStatusLabel(row.resultStatus, row.clueId) }}</el-tag>
+            <el-tag :type="monitorResultStatusTagType(row.resultStatus, row.clueId)" effect="plain">{{ monitorResultStatusLabel(row.resultStatus, row.clueId) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="publishTime" label="发布时间" width="160">
@@ -530,7 +530,7 @@
             <el-button link type="success" :disabled="!canMonitorOperate" @click="addResultWatchTarget(row, 'account')">加账号</el-button>
             <el-button link type="success" :disabled="!canMonitorOperate" @click="addResultWatchTarget(row, 'link')">加链接</el-button>
             <el-button link type="warning" :disabled="!canMonitorOperate || row.resultStatus === 'alerted'" @click="alertResult(row)">转预警</el-button>
-            <el-button link type="info" :disabled="!canMonitorOperate || row.resultStatus === 'ignored'" @click="ignoreResult(row)">忽略</el-button>
+            <el-button link type="info" :disabled="!canMonitorOperate || row.resultStatus === 'ignored'" @click="ignoreResult(row)">取消预警</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -750,7 +750,7 @@
       <el-radio-group v-model="batchAction" style="display: flex; flex-direction: column; gap: 12px;">
         <el-radio value="convert" :disabled="selectedMonitorResultCount === 0">批量转线索 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
         <el-radio value="alert" :disabled="selectedMonitorResultCount === 0">批量转预警 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
-        <el-radio value="ignore" :disabled="selectedMonitorResultCount === 0">批量忽略 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
+        <el-radio value="ignore" :disabled="selectedMonitorResultCount === 0">批量取消预警 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
         <el-radio value="sentiment" :disabled="selectedMonitorResultCount === 0">批量修改情感 — 处理 {{ selectedMonitorResultCount }} 条监测信息</el-radio>
         <el-radio value="aiAnalyze" :disabled="selectedMonitorResultCount === 0">批量AI分析 — 处理 {{ selectedMonitorResultCount }} 条监测信息</el-radio>
         <el-radio value="judge" :disabled="selectedClueCount === 0">批量研判 — 处理 {{ selectedClueCount }} 条已转线索</el-radio>
@@ -1249,7 +1249,7 @@ function riskLevelTagType(level?: string) {
 function alertStatusTagType(status?: string): 'warning' | 'success' | 'info' | '' {
   if (status === 'pending' || status === '待处理') return 'warning';
   if (status === 'handled' || status === '已处理') return 'success';
-  if (status === 'ignored' || status === '已忽略') return 'info';
+  if (status === 'ignored' || status === '已忽略' || status === '已取消预警') return 'info';
   return '';
 }
 
@@ -1257,7 +1257,7 @@ function alertStatusLabel(status?: string): string {
   const labels: Record<string, string> = {
     pending: '待处理',
     handled: '已处理',
-    ignored: '已忽略'
+    ignored: '已取消预警'
   };
   return labels[status || ''] || status || '-';
 }
@@ -1787,11 +1787,24 @@ function monitorResultStatusLabel(value?: string, clueId?: ApiId) {
   const labels: Record<string, string> = {
     pending: '待处理',
     alerted: '已预警',
-    ignored: '已忽略',
+    ignored: '已取消预警',
     handled: '已处理',
     converted: '已转线索'
   };
   return labels[value || 'pending'] || value || '待处理';
+}
+
+function monitorResultStatusTagType(value?: string, clueId?: ApiId) {
+  if (clueId || value === 'converted' || value === 'handled') {
+    return 'success';
+  }
+  if (value === 'alerted') {
+    return 'danger';
+  }
+  if (value === 'ignored') {
+    return 'info';
+  }
+  return 'warning';
 }
 
 function interactionLabel(row: CampusMonitorResult) {
@@ -1811,14 +1824,14 @@ function informationInteractionLabel(row: CampusMonitorInformation) {
 
 function languageLabel(value?: string) {
   const labels: Record<string, string> = { zh: '中文', mongolian: '蒙语', uyghur: '维语' };
-  return labels[value || ''] || '未知';
+  return labels[String(value || '').trim()] || '中文';
 }
 
 function languageTagType(value?: string) {
-  if (value === 'zh') return '';
-  if (value === 'mongolian') return 'success';
-  if (value === 'uyghur') return 'warning';
-  return 'info';
+  const normalized = String(value || '').trim();
+  if (normalized === 'mongolian') return 'success';
+  if (normalized === 'uyghur') return 'warning';
+  return '';
 }
 
 function hasPermission(codes: string[]) {
@@ -2447,7 +2460,7 @@ function monitorInformationStatusReason(row: CampusMonitorInformation): string {
     return '已命中监测任务，等待人工研判。';
   }
   if (row.resultStatus === 'ignored') {
-    return '该监测结果已被忽略。';
+    return '该监测结果已取消预警，风险等级已回到普通关注。';
   }
   return '';
 }
@@ -2851,10 +2864,10 @@ async function ignoreResult(row: CampusMonitorResult) {
   }
   try {
     await ignoreMonitorResult(row.monitorResultId);
-    ElMessage.success('监测结果已忽略');
+    ElMessage.success('预警已取消');
     await Promise.all([loadMonitorResults(), loadData()]);
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '忽略失败');
+    ElMessage.error(error instanceof Error ? error.message : '取消预警失败');
   }
 }
 

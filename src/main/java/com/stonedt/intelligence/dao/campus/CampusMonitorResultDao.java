@@ -20,6 +20,13 @@ public interface CampusMonitorResultDao {
                      @Param("alertId") Long alertId,
                      @Param("updateUserId") Long updateUserId);
 
+    int updateStatusAndRisk(@Param("monitorResultId") Long monitorResultId,
+                            @Param("resultStatus") String resultStatus,
+                            @Param("alertId") Long alertId,
+                            @Param("riskLevel") String riskLevel,
+                            @Param("riskScore") Integer riskScore,
+                            @Param("updateUserId") Long updateUserId);
+
     int updateClue(@Param("monitorResultId") Long monitorResultId,
                    @Param("resultStatus") String resultStatus,
                    @Param("clueId") Long clueId,

@@ -154,6 +154,29 @@ public class CampusClueServiceImpl implements CampusClueService {
 
     @Override
     @Transactional
+    public CampusClue updateSentimentFromMonitor(Long clueId,
+                                                 String sentiment,
+                                                 Long monitorResultId,
+                                                 Long operatorUserId,
+                                                 String operatorName) {
+        String normalized = requireSentiment(sentiment);
+        CampusClue old = requireClue(clueId);
+        ensureNotArchived(old, "修改情感");
+        if (StringUtils.equals(normalized, old.getSentiment())) {
+            return old;
+        }
+        int updated = campusClueDao.updateSentiment(clueId, normalized, operatorUserId);
+        if (updated != 1) {
+            throw new IllegalArgumentException("已归档线索不能修改情感");
+        }
+        CampusClue saved = campusClueDao.selectByClueId(clueId);
+        addOperationLog(clueId, "sentiment_sync", "监测信息同步情感：" + monitorResultId,
+                JSON.toJSONString(old), JSON.toJSONString(saved), operatorUserId, operatorName);
+        return saved;
+    }
+
+    @Override
+    @Transactional
     public void delete(Long clueId, Long operatorUserId, String operatorName) {
         CampusClue old = requireClue(clueId);
         campusClueDao.logicalDelete(clueId, operatorUserId);
@@ -233,6 +256,14 @@ public class CampusClueServiceImpl implements CampusClueService {
             throw new IllegalArgumentException("线索不存在");
         }
         return clue;
+    }
+
+    private String requireSentiment(String sentiment) {
+        String normalized = CampusSentimentNormalizer.normalize(sentiment);
+        if (StringUtils.isBlank(normalized)) {
+            throw new IllegalArgumentException("情感类型只能为 positive、neutral、negative、none");
+        }
+        return normalized;
     }
 
     private void fillDetailFallback(CampusClue clue) {

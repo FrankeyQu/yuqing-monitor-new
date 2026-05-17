@@ -479,6 +479,14 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         return "risk".equalsIgnoreCase(StringUtils.trimToEmpty(hitScope)) ? "risk" : "all";
     }
 
+    private String requireSentiment(String sentiment) {
+        String normalized = CampusSentimentNormalizer.normalize(sentiment);
+        if (StringUtils.isBlank(normalized)) {
+            throw new IllegalArgumentException("情感类型只能为 positive、neutral、negative、none");
+        }
+        return normalized;
+    }
+
     @Override
     public CampusMonitorResult alertResult(Long monitorResultId, Long operatorUserId) {
         CampusMonitorResult result = requireResult(monitorResultId);
@@ -494,6 +502,25 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     public CampusMonitorResult ignoreResult(Long monitorResultId, Long operatorUserId) {
         CampusMonitorResult result = requireResult(monitorResultId);
         campusMonitorResultDao.updateStatus(monitorResultId, RESULT_IGNORED, result.getAlertId(), operatorUserId);
+        return campusMonitorResultDao.selectByResultId(monitorResultId);
+    }
+
+    @Override
+    @Transactional
+    public CampusMonitorResult updateResultSentiment(Long monitorResultId,
+                                                     String sentiment,
+                                                     Long operatorUserId,
+                                                     String operatorName) {
+        CampusMonitorResult result = requireResult(monitorResultId);
+        String normalized = requireSentiment(sentiment);
+        if (result.getClueId() != null) {
+            campusClueService.updateSentimentFromMonitor(result.getClueId(), normalized,
+                    monitorResultId, operatorUserId, operatorName);
+        }
+        int updated = campusMonitorResultDao.updateSentiment(monitorResultId, normalized, operatorUserId);
+        if (updated != 1) {
+            throw new IllegalArgumentException("监测结果不存在或已删除");
+        }
         return campusMonitorResultDao.selectByResultId(monitorResultId);
     }
 

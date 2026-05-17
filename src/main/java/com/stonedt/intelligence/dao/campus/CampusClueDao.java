@@ -25,6 +25,10 @@ public interface CampusClueDao {
                 @Param("remark") String remark,
                 @Param("updateUserId") Long updateUserId);
 
+    int updateSentiment(@Param("clueId") Long clueId,
+                        @Param("sentiment") String sentiment,
+                        @Param("updateUserId") Long updateUserId);
+
     int markConverted(@Param("clueId") Long clueId,
                       @Param("eventId") Long eventId,
                       @Param("updateUserId") Long updateUserId);

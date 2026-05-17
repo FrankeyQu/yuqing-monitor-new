@@ -25,6 +25,10 @@ public interface CampusMonitorResultDao {
                    @Param("clueId") Long clueId,
                    @Param("updateUserId") Long updateUserId);
 
+    int updateSentiment(@Param("monitorResultId") Long monitorResultId,
+                        @Param("sentiment") String sentiment,
+                        @Param("updateUserId") Long updateUserId);
+
     int updateSnapshot(@Param("monitorResultId") Long monitorResultId,
                        @Param("record") CampusIngestRecord record,
                        @Param("updateUserId") Long updateUserId);

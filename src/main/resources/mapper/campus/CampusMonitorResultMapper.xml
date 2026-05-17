@@ -237,7 +237,7 @@
             mr.topic_sub_category,
             mr.topic_reason,
             mr.result_status,
-            CASE WHEN mr.clue_id IS NULL THEN NULL ELSE 'converted' END AS clue_status,
+            CASE WHEN mr.clue_id IS NULL THEN NULL ELSE COALESCE(c.clue_status, 'converted') END AS clue_status,
             mr.alert_id,
             CASE
                 WHEN IFNULL(mr.matched_negative_words, '') != ''
@@ -272,6 +272,9 @@
         LEFT JOIN campus_ingest_record ir
           ON ir.record_id = mr.ingest_record_id
          AND ir.deleted = 0
+        LEFT JOIN campus_clue c
+          ON c.clue_id = mr.clue_id
+         AND c.deleted = 0
         WHERE mr.deleted = 0
     </sql>
 
@@ -373,7 +376,7 @@
         <if test="sentiment != null and sentiment != ''">
             <choose>
                 <when test="sentiment == 'none'">
-                    AND (sentiment IS NULL OR sentiment = '')
+                    AND (sentiment IS NULL OR sentiment = '' OR LOWER(sentiment) = 'none' OR sentiment = '未知')
                 </when>
                 <otherwise>
                     AND (
@@ -475,6 +478,14 @@
         UPDATE campus_monitor_result
         SET result_status = #{resultStatus},
             clue_id = #{clueId},
+            update_user_id = #{updateUserId}
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateSentiment">
+        UPDATE campus_monitor_result
+        SET sentiment = #{sentiment},
             update_user_id = #{updateUserId}
         WHERE monitor_result_id = #{monitorResultId}
           AND deleted = 0

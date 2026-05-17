@@ -46,6 +46,12 @@ public interface CampusClueService {
                        Long operatorUserId,
                        String operatorName);
 
+    CampusClue updateSentimentFromMonitor(Long clueId,
+                                          String sentiment,
+                                          Long monitorResultId,
+                                          Long operatorUserId,
+                                          String operatorName);
+
     void delete(Long clueId, Long operatorUserId, String operatorName);
 
     List<CampusClueOperationLog> operationLogs(Long clueId);

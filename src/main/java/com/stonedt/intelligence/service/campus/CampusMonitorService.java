@@ -115,6 +115,11 @@ public interface CampusMonitorService {
 
     CampusMonitorResult ignoreResult(Long monitorResultId, Long operatorUserId);
 
+    CampusMonitorResult updateResultSentiment(Long monitorResultId,
+                                               String sentiment,
+                                               Long operatorUserId,
+                                               String operatorName);
+
     CampusClue convertResultToClue(Long monitorResultId, Long operatorUserId, String operatorName);
 
     PageInfo<CampusMonitorWatchTarget> listWatchTargets(Integer pageNum,

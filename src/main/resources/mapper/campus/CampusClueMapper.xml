@@ -124,6 +124,15 @@
           AND deleted = 0
     </update>
 
+    <update id="updateSentiment">
+        UPDATE campus_clue
+        SET sentiment = #{sentiment},
+            update_user_id = #{updateUserId}
+        WHERE clue_id = #{clueId}
+          AND deleted = 0
+          AND (clue_status IS NULL OR clue_status != 'archived')
+    </update>
+
     <update id="markConverted">
         UPDATE campus_clue
         SET clue_status = 'converted',
@@ -195,7 +204,7 @@
         <if test="sentiment != null and sentiment != ''">
             <choose>
                 <when test="sentiment == 'none'">
-                    AND (sentiment IS NULL OR sentiment = '')
+                    AND (sentiment IS NULL OR sentiment = '' OR LOWER(sentiment) = 'none' OR sentiment = '未知')
                 </when>
                 <otherwise>
                     AND (

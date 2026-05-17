@@ -523,12 +523,15 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | GET | `/campus/monitor/information/count-by-sub-platform` | 同上，不含分页和排序；保留为历史子来源统计兼容接口，前端不再固定展示公开论坛子标签 | `ResultVO<List<{name,value}>>` | `campus:monitor:read` |
 | GET | `/campus/monitor/result/list` | `pageNum,pageSize,monitorTaskId?,keyword?,riskLevel?,resultStatus?,platform?,language?,converted?` | `ResultVO<PageInfo<CampusMonitorResult>>` | `campus:monitor:read` 或业务操作权限 |
 | POST | `/campus/monitor/result/convert-clue` | `monitorResultId` | `ResultVO<CampusClue>` | `campus:monitor:operate` |
+| POST | `/campus/monitor/result/sentiment` | `monitorResultId,sentiment(positive/neutral/negative/none)` | `ResultVO<CampusMonitorResult>` | `campus:monitor:operate` |
 | GET | `/campus/monitor/watch-target/list` | `pageNum,pageSize,monitorTaskId?,targetType?,platform?,keyword?,targetStatus?` | `ResultVO<PageInfo<CampusMonitorWatchTarget>>` | `campus:monitor:read` |
 | POST | `/campus/monitor/watch-target/save` | `CampusMonitorWatchTarget` JSON | `ResultVO<CampusMonitorWatchTarget>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/watch-target/create-from-result` | `monitorResultId,monitorTaskId,targetType(account/link)` | `ResultVO<CampusMonitorWatchTarget>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/watch-target/delete` | `targetId` | `ResultVO<Void>` | `campus:monitor:operate` |
 
 监测信息推荐参数：`hitScope=all/risk`，默认 `all`；`sortBy=publishTime/collectTime/relevance/sentiment`，旧值 `value/siteLevel` 后端仅兼容并落到默认发布时间排序；`sentiment=positive/neutral/negative/none`，多选用逗号分隔。
+
+监测信息页允许通过 `/campus/monitor/result/sentiment` 人工校正单条监测命中的情感。后端只写入 `positive/neutral/negative/none`；若该监测命中已关联线索，同步更新 `campus_clue.sentiment` 并记录线索操作日志；若关联线索已归档，接口返回失败，不修改监测结果或线索。修改情感不会自动转预警、不会加入事件、不会改变 `riskMarked/resultStatus/clueStatus`。
 
 监测模块返回的 Snowflake 业务 ID 必须按字符串序列化，避免浏览器把 19 位 Long 当作 `number` 后丢失精度。范围包括 `CampusMonitorInformation`、`CampusMonitorResult`、`CampusMonitorTask`、`CampusMonitorWatchTarget`、`CampusMonitorRunLog`、`CampusAlert` 中会被前端再次提交的 ID 字段，如 `monitorResultId`、`monitorTaskId`、`clueId`、`alertId`、`targetId`、`sourceObjectId`。对应 POST/GET 参数仍按 Long 绑定，前端可提交原样字符串或兼容数字。
 

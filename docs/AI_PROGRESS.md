@@ -11,6 +11,14 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-17 监测信息情感人工校正
+
+- **用户目标**：监测信息页每条信息的情感可人工修改，并评估后确认采用“监测信息为入口，已转线索同步修正，已归档线索禁止修改”的校园单用户模式。
+- **后端调整**：新增 `POST /campus/monitor/result/sentiment`，统一写入 `positive/neutral/negative/none`；更新 `campus_monitor_result.sentiment`，已关联线索时同步 `campus_clue.sentiment` 并写入线索操作日志；关联线索已归档时返回失败，不改监测结果或线索。
+- **前端调整**：`/monitor` 监测信息表格“情感”列改为可操作下拉；批量操作新增“批量修改情感”；无监测操作权限、缺少监测结果 ID 或关联已归档线索时禁止修改。
+- **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/TEST_CHECKLIST.md`、`docs/modules/campus_monitor/manifest.md` 和 `docs/modules/campus_clue/manifest.md`，记录接口、同步口径和验收点。
+- **本地验证**：`git diff --check` 通过（仅换行提示）；`.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+
 ## 2026-05-17 校园事件单用户台账模式收敛
 
 - **用户目标**：事件处置先按单用户平台使用，不在系统内确定部门、反馈人和复核人；学校内部协同、反馈和复核暂时走线下流程。

@@ -126,6 +126,13 @@ export function ignoreMonitorResult(monitorResultId: ApiId) {
   return apiPost<CampusMonitorResult>('/campus/monitor/result/ignore', undefined, { monitorResultId });
 }
 
+export function updateMonitorResultSentiment(monitorResultId: ApiId, sentiment: string) {
+  return apiPost<CampusMonitorResult>('/campus/monitor/result/sentiment', undefined, {
+    monitorResultId,
+    sentiment
+  });
+}
+
 export function convertMonitorResultToClue(monitorResultId: ApiId) {
   return apiPost<CampusClue>('/campus/monitor/result/convert-clue', undefined, { monitorResultId });
 }

@@ -260,7 +260,23 @@
           </template>
           <template #default="{ row, $index }">
             <span v-if="col.key === 'index'">{{ rowIndex($index) }}</span>
-            <EmotionBadge v-else-if="col.key === 'sentiment'" :emotion="row.sentiment || ''" />
+            <div v-else-if="col.key === 'sentiment'" class="sentiment-edit-cell" :title="sentimentEditDisabledReason(row)">
+              <el-select
+                :model-value="normalizeSentimentValue(row.sentiment)"
+                size="small"
+                class="sentiment-select"
+                :disabled="!canEditMonitorSentiment(row)"
+                :loading="isSentimentUpdating(row)"
+                @change="onMonitorSentimentChange(row, $event)"
+              >
+                <el-option
+                  v-for="option in sentimentEditOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+            </div>
             <div v-else-if="col.key === 'title'" class="title-summary-cell">
               <div class="clue-title" v-html="highlightTitle(row.title || '')" />
               <div class="clue-summary">{{ row.summary || row.content || '' }}</div>
@@ -697,9 +713,24 @@
         <el-radio value="convert" :disabled="selectedMonitorResultCount === 0">批量转线索 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
         <el-radio value="alert" :disabled="selectedMonitorResultCount === 0">批量转预警 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
         <el-radio value="ignore" :disabled="selectedMonitorResultCount === 0">批量忽略 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
+        <el-radio value="sentiment" :disabled="selectedMonitorResultCount === 0">批量修改情感 — 处理 {{ selectedMonitorResultCount }} 条监测信息</el-radio>
         <el-radio value="judge" :disabled="selectedClueCount === 0">批量研判 — 处理 {{ selectedClueCount }} 条已转线索</el-radio>
         <el-radio value="joinEvent" :disabled="selectedClueCount === 0">批量加入事件 — 处理 {{ selectedClueCount }} 条已转线索</el-radio>
       </el-radio-group>
+      <div v-if="batchAction === 'sentiment'" style="margin-top: 16px;">
+        <el-form label-position="top">
+          <el-form-item label="目标情感" required>
+            <el-select v-model="batchSentiment" placeholder="请选择情感" style="width: 100%">
+              <el-option
+                v-for="option in sentimentEditOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
       <div v-if="batchAction === 'judge'" style="margin-top: 16px;">
         <el-form label-position="top">
           <el-form-item label="风险级别" required>
@@ -820,7 +851,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowDown, Plus, RefreshCw, Settings2 } from 'lucide-vue-next';
 import * as echarts from 'echarts';
 import type { ECharts, EChartsOption } from 'echarts';
-import EmotionBadge from '../components/EmotionBadge.vue';
 import PlatformBadge from '../components/PlatformBadge.vue';
 import { CAMPUS_RISK_OPTIONS, campusRiskLabel, campusRiskTagType, campusTopicLabel } from '../config/campusTaxonomy';
 import {
@@ -831,6 +861,7 @@ import {
   listMonitorResults,
   alertMonitorResult,
   ignoreMonitorResult,
+  updateMonitorResultSentiment,
   convertMonitorResultToClue,
   createMonitorWatchTargetFromResult,
   listMonitorWatchTargets,
@@ -961,7 +992,7 @@ const draggedColumnKey = ref('');
 
 const infoColumns = ref<InfoColumn[]>([
   { key: 'index', label: '#', width: 55, align: 'center', visible: true, required: true },
-  { key: 'sentiment', label: '情感', width: 80, align: 'center', visible: true },
+  { key: 'sentiment', label: '情感', width: 112, align: 'center', visible: true },
   { key: 'title', label: '标题-摘要', minWidth: 380, tooltip: true, visible: true, required: true },
   { key: 'contentCapture', label: '正文', width: 94, align: 'center', visible: true },
   { key: 'publishTime', label: '发布时间', width: 150, align: 'center', visible: true },
@@ -1226,6 +1257,7 @@ const batchJudgeForm = reactive({
   riskLevel: 'concern',
   judgeOpinion: ''
 });
+const batchSentiment = ref('negative');
 const batchJoinEventId = ref<ApiId | null>(null);
 const eventOptions = ref<CampusEvent[]>([]);
 const eventSearchLoading = ref(false);
@@ -1234,6 +1266,7 @@ function resetBatchForm() {
   batchAction.value = selectedMonitorResultCount.value > 0 ? 'convert' : 'judge';
   batchJudgeForm.riskLevel = 'concern';
   batchJudgeForm.judgeOpinion = '';
+  batchSentiment.value = 'negative';
   batchJoinEventId.value = null;
   eventOptions.value = [];
 }
@@ -1299,6 +1332,41 @@ async function executeBatchOp() {
     showBatchResult('批量操作完成', successCount, failCount, skipCount);
     batchOpVisible.value = false;
     loadData();
+  } else if (batchAction.value === 'sentiment') {
+    if (!canMonitorOperate.value) {
+      ElMessage.warning('当前账号没有监测操作权限');
+      return;
+    }
+    const targets = selectedInfos.value.filter((row) => row.monitorResultId);
+    if (targets.length === 0) {
+      ElMessage.warning('当前操作没有可处理的监测信息');
+      return;
+    }
+    if (!batchSentiment.value) {
+      ElMessage.warning('请选择目标情感');
+      return;
+    }
+    const normalized = normalizeSentimentValue(batchSentiment.value);
+    batchExecuting.value = true;
+    let successCount = 0;
+    let failCount = 0;
+    let skipCount = selectedInfos.value.length - targets.length;
+    for (const row of targets) {
+      if (isArchivedLinkedClue(row) || normalizeSentimentValue(row.sentiment) === normalized) {
+        skipCount++;
+        continue;
+      }
+      try {
+        await updateMonitorResultSentiment(row.monitorResultId!, normalized);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    batchExecuting.value = false;
+    showBatchResult(`批量修改情感为${sentimentOptionLabel(normalized)}完成`, successCount, failCount, skipCount);
+    batchOpVisible.value = false;
+    await Promise.all([loadMonitorResults(), refreshInfoList()]);
   } else if (batchAction.value === 'judge') {
     if (selectedClues.value.length === 0) {
       ElMessage.warning('当前操作没有可处理的已转线索');
@@ -1416,6 +1484,62 @@ const sentimentTags = [
   { label: '正面', value: 'positive', color: '#67c23a' },
   { label: '未知', value: 'none', color: '#909399' }
 ];
+const sentimentEditOptions = [
+  { label: '负面', value: 'negative' },
+  { label: '中性', value: 'neutral' },
+  { label: '正面', value: 'positive' },
+  { label: '未识别', value: 'none' }
+];
+const sentimentUpdatingIds = ref<Set<string>>(new Set());
+
+function normalizeSentimentValue(value?: string | null): string {
+  const raw = String(value || '').trim();
+  if (!raw) return 'none';
+  const lower = raw.toLowerCase();
+  if (lower.includes('negative') || lower.includes('neg') || raw.includes('负')) return 'negative';
+  if (lower.includes('positive') || lower.includes('pos') || raw.includes('正')) return 'positive';
+  if (lower.includes('neutral') || raw.includes('中')) return 'neutral';
+  return 'none';
+}
+
+function sentimentOptionLabel(value?: string | null): string {
+  const normalized = normalizeSentimentValue(value);
+  return sentimentEditOptions.find((item) => item.value === normalized)?.label || '未识别';
+}
+
+function isArchivedLinkedClue(row: CampusMonitorInformation): boolean {
+  return Boolean(row.clueId && row.clueStatus === 'archived');
+}
+
+function sentimentEditDisabledReason(row: CampusMonitorInformation): string {
+  if (!row.monitorResultId) return '当前记录缺少监测结果ID';
+  if (!canMonitorOperate.value) return '当前账号没有监测操作权限';
+  if (isArchivedLinkedClue(row)) return '已归档线索不能修改情感';
+  return '';
+}
+
+function canEditMonitorSentiment(row: CampusMonitorInformation): boolean {
+  return !sentimentEditDisabledReason(row) && !isSentimentUpdating(row);
+}
+
+function isSentimentUpdating(row: CampusMonitorInformation): boolean {
+  return row.monitorResultId ? sentimentUpdatingIds.value.has(String(row.monitorResultId)) : false;
+}
+
+function setSentimentUpdating(monitorResultId: ApiId, updating: boolean) {
+  const next = new Set(sentimentUpdatingIds.value);
+  const key = String(monitorResultId);
+  if (updating) {
+    next.add(key);
+  } else {
+    next.delete(key);
+  }
+  sentimentUpdatingIds.value = next;
+}
+
+function onMonitorSentimentChange(row: CampusMonitorInformation, value: string | number | boolean) {
+  updateMonitorSentiment(row, String(value));
+}
 
 // ========== 线索 CRUD 函数 ==========
 function resetClueForm() {
@@ -2491,6 +2615,36 @@ async function convertResult(row: CampusMonitorResult) {
   }
 }
 
+async function updateMonitorSentiment(row: CampusMonitorInformation, sentiment: string) {
+  if (!row.monitorResultId) {
+    ElMessage.warning('当前记录缺少监测结果ID，请刷新后重试');
+    return;
+  }
+  if (!canMonitorOperate.value) {
+    ElMessage.warning('当前账号没有监测操作权限');
+    return;
+  }
+  if (isArchivedLinkedClue(row)) {
+    ElMessage.warning('已归档线索不能修改情感');
+    return;
+  }
+  const normalized = normalizeSentimentValue(sentiment);
+  if (normalizeSentimentValue(row.sentiment) === normalized) {
+    return;
+  }
+  setSentimentUpdating(row.monitorResultId, true);
+  try {
+    const saved = await updateMonitorResultSentiment(row.monitorResultId, normalized);
+    row.sentiment = saved.sentiment || normalized;
+    ElMessage.success(`情感已修改为${sentimentOptionLabel(normalized)}`);
+    await Promise.all([loadMonitorResults(), refreshInfoList()]);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '情感修改失败');
+  } finally {
+    setSentimentUpdating(row.monitorResultId, false);
+  }
+}
+
 async function alertResult(row: CampusMonitorResult) {
   if (!row.monitorResultId) {
     ElMessage.warning('当前记录缺少监测结果ID，请刷新后重试');
@@ -3006,6 +3160,22 @@ function resizeTopicCharts() {
 
 .sentiment-tag.active {
   background: #f0f2f5;
+}
+
+.sentiment-edit-cell {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.sentiment-select {
+  width: 92px;
+}
+
+.sentiment-select :deep(.el-select__wrapper) {
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
 }
 
 .toolbar-right {

@@ -277,6 +277,25 @@ public class CampusMonitorController {
         }
     }
 
+    @PostMapping("/result/sentiment")
+    public ResultVO<CampusMonitorResult> updateResultSentiment(@RequestParam Long monitorResultId,
+                                                               @RequestParam String sentiment,
+                                                               HttpServletRequest request) {
+        String params = "monitorResultId=" + monitorResultId + "&sentiment=" + sentiment;
+        try {
+            User user = userUtil.getuser(request);
+            CampusMonitorResult saved = campusMonitorService.updateResultSentiment(monitorResultId,
+                    sentiment, user.getUser_id(), user.getUsername());
+            campusAuditLogService.record(request, "监测任务", "修改监测结果情感", "campus_monitor_result",
+                    String.valueOf(monitorResultId), params, true, null);
+            return ResultVO.success(saved);
+        } catch (Exception e) {
+            campusAuditLogService.record(request, "监测任务", "修改监测结果情感", "campus_monitor_result",
+                    String.valueOf(monitorResultId), params, false, e.getMessage());
+            return ResultVO.error(400, e.getMessage());
+        }
+    }
+
     @PostMapping("/result/convert-clue")
     public ResultVO<CampusClue> convertResultToClue(@RequestParam Long monitorResultId, HttpServletRequest request) {
         String params = "monitorResultId=" + monitorResultId;

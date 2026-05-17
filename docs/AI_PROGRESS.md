@@ -23,6 +23,7 @@
 - **线上验收**：`yuqing/nginx/mariadb/redis-server` 均为 active，后端监听 `8084`；`https://yuqing.zhuoran.cc/monitor` 返回 200；未登录访问 `POST /campus/monitor/result/sentiment?monitorResultId=1&sentiment=negative` 返回 302，符合鉴权预期；线上静态资源已包含“批量修改情感”。
 - **样式修正**：按用户反馈将监测信息表格情感列从常驻下拉框恢复为原 `EmotionBadge` 标签样式，仅点击标签时弹出修改菜单；批量修改情感保留在批量操作弹窗内。
 - **样式修正验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- **样式修正发布**：提交 `81b6aa6 fix: restore monitor sentiment badge style` 已推送 GitHub 和服务器远端；仅覆盖 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-195451-monitor-sentiment-style`；`https://yuqing.zhuoran.cc/monitor` 返回 200，线上静态资源已包含 `sentiment-badge-trigger` 且不再包含 `sentiment-select`。
 
 ## 2026-05-17 校园事件单用户台账模式收敛
 

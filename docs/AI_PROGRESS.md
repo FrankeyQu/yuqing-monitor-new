@@ -11,6 +11,25 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-17 监测任务与监测信息 AI 分析
+
+- **用户目标**：监测任务页增加 AI 体检；监测信息页支持手动单条/批量 AI 分析，给每条命中重新判断情感、生成一句话摘要、判断是否建议命中并归类校园主题。
+- **后端调整**：新增 `POST /campus/monitor/task/ai-diagnose` 和 `POST /campus/monitor/result/ai-analyze`；新增 `campus_monitor_result` AI 辅助字段 `ai_summary/ai_hit_recommendation/ai_hit_reason/ai_confidence/ai_analysis_time/ai_provider_code/ai_model_code`；监测命中 AI 分析成功后更新情感、AI摘要、AI建议、学校相关性和主题分类，已转未归档线索同步相关字段，已归档线索关联记录跳过写入。
+- **AI 能力配置**：新增功能绑定和提示词 `monitor_result_analysis`、`monitor_task_diagnosis`，继续通过 `campus_ai` 统一读取模型配置和记录脱敏调用日志。
+- **前端调整**：`/admin/monitor-tasks` 增加“AI体检”操作和只读结果弹窗；`/monitor` 增加当前页 AI 分析、单条“更多 → AI分析”、批量 AI 分析和 AI 建议列，标题摘要优先展示 AI 摘要。
+- **业务边界**：AI 判断“不建议命中”只作为辅助建议展示，不自动忽略、不删除、不转预警、不改变风险等级或结果状态；任务 AI 体检不写回配置、不展示具体采集内容。
+- **本地验证**：`git diff --check` 通过（仅保留既有 CRLF 工作区提示）；`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` XML 解析通过；`.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+
+## 2026-05-17 舆情态势工作台与大屏模式合并
+
+- **用户目标**：消除客户侧“工作台 / 态势大屏”重复入口，将普通排列式工作台和一屏大屏整合到同一业务页面内，通过“大屏模式”切换展示。
+- **执行分支 / Worktree**：本地 `D:\PRJ\yuqing`，分支 `claude/unify-dashboard-screen`；实施前 worktree 已存在另一组监测 AI 分析相关未提交改动，本轮仅暂存和提交本任务文件。
+- **前端调整**：`/` 统一为“舆情态势工作台”，右上新增“大屏模式 / 退出大屏”；`/situation` 复用同一 `DashboardView` 并直接进入大屏模式；大屏状态隐藏侧边栏和顶栏，使用 100vh 一屏网格展示核心指标、监测趋势、风险压力、最新命中、告警、任务和事件图表。
+- **数据与图标**：新增 `useCampusSituationDashboard` 统一态势数据加载和统计计算，移除首页默认 mock 兜底数据；导航和指标图标更新为 `LayoutDashboard / Radar / Siren / RadioTower / ScanSearch / Target / BellRing / Gauge` 等更贴近业务的 Lucide 图标；`PlatformBadge` 在 `showIcon=true` 时补齐平台图标。
+- **菜单与兼容**：新增 Flyway `V1.45__CampusDashboardScreenUnification.sql`，将 `workbench` 菜单展示名调整为“舆情态势”并隐藏 `situation` 菜单；历史 `/situation` 路由和权限保留，避免直达链接失效。
+- **文档同步**：更新 `docs/ARCHITECTURE.md`、`docs/PERMISSION_RULES.md`、`docs/campus-web-runbook.md` 和 `docs/campus-acceptance-runbook.md`，记录页面入口和菜单权限变化。
+- **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 针对本任务文件通过，仅有 CRLF 换行提示；使用本地 Vite + 临时 mock 后端浏览器验收 `/` 普通模式和 `/situation` 大屏模式，确认侧边栏/顶栏在大屏模式隐藏、图表渲染、核心文案和菜单入口正确。
+
 ## 2026-05-17 监测信息情感人工校正
 
 - **用户目标**：监测信息页每条信息的情感可人工修改，并评估后确认采用“监测信息为入口，已转线索同步修正，已归档线索禁止修改”的校园单用户模式。

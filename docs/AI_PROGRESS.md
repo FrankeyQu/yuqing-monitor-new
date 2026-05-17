@@ -4,10 +4,10 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/大屏合并和接入去重修复已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收，监测命中 AI 分析返回格式兼容修复已发布
+- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/智能驾驶舱大屏和接入去重修复已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收，监测命中 AI 分析返回格式兼容修复已发布
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
 - **当前 Git 状态**：`main` 已推送到 GitHub，旧生产线 `claude/daily-monthly-reports` 以功能等价吸收和本地保护分支方式留痕
-- **最近已发布功能提交**：commit `85d37e0 fix: hide monitor dedup controls`
+- **最近已发布功能提交**：commit `6d90f54 merge: formalize campus dashboard screen`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -19,7 +19,9 @@
 - **前端调整**：`/situation` 和 `/?mode=screen` 使用独立驾驶舱布局：顶部标题与刷新状态、6 个核心指标、近 7 日全部/风险/预警趋势主图、媒体来源横向排行、情感环图与数字块、来源风险、主题风险、负面告警、事件热度和底部监测任务运行条；普通首页 `/` 保持工作台布局。
 - **文档同步**：已更新 `docs/API_CONTRACT.md`、`docs/TEST_CHECKLIST.md`、`docs/campus-web-runbook.md` 记录新增统计字段和大屏验收口径。
 - **本地验证**：`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd -DskipTests package`、`campus-web npm run build` 均通过；`CampusMonitorResultMapper.xml` XML 解析通过；`git diff --check` 通过（仅 CRLF 提示）；Playwright mock 数据验证普通 `/` 工作台保留“大屏模式”入口，点击进入 `/?mode=screen` 后 1920x1080 一屏无滚动；`/situation` 在 2560x1440 下标题、来源排行、情感分布、6 个图表画布和任务底栏均正常展示。
-- **生产部署**：待合并 `main` 后执行。
+- **Git 合并**：功能提交 `b2e8c60 feat: formalize campus dashboard screen` 已通过 merge commit `6d90f54 merge: formalize campus dashboard screen` 合并到 `main`，GitHub `origin/main` 已推送。
+- **生产部署**：已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-035430-dashboard-smart-cockpit`；后端包 SHA256 `86d60073f36efb2bd01c57264db6fecdcc344e86732309d39ebc03fd88d3be4a`，前端包 SHA256 `e33f77c7fa509370503ba49e13d2a5860bc980fa92aacb5c33bf014a1f41faad`；本次无数据库表结构或迁移变更，未做数据库 dump。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`https://yuqing.zhuoran.cc/`、`/situation`、`/monitor` 返回 200，未登录 `/campus/dashboard/statistics` 返回 302；线上静态资源 `index-GWGb2mfA.js` 已包含“校园舆情智能驾驶舱”、`monitorSentimentDistribution`、`monitorSourceDistribution`，线上 jar 内 `CampusMonitorResultMapper.xml` 已包含新增监测来源/情感/主题风险统计 SQL。
 
 ## 2026-05-18 隐藏监测相似合并筛选
 

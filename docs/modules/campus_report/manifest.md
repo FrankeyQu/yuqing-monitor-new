@@ -22,7 +22,7 @@
 ## API 契约
 
 - `/campus/report/template/**`
-- `/campus/report/list/detail/save/generate/archive/download/delete`
+- `/campus/report/list/detail/save/generate/generate-ai/generate-ai-stream/archive/download/download-docx/download-pptx/delete`
 - `/campus/report/event/list`
 - `/campus/auto-report/**`
 
@@ -33,7 +33,8 @@
 ## 测试影响
 
 - 默认模板应渲染 `${governanceTable}`，输出逾期任务、即将到期任务、待处理预警、复核/归档事件和主题风险分布。
-- 报告生成不得直接统计未转线索的监测命中。
+- 报告生成不得直接统计未转线索的监测命中；周期、事件和关键词过滤必须共用同一个线索 scope。
+- AI 生成必须把内容持久化到 `campus_report.report_content`，并同步 `report_status=generated`、`report_format=markdown`、`file_name`、`generated_by` 和 `generate_time`。
 - 事件复盘模板应能展示事件标题、风险等级、状态、走势、媒体、情感、热词、热点文章和治理复盘。
 
 ## 禁止事项

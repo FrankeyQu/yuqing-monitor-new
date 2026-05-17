@@ -33,6 +33,7 @@ import com.stonedt.intelligence.service.campus.CampusMonitorService;
 import com.stonedt.intelligence.service.campus.support.CampusRiskLevel;
 import com.stonedt.intelligence.service.campus.support.CampusSchoolRelevance;
 import com.stonedt.intelligence.service.campus.support.CampusSchoolRelevanceService;
+import com.stonedt.intelligence.service.campus.support.CampusSentimentNormalizer;
 import com.stonedt.intelligence.service.campus.support.CampusTopicClassification;
 import com.stonedt.intelligence.service.campus.support.CampusTopicClassifier;
 import com.stonedt.intelligence.util.SnowflakeUtil;
@@ -475,7 +476,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     }
 
     private String normalizeInformationHitScope(String hitScope) {
-        return "all".equalsIgnoreCase(StringUtils.trimToEmpty(hitScope)) ? "all" : "risk";
+        return "risk".equalsIgnoreCase(StringUtils.trimToEmpty(hitScope)) ? "risk" : "all";
     }
 
     @Override
@@ -720,21 +721,18 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         negativeTokens.addAll(dictTokens(DICT_NEGATIVE_WORD, record.getLanguage()));
         negativeTokens.addAll(dictTokens(DICT_RISK_WORD, record.getLanguage()));
         addWatchTargetKeywordTokens(keywordTokens, watchTargets, record);
-        keywordTokens.removeAll(subjectTokens);
-        negativeTokens.removeAll(subjectTokens);
-        negativeTokens.removeAll(keywordTokens);
+        if (keywordTokens.isEmpty()) {
+            return;
+        }
         Set<String> matchedSubjects = matchTokens(text, subjectTokens);
         if (matchedSubjects.isEmpty() && watchTargetScoped) {
             matchedSubjects.addAll(matchedWatchTargets);
         }
-        if (matchedSubjects.isEmpty()) {
-            return;
-        }
         Set<String> matchedKeywords = matchTokens(text, keywordTokens);
-        Set<String> matchedNegativeWords = matchTokens(text, negativeTokens);
-        if (matchedKeywords.isEmpty() && matchedNegativeWords.isEmpty()) {
+        if (matchedKeywords.isEmpty()) {
             return;
         }
+        Set<String> matchedNegativeWords = matchTokens(text, negativeTokens);
 
         counter.matchCount++;
         boolean negative = isNegative(record, matchedNegativeWords);
@@ -784,7 +782,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         result.setMatchedSubjects(summary(StringUtils.join(matchedSubjects, ","), 512));
         result.setMatchedKeywords(summary(StringUtils.join(matchedKeywords, ","), 1024));
         result.setMatchedNegativeWords(summary(StringUtils.join(matchedNegativeWords, ","), 1024));
-        result.setSentiment(negative ? "negative" : StringUtils.defaultIfBlank(record.getSentiment(), "neutral"));
+        result.setSentiment(negative ? "negative" : CampusSentimentNormalizer.normalizeOrDefault(record.getSentiment(), "neutral"));
         result.setRiskLevel(resolveRiskLevel(record.getRiskLevel(), riskScore, negative));
         result.setRiskScore(riskScore);
         CampusSchoolRelevance relevance = schoolRelevanceService.evaluate(task, record, matchedSubjects, matchedKeywords);
@@ -1155,9 +1153,8 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         if (StringUtils.isBlank(task.getMonitorSubject())) {
             throw new IllegalArgumentException("监测主体不能为空");
         }
-        if (StringUtils.isBlank(task.getKeywords()) && StringUtils.isBlank(task.getKeywordsI18n())
-                && StringUtils.isBlank(task.getNegativeWords()) && StringUtils.isBlank(task.getNegativeWordsI18n())) {
-            throw new IllegalArgumentException("关键词和负面词至少填写一项");
+        if (StringUtils.isBlank(task.getKeywords()) && StringUtils.isBlank(task.getKeywordsI18n())) {
+            throw new IllegalArgumentException("关键词不能为空");
         }
         if (StringUtils.isNotBlank(task.getTaskStatus())) {
             validateTaskStatus(task.getTaskStatus());

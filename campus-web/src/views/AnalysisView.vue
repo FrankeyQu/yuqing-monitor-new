@@ -2,7 +2,7 @@
   <section class="business-page">
     <section class="panel">
       <el-tabs v-model="activeTab">
-        <el-tab-pane label="研判任务" name="tasks">
+        <el-tab-pane label="规则研判任务" name="tasks">
           <div class="toolbar">
             <div class="toolbar-filters">
               <el-select v-model="taskQuery.objectType" clearable placeholder="对象类型">
@@ -77,7 +77,7 @@
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="研判结果" name="results">
+        <el-tab-pane label="规则研判结果" name="results">
           <div class="toolbar">
             <div class="toolbar-filters">
               <el-input-number v-model="resultQuery.analysisTaskId" :min="1" controls-position="right" placeholder="任务ID" />
@@ -162,7 +162,7 @@
       </el-tabs>
     </section>
 
-    <el-dialog v-model="taskDialogVisible" title="创建辅助研判任务" width="720px">
+    <el-dialog v-model="taskDialogVisible" title="创建规则辅助研判任务" width="720px">
       <el-form label-position="top">
         <div class="form-grid">
           <el-form-item label="对象类型" required>
@@ -203,7 +203,7 @@
     <el-dialog v-model="reviewDialogVisible" :title="reviewForm.adoptionStatus === 'adopted' ? '采纳研判结果' : '驳回研判结果'" width="560px">
       <el-alert
         class="data-alert"
-        title="辅助研判结果必须由人工复核后才能作为处置参考"
+        title="规则辅助研判结果必须由人工复核后才能作为处置参考"
         type="info"
         show-icon
         :closable="false"
@@ -331,7 +331,7 @@ async function submitTask() {
   saving.value = true;
   try {
     await createAnalysisTask({ ...taskForm });
-    ElMessage.success('辅助研判任务已创建');
+    ElMessage.success('规则辅助研判任务已创建');
     taskDialogVisible.value = false;
     await loadTasks();
   } catch (error) {

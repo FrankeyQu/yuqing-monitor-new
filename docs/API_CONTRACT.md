@@ -484,7 +484,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | GET | `/campus/ingest/api-call/list` | `taskId,runId,provider,callStatus` | `ResultVO<List<CampusIngestApiCallLog>>` | 外部 API 调用日志；`provider` 包括 `tikhub`、`baidu`、`jina_reader` |
 | GET/POST | `/campus/ingest/public-web/whitelist/*` | `list/save/update-status/delete` | `ResultVO` | 公开网页白名单 |
 
-说明：上述运行日志、API 调用日志和 `third_party_api` 兼容接口仍作为后端能力保留；后台数据接入业务页只展示来源、任务、接入记录和公开网页白名单，不展示运行日志、外部调用日志或历史供应商调用配置。接入任务 `targetType=clue` 表示可自动沉淀为线索；监测任务自动维护的内部接入任务使用 `targetType=monitor_scan`，只供 `campus_monitor` 扫描，不在规则命中前自动转线索。
+说明：上述运行日志、API 调用日志和 `third_party_api` 兼容接口仍作为后端能力保留；客户后台暂不展示数据接入业务页，`/admin/ingest` 直接访问重定向到 `/admin/monitor-tasks`。接入任务 `targetType=clue` 表示可自动沉淀为线索；监测任务自动维护的内部接入任务使用 `targetType=monitor_scan`，只供 `campus_monitor` 扫描，不在规则命中前自动转线索。运行日志 `runStatus` 支持 `running/success/partial_success/failed`；手动 finish 未显式传状态时，会按成功/失败计数自动归并，任务运行中“有成功也有失败”记录为 `partial_success`。接入记录自动转线索时继承记录侧 `riskLevel`，不再统一降级为普通关注；转换失败会把记录标记为 `normalized_status=failed`。
 
 ### 监测与检测任务
 
@@ -524,6 +524,8 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | POST | `/campus/monitor/watch-target/create-from-result` | `monitorResultId,monitorTaskId,targetType(account/link)` | `ResultVO<CampusMonitorWatchTarget>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/watch-target/delete` | `targetId` | `ResultVO<Void>` | `campus:monitor:operate` |
 
+监测信息推荐参数：`hitScope=all/risk`，默认 `all`；`sortBy=publishTime/collectTime/relevance/sentiment`，旧值 `value/siteLevel` 后端仅兼容并落到默认发布时间排序；`sentiment=positive/neutral/negative/none`，多选用逗号分隔。
+
 `CampusMonitorTask` 新增/扩展字段：`keywordsI18n`、`negativeWordsI18n`、`excludeWordsI18n`、`displayEnabled`、`autoIngestEnabled`、`lastCollectTime`、`lastMatchCount`、`displayResultCount`、`lastErrorMessage`、`ingestCapabilityStatus`。多语言 JSON 示例：`{"zh":"招生,投诉","mongolian":"...","uyghur":"..."}`。旧字段 `keywords`、`negativeWords`、`excludeWords` 继续有效。只有 `taskStatus=active` 且 `displayEnabled=1` 的任务命中会进入 `/campus/monitor/information/**` 展示和平台统计；暂停/禁用任务停止调度并隐藏其历史命中，删除任务会软删除任务、停用调度并自动隐藏前台数据。`autoIngestEnabled=1` 时，保存/运行监测任务会通过 `campus_ingest` Service 自动创建或复用 `targetType=monitor_scan` 的内部接入任务，运行时先触发接入任务，再扫描对应 `campus_ingest_record`。普通前端不再手动提交 `ingestTaskIds`，仅高级诊断展示自动绑定结果。
 
 `ingestCapabilityStatus` 取值：`ready` 可用、`partial` 部分可用、`unsupported` 平台未接入、`failed` 调用失败、`pending` 待运行。当前自动接入优先支持：百度新闻/公开网页（`baidu_search` + Jina Reader 正文增强配置）、TikHub 抖音/小红书/B站/微博/知乎/微信公众号/快手。公开论坛不再作为独立自动接入平台，历史论坛/贴吧/豆瓣数据按新闻/网页口径兼容展示。`alertMode=all_hits` 为兼容旧值保留，当前语义为“风险命中告警”：普通主题词命中不自动预警，只有负面词、风险词、非普通风险等级或高风险分才自动进入预警。
@@ -532,7 +534,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 
 `CampusMonitorResult` 新增展示字段：`language`、`clueId`、`likeCount`、`commentCount`、`shareCount`、`collectCount`、`viewCount`、`schoolRelevanceScore`、`schoolRelevanceReason`、`matchedSchoolTerms`、`excludedReason`、`topicCategory`、`topicSubCategory`、`topicReason`。互动数字由接入层尽量解析，平台无返回时保持空值。学校相关性和主题分类由监测扫描时基于主体词、校园语境词、命中词和 `campus_event_topic` 字典生成。`convert-clue` 会优先复用 `campus_ingest_record.target_type=clue` 已绑定线索，避免监测结果和线索库重复生成；新建线索时会携带相关性和主题字段。
 
-`CampusMonitorInformation` 是监测信息工作台的统一返回模型，不新增表。数据源仅为 `campus_monitor_result` 的只读视图，核心字段包括：`infoType,infoId,monitorResultId,clueId,title,content,summary,contentCaptureStatus,contentCaptureLabel,originalUrl,platform,sourcePlatform,sourceSubPlatform,authorName,publishTime,infoTime,matchedKeywords,matchedNegativeWords,keywords,sentiment,riskLevel,resultStatus,clueStatus,likeCount,commentCount,shareCount,collectCount,viewCount,schoolRelevanceScore,schoolRelevanceReason,matchedSchoolTerms,topicCategory,topicSubCategory,topicReason`。`contentCaptureStatus` 取值为 `full/partial/missing`，用于区分完整正文、摘要/标题和未采集；`contentCaptureLabel` 可进一步显示“详情失败/摘要”。统一列表默认 `hitScope=risk`，排除三类噪声：暂停/禁用/隐藏/删除任务的历史命中，自动监测宽泛接入在规则命中前误转出的独立线索，以及只命中主体词/别名、未命中有效关键词或负面/风险词的历史监测结果；`hitScope=all` 时只放开主体词-only 历史监测结果，用于查看采集覆盖面，仍然只读取 active 且 `displayEnabled=1` 的真实 `campus_monitor_result`，不混入普通线索、搜索页沉淀内容和手工新增线索。前端“详情”必须先展示站内内容详情，只有详情页/弹窗中的“查看原链接”才打开外部原文；非 `http/https` 原文链接不得作为可点击外链；“转线索/转预警/忽略/加重点账号/加指定链接”仅对有 `monitorResultId` 的行开放。
+`CampusMonitorInformation` 是监测信息工作台的统一返回模型，不新增表。数据源仅为 `campus_monitor_result` 的只读视图，核心字段包括：`infoType,infoId,monitorResultId,clueId,title,content,summary,contentCaptureStatus,contentCaptureLabel,originalUrl,platform,sourcePlatform,sourceSubPlatform,authorName,publishTime,collectTime,publishTimeStatus,infoTime,matchedKeywords,matchedNegativeWords,keywords,sentiment,riskLevel,riskMarked,resultStatus,clueStatus,likeCount,commentCount,shareCount,collectCount,viewCount,schoolRelevanceScore,schoolRelevanceReason,matchedSchoolTerms,topicCategory,topicSubCategory,topicReason`。`contentCaptureStatus` 取值为 `full/partial/missing`，用于区分完整正文、摘要/标题和未采集；`publishTimeStatus` 取值为 `known/missing/inferred`，发布时间缺失时前端展示“发布时间未知”并使用 `collectTime` 辅助排序和展示。统一列表默认 `hitScope=all`，只读取 active 且 `displayEnabled=1` 的真实 `campus_monitor_result`，不混入普通线索、搜索页沉淀内容和手工新增线索；`hitScope=risk` 仅返回 `riskMarked=true` 的关键词命中。新命中逻辑只以 `keywords` 作为命中条件，`monitorSubject/subjectAliases/matchedSubjects` 仅保留展示与历史兼容语义；负面词只生成风险标记，不再决定普通命中是否展示。`sentiment` 统一使用 `positive/neutral/negative/none`，后端兼容历史中文“疑似/确认”值。`similarDedup=true` 时按 `content_hash → 有效原文链接 → 标题+平台` 合并相似展示，并影响列表分页和平台统计。前端“详情”必须先展示站内内容详情，只有详情页/弹窗中的“查看原链接”才打开外部原文；非 `http/https` 原文链接不得作为可点击外链；“转线索/转预警/忽略/加重点账号/加指定链接”仅对有 `monitorResultId` 的行开放。
 
 `CampusMonitorWatchTarget` 用于任务内重点账号/链接约束，核心字段：`monitorTaskId,targetType,platform,accountId,accountName,accountUid,linkUrl,sourceObjectType,sourceObjectId,authorizationScope,keywordScope,targetStatus`。DPI 或其它平台推送账号应复用该模型或账号模块保存入口，不能直接写库。
 
@@ -564,9 +566,10 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | AI 调用日志 | `/campus/ai/call-log/list` | DeepSeek 等通过 AI 管理层发起的脱敏调用日志 |
 | 重点账号 | `/campus/account/list/detail/save/audit/update-status/delete` | 账号库、审核、启停/删除 |
 | 账号任务/内容 | `/campus/account/task/add/list`、`/campus/account/content/add/list` | 关注任务和公开动态 |
-| 分析任务 | `/campus/analysis/task/create/list/run`、`/campus/analysis/result/list/review` | 辅助研判任务和结果复核 |
+| 分析任务 | `/campus/analysis/task/create/list/run`、`/campus/analysis/result/list/review` | 规则辅助研判任务和结果复核；当前默认 `modelProvider=local_heuristic` |
+| 线索搜索 | `/campus/clue/list` | 前端 `/search` 仅搜索线索库，不搜索未转线索的监测信息或原始接入记录 |
 | 报告模板 | `/campus/report/template/list/save/delete` | 报告模板 |
-| 报告生成 | `/campus/report/list/detail/events/save/generate/generate-ai/generate-ai-stream` | 报告保存、传统生成、AI 生成和 SSE 流 |
+| 报告生成 | `/campus/report/list/detail/events/save/generate/generate-ai/generate-ai-stream` | 报告保存、传统生成、AI 生成和 SSE 流；`generate-ai` 返回 `ResultVO<CampusReport>` 并持久化 `reportContent/reportStatus/fileName` |
 | 报告下载 | `/campus/report/download/download-docx/download-pptx` | Markdown/Word/PPT 导出 |
 | 自动报告 | `/campus/auto-report/job/list/save/update-status/delete/run`、`/log/list` | 定时报告任务 |
 | 组织部门 | `/campus/department/list/tree/detail/save/delete` | 部门维护 |
@@ -575,6 +578,8 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | 权限 | `/campus/system/current-user/menu-tree/role/*/menu/list/api/list` | 角色、菜单、API 权限 |
 
 AI 能力管理接口统一返回 `ResultVO<T>`。GET 查询使用 `campus:ai:read`，POST 保存、删除和供应商配置测试使用 `campus:ai:operate`；后台菜单权限为 `campus:ai:view`。P2 历史能力只做登记和启停管理，默认不写入当前校园主流程。
+
+报告生成补充：`/campus/report/generate` 和 `/campus/report/generate-ai` 均使用报告关联事件、报告标题关键词和周期范围聚合线索库数据；关联事件报告优先按 `eventId` 统计，不再把同标题但无关的线索混入周期统计。`/campus/report/generate-ai-stream` 通过 SSE `message` 事件返回内容块，结束标记为 `[DONE]`；前端收到结束标记后应重新读取报告详情，以数据库中已持久化的 `reportContent` 为准。
 
 ### Breaking Change 补充规则（校园模块）
 

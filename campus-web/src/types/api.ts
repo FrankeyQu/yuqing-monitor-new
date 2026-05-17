@@ -212,6 +212,8 @@ export interface CampusMonitorInformation {
   authorName?: string;
   involvedAccount?: string;
   publishTime?: string | Date;
+  collectTime?: string | Date;
+  publishTimeStatus?: 'known' | 'missing' | 'inferred' | string;
   discoverTime?: string | Date;
   createTime?: string | Date;
   infoTime?: string | Date;
@@ -233,6 +235,7 @@ export interface CampusMonitorInformation {
   resultStatus?: string;
   clueStatus?: string;
   alertId?: number;
+  riskMarked?: boolean;
   likeCount?: number;
   commentCount?: number;
   shareCount?: number;

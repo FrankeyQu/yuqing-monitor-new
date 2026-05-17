@@ -1,17 +1,15 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
-import { isLoggedIn } from '../services/auth';
+import { ensureSession, isLoggedIn } from '../services/auth';
 import MainLayout from '../layouts/MainLayout.vue';
 import AdminLayout from '../layouts/AdminLayout.vue';
 import LoginView from '../views/LoginView.vue';
 import DashboardView from '../views/DashboardView.vue';
-import WorkbenchView from '../views/WorkbenchView.vue';
 import SituationView from '../views/SituationView.vue';
 import MonitorView from '../views/MonitorView.vue';
 import ArticleDetailView from '../views/ArticleDetailView.vue';
 import AccountView from '../views/AccountView.vue';
 import EventView from '../views/EventView.vue';
 import AlertView from '../views/AlertView.vue';
-import IngestView from '../views/IngestView.vue';
 import MonitorTaskAdminView from '../views/MonitorTaskAdminView.vue';
 import EducationView from '../views/EducationView.vue';
 import JudgmentView from '../views/JudgmentView.vue';
@@ -86,7 +84,7 @@ const routes: RouteRecordRaw[] = [
         path: 'analysis',
         name: 'analysis',
         component: AnalysisView,
-        meta: { title: '辅助研判' }
+        meta: { title: '规则辅助研判' }
       },
       {
         path: 'judgment',
@@ -151,9 +149,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'ingest',
-        name: 'admin-ingest',
-        component: IngestView,
-        meta: { title: '数据接入' }
+        redirect: '/admin/monitor-tasks'
       },
       {
         path: 'education',
@@ -204,12 +200,12 @@ const router = createRouter({
   routes
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   document.title = to.meta.title ? `${String(to.meta.title)} - ${COMPANY_NAME}` : DEFAULT_DOCUMENT_TITLE;
   if (to.meta.public) {
-    return isLoggedIn() ? '/' : true;
+    return isLoggedIn() && await ensureSession() ? '/' : true;
   }
-  return isLoggedIn() ? true : '/login';
+  return await ensureSession() ? true : '/login';
 });
 
 export default router;

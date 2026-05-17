@@ -123,7 +123,7 @@ JWT payload 包含：
 | 任务内重点目标 | `/campus/monitor/watch-target/**` | `campus:monitor:read` / `campus:monitor:operate` | 重点账号、指定链接、从结果一键加入 |
 | 事件处置 | `GET /campus/event/clue/suggest` | `campus:event:read` | 相似线索推荐，复用 `GET /campus/event/**` 只读权限 |
 | 事件处置 | `POST /campus/event/**` | `campus:event:operate` | 定级、分派、反馈、退回、复核、归档均由后端状态前置校验保护 |
-| 数据接入 | `/ingest`、`/campus/ingest/task/save/run` | `campus:ingest:view` / `campus:ingest:operate` | 百度 Reader 增强和白名单公开网页 `jina_reader` 复用现有接入任务权限，不新增绕权入口 |
+| 数据接入 | `/campus/ingest/task/save/run` | `campus:ingest:view` / `campus:ingest:operate` | 接入后端能力保留；客户后台暂不展示“数据接入”菜单，`/admin/ingest` 重定向到 `/admin/monitor-tasks` |
 | AI 能力管理 | `/admin/settings/ai` | `campus:ai:view` | 后台 AI 能力管理入口，仅管理员默认拥有 |
 | AI 能力管理 | `GET /campus/ai/**` | `campus:ai:read` | 查询供应商、模型、功能绑定、提示词和调用日志 |
 | AI 能力管理 | `POST /campus/ai/**` | `campus:ai:operate` | 保存供应商/模型/功能/提示词和测试供应商配置 |
@@ -158,7 +158,9 @@ JWT payload 包含：
 
 ### 校园 Vue 前端
 - `campus-web` 通过权限接口获取菜单/角色/接口权限信息
-- 后台管理入口会按当前用户菜单/权限过滤：重点账号、监测任务管理、数据接入、AI能力、教育专题、系统设置；前台侧边栏过滤所有 `/admin/**` 路由，避免后台功能在首页菜单重复出现
+- 进入受保护页面前，`campus-web` 先调用 `/campus/system/current-user` 校验真实 session；失败时清理本地登录标记并跳转登录页
+- 后台管理入口会按当前用户菜单/权限过滤：重点账号、监测任务管理、AI能力、教育专题、系统设置；权限加载失败或过滤为空时不再 fallback 展示全部后台菜单
+- 前台侧边栏过滤所有后台/管理路由；没有后台菜单权限的账号隐藏“后台管理”；数据接入客户入口暂时隐藏
 - 后台监测任务管理页使用 `campus:monitor:operate` 控制新增、编辑、启停、前台展示开关、删除、手动运行和重点目标维护按钮；不展示具体监测内容、命中结果或运行日志
 - 监测任务普通表单不再授权人工选择接入任务；自动接入由 `campus_monitor` 通过 `campus_ingest` Service 编排，页面只展示自动绑定任务和最近错误作为高级诊断信息
 - AI 能力管理页使用 `campus:ai:view` 控制后台入口；供应商/模型/提示词等保存接口最终以后端 `campus:ai:operate` 为准，不在前端保存真实 API Key；如果 `/campus/ai/**` 查询失败，页面应保留壳层并展示加载失败原因

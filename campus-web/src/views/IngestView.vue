@@ -1428,7 +1428,14 @@ async function submitStartRun(row: CampusIngestTask) {
   }
   try {
     const runLog = await runIngestTask(row.taskId);
-    ElMessage.success(`运行完成：拉取 ${runLog.fetchedCount || 0} 条，成功 ${runLog.successCount || 0} 条`);
+    const failCount = runLog.failCount || 0;
+    const message = `${runLog.runStatus === 'partial_success' ? '部分成功' : '运行完成'}：拉取 ${runLog.fetchedCount || 0} 条，成功 ${runLog.successCount || 0} 条`
+      + (failCount > 0 ? `，失败 ${failCount} 条` : '');
+    if (runLog.runStatus === 'partial_success') {
+      ElMessage.warning(message);
+    } else {
+      ElMessage.success(message);
+    }
     await Promise.all([loadTasks(), loadRecords()]);
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '运行失败');

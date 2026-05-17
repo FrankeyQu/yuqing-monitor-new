@@ -55,6 +55,17 @@ public interface CampusClueDao {
     List<CampusClue> listForDetection(@Param("startTime") Date startTime,
                                       @Param("endTime") Date endTime);
 
+    List<CampusClue> listForReportScope(@Param("keyword") String keyword,
+                                        @Param("eventId") Long eventId,
+                                        @Param("startTime") Date startTime,
+                                        @Param("endTime") Date endTime);
+
+    List<Map<String, Object>> getReportDailyTrend(@Param("keyword") String keyword,
+                                                  @Param("eventId") Long eventId,
+                                                  @Param("startTime") Date startTime,
+                                                  @Param("endTime") Date endTime,
+                                                  @Param("days") int days);
+
     List<CampusClue> listSimilarForEvent(@Param("eventId") Long eventId,
                                          @Param("excludeClueIds") List<Long> excludeClueIds,
                                          @Param("topicCategory") String topicCategory,

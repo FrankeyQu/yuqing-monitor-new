@@ -2,7 +2,7 @@
   <div class="search-page">
     <!-- Header -->
     <div class="search-header">
-      <h2>搜索: {{ query }}</h2>
+      <h2>线索搜索: {{ query }}</h2>
       <span style="color: #64748b; font-size: 13px;">共 {{ total }} 条</span>
     </div>
 
@@ -11,7 +11,7 @@
       <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
         <el-input
           v-model="localQuery"
-          placeholder="输入关键词搜索..."
+          placeholder="输入线索关键词搜索..."
           clearable
           style="width: 320px"
           @keyup.enter="handleSearch"
@@ -36,7 +36,7 @@
       搜索中...
     </div>
     <div v-else-if="results.length === 0" style="text-align: center; padding: 40px 0; color: #94a3b8;">
-      未找到相关结果
+      未找到相关线索
     </div>
     <template v-else>
       <div
@@ -54,7 +54,7 @@
           <span>发布时间：{{ item.publishTime || '未知' }}</span>
           <span v-if="item.discoverTime">发现时间：{{ item.discoverTime }}</span>
           <router-link :to="`/monitor/article/${item.id}`" style="margin-left: auto; font-size: 12px; color: var(--el-color-primary); text-decoration: none;">
-            查看
+            查看线索
           </router-link>
         </div>
       </div>
@@ -77,7 +77,7 @@
 import { ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Search } from 'lucide-vue-next';
-import { searchArticles, type SearchResultItem } from '../services/search';
+import { searchClues, type SearchResultItem } from '../services/search';
 import EmotionBadge from '../components/EmotionBadge.vue';
 import PlatformBadge from '../components/PlatformBadge.vue';
 
@@ -101,7 +101,7 @@ async function fetchResults() {
   }
   loading.value = true;
   try {
-    const res = await searchArticles(query.value, mediaType.value, page.value, pageSize.value);
+    const res = await searchClues(query.value, mediaType.value, page.value, pageSize.value);
     results.value = res.items;
     total.value = res.total;
   } catch {

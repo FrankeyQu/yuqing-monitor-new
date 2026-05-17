@@ -94,10 +94,9 @@ public class RuleJudgmentEngine {
         // 8. Apply judgment to clue entity
         clue.setRiskLevel(riskLevel);
 
-        // If negative words matched, override sentiment to "疑似负面";
-        // otherwise preserve the original sentiment.
+        // Negative words mark the clue as canonical negative sentiment.
         if (!matchedNegWords.isEmpty()) {
-            clue.setSentiment("疑似负面");
+            clue.setSentiment("negative");
         }
 
         clue.setJudgeOpinion(buildOpinion(matchedKeywords, matchedNegWords, riskScore));

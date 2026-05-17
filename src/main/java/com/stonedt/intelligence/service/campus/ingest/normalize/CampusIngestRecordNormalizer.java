@@ -5,6 +5,7 @@ import com.stonedt.intelligence.entity.campus.CampusIngestRecord;
 import com.stonedt.intelligence.entity.campus.CampusIngestSource;
 import com.stonedt.intelligence.entity.campus.CampusIngestTask;
 import com.stonedt.intelligence.service.campus.ingest.CampusIngestItem;
+import com.stonedt.intelligence.service.campus.support.CampusSentimentNormalizer;
 import com.stonedt.intelligence.util.SnowflakeUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,27 @@ public class CampusIngestRecordNormalizer {
     private static final String STATUS_PENDING = "pending";
     private static final String RISK_NORMAL = "normal";
     private static final String CONTENT_TYPE_ARTICLE = "article";
+    private static final String[] UI_NOISE_PHRASES = {
+            "与搜索词无关",
+            "内容过时",
+            "封面质量差",
+            "不再看到该作者",
+            "不再看到该作品",
+            "内容违规、血腥、低俗",
+            "与其他结果相似",
+            "不够权威"
+    };
+    private static final String[] UI_NOISE_EXACT_VALUES = {
+            "与搜索词无关",
+            "内容过时",
+            "封面质量差",
+            "不再看到该作者",
+            "不再看到该作品",
+            "内容违规、血腥、低俗",
+            "与其他结果相似",
+            "不够权威",
+            "其他"
+    };
 
     private final CampusIngestRawDataSanitizer rawDataSanitizer;
 
@@ -47,7 +69,7 @@ public class CampusIngestRecordNormalizer {
         record.setAccountTaskId(item.getAccountTaskId());
         record.setKeywords(left(CampusIngestTextSanitizer.cleanPlainText(item.getKeywords()), 512));
         record.setRiskLevel(left(StringUtils.defaultIfBlank(trimToNull(item.getRiskLevel()), RISK_NORMAL), 32));
-        record.setSentiment(left(trimToNull(item.getSentiment()), 32));
+        record.setSentiment(left(CampusSentimentNormalizer.normalize(item.getSentiment()), 32));
         record.setLikeCount(item.getLikeCount());
         record.setCommentCount(item.getCommentCount());
         record.setShareCount(item.getShareCount());
@@ -67,7 +89,54 @@ public class CampusIngestRecordNormalizer {
                 || (StringUtils.isBlank(record.getExternalId())
                 && StringUtils.isBlank(record.getTitle())
                 && StringUtils.isBlank(record.getContent())
-                && StringUtils.isBlank(record.getOriginalUrl()));
+                && StringUtils.isBlank(record.getOriginalUrl()))
+                || isUiNoiseRecord(record);
+    }
+
+    private boolean isUiNoiseRecord(CampusIngestRecord record) {
+        String externalId = StringUtils.trimToEmpty(record.getExternalId()).toLowerCase();
+        if (externalId.startsWith("search_")) {
+            return true;
+        }
+        String originalUrl = StringUtils.trimToEmpty(record.getOriginalUrl()).toLowerCase();
+        if (originalUrl.contains("/short-video/search_")) {
+            return true;
+        }
+        String title = normalizeNoiseText(record.getTitle());
+        String content = normalizeNoiseText(record.getContent());
+        if (isExactNoise(title) || isExactNoise(content)) {
+            return true;
+        }
+        return isFeedbackBlock(title) || isFeedbackBlock(content);
+    }
+
+    private boolean isExactNoise(String value) {
+        if (StringUtils.isBlank(value)) {
+            return false;
+        }
+        for (String noise : UI_NOISE_EXACT_VALUES) {
+            if (value.equals(normalizeNoiseText(noise))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isFeedbackBlock(String value) {
+        if (StringUtils.isBlank(value)) {
+            return false;
+        }
+        int hitCount = 0;
+        for (String phrase : UI_NOISE_PHRASES) {
+            if (value.contains(normalizeNoiseText(phrase))) {
+                hitCount++;
+            }
+        }
+        return hitCount >= 2;
+    }
+
+    private String normalizeNoiseText(String value) {
+        return StringUtils.defaultString(value).replaceAll("\\s+", "").trim();
     }
 
     private String rawData(CampusIngestItem item) {

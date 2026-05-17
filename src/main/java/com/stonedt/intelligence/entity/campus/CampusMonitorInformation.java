@@ -25,6 +25,8 @@ public class CampusMonitorInformation {
     private String authorName;
     private String involvedAccount;
     private Date publishTime;
+    private Date collectTime;
+    private String publishTimeStatus;
     private Date discoverTime;
     private Date createTime;
     private Date infoTime;
@@ -46,6 +48,7 @@ public class CampusMonitorInformation {
     private String resultStatus;
     private String clueStatus;
     private Long alertId;
+    private Boolean riskMarked;
     private Long likeCount;
     private Long commentCount;
     private Long shareCount;

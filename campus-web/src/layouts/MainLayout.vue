@@ -23,8 +23,8 @@
             </span>
           </template>
         </el-menu-item>
-        <el-divider style="margin: 8px 12px" />
-        <el-menu-item index="/admin" @click="$router.push('/admin')">
+        <el-divider v-if="showAdminEntry" style="margin: 8px 12px" />
+        <el-menu-item v-if="showAdminEntry" index="/admin" @click="$router.push('/admin')">
           <Settings :size="18" class="menu-icon" />
           <template #title>
             <span>后台管理</span>
@@ -50,7 +50,7 @@
           <el-autocomplete
             v-model="searchQuery"
             :fetch-suggestions="searchSuggestions"
-            placeholder="搜索文章、关键词..."
+            placeholder="搜索线索、关键词..."
             :trigger-on-focus="false"
             size="small"
             clearable
@@ -130,7 +130,7 @@ import {
 } from 'lucide-vue-next';
 import { clearLoginState, currentLoginName, setNewPassword } from '../services/auth';
 import { COMPANY_NAME, PRODUCT_EN_NAME, PRODUCT_NAME } from '../config/brand';
-import { getCampusMenuTree } from '../services/permission';
+import { getCampusMenuTree, getCurrentCampusUser } from '../services/permission';
 import { suggestClues } from '../services/campusBusiness';
 import type { CampusPermissionMenu } from '../types/api';
 
@@ -164,17 +164,8 @@ const iconMap: Record<string, Component> = {
   ShieldAlert,
 };
 
-const fallbackMenuItems: MenuItem[] = [
-  { path: '/', label: '主页', icon: Gauge },
-  { path: '/monitor', label: '监测信息', icon: ClipboardList },
-  { path: '/judgment', label: '舆情研判', icon: Scale },
-  { path: '/events', label: '事件处置', icon: ShieldAlert },
-  { path: '/alerts', label: '预警中心', icon: Bell },
-  { path: '/analysis', label: '分析', icon: BrainCircuit },
-  { path: '/reports', label: '汇报', icon: FileText },
-  { path: '/search', label: '搜索', icon: Search }
-];
-const menuItems = ref<MenuItem[]>(fallbackMenuItems);
+const menuItems = ref<MenuItem[]>([]);
+const showAdminEntry = ref(false);
 
 onMounted(() => {
   loadMenus();
@@ -262,19 +253,46 @@ async function submitNewPassword() {
   }
 }
 
-const ADMIN_ONLY_PATHS = new Set(['/accounts', '/detection', '/ingest']);
+const FRONT_MENU_PATHS = new Set([
+  '/',
+  '/situation',
+  '/monitor',
+  '/judgment',
+  '/events',
+  '/alerts',
+  '/analysis',
+  '/reports',
+  '/auto-reports',
+  '/compare',
+  '/search'
+]);
+const ADMIN_MENU_HINTS = new Set([
+  '/accounts',
+  '/monitor-tasks',
+  '/detection',
+  '/education',
+  '/settings/departments',
+  '/settings/dicts',
+  '/settings/audit',
+  '/settings/permissions',
+  '/settings/ai'
+]);
 const LEGACY_HIDDEN_PATHS = new Set(['/clues']);
 
 async function loadMenus() {
   try {
-    const menus = await getCampusMenuTree();
+    const [menus, currentUser] = await Promise.all([getCampusMenuTree(), getCurrentCampusUser()]);
+    const flattened = flattenMenus(menus);
+    const permissionSet = new Set(currentUser.permissions || []);
+    const userMenuRoutes = flattenMenus(currentUser.menus || []).map((item) => item.routePath || '');
+    showAdminEntry.value = permissionSet.has('role:campus_admin')
+      || permissionSet.has('campus:api:all')
+      || userMenuRoutes.some((path) => path.startsWith('/admin') || ADMIN_MENU_HINTS.has(path));
     const items = flattenMenus(menus)
       .filter((item) =>
         item.routePath
-        && !ADMIN_ONLY_PATHS.has(item.routePath)
-        && !item.routePath.startsWith('/admin')
+        && FRONT_MENU_PATHS.has(item.routePath)
         && !LEGACY_HIDDEN_PATHS.has(item.routePath)
-        && !item.routePath.startsWith('/settings')
       )
       .map<MenuItem>((item) => ({
         path: item.routePath || '/',
@@ -283,9 +301,12 @@ async function loadMenus() {
       }));
     if (items.length > 0) {
       menuItems.value = items;
+    } else {
+      menuItems.value = flattened.some((item) => FRONT_MENU_PATHS.has(item.routePath || '')) ? items : [];
     }
   } catch {
-    menuItems.value = fallbackMenuItems;
+    menuItems.value = [];
+    showAdminEntry.value = false;
   }
 }
 

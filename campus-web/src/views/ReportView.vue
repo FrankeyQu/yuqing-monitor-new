@@ -663,7 +663,8 @@ async function startGenerate() {
       genRunning.value = true;
       try {
         const result = await generateReportAi(reportId);
-        genResultContent.value = result || '';
+        genReport.value = result;
+        genResultContent.value = result.reportContent || '';
         genCompleted.value = true;
         ElMessage.success('AI 报告生成完成');
         await loadReports();
@@ -685,14 +686,20 @@ function startStreamingGeneration(reportId: number) {
     const url = getGenerateAiStreamUrl(reportId);
     eventSource = new EventSource(url);
 
-    eventSource.onmessage = (event) => {
+    eventSource.onmessage = async (event) => {
       if (event.data === '[DONE]') {
         eventSource?.close();
         eventSource = null;
         genRunning.value = false;
         genCompleted.value = true;
-        genResultContent.value = streamContent.value;
-        loadReports();
+        try {
+          const report = await getReportDetail(reportId);
+          genReport.value = report;
+          genResultContent.value = report.reportContent || streamContent.value;
+        } catch {
+          genResultContent.value = streamContent.value;
+        }
+        await loadReports();
         ElMessage.success('AI 流式生成完成');
         resolve();
         return;

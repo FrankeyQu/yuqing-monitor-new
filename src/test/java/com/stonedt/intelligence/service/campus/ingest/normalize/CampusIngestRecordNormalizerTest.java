@@ -77,6 +77,31 @@ public class CampusIngestRecordNormalizerTest {
         Assert.assertEquals("Bili Observer", record.getAuthorName());
     }
 
+    @Test
+    public void invalidWhenRecordIsPlatformSearchFeedback() {
+        CampusIngestItem item = new CampusIngestItem();
+        item.setExternalId("search_123");
+        item.setTitle("与搜索词无关");
+        item.setContent("内容过时 封面质量差 不再看到该作者");
+        item.setOriginalUrl("https://www.kuaishou.com/short-video/search_123");
+
+        CampusIngestRecord record = normalizer.normalize(11L, task(), source(), item, 9L);
+
+        Assert.assertTrue(normalizer.isInvalid(record));
+    }
+
+    @Test
+    public void normalizeSentimentToCanonicalValue() {
+        CampusIngestItem item = new CampusIngestItem();
+        item.setExternalId("ext-003");
+        item.setContent("sample");
+        item.setSentiment("疑似负面");
+
+        CampusIngestRecord record = normalizer.normalize(11L, task(), source(), item, 9L);
+
+        Assert.assertEquals("negative", record.getSentiment());
+    }
+
     private CampusIngestSource source() {
         CampusIngestSource source = new CampusIngestSource();
         source.setSourceId(1L);

@@ -36,6 +36,8 @@ public interface CampusReportService {
 
     CampusReport generate(Long reportId, Long operatorUserId);
 
+    CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput);
+
     CampusReport archive(Long reportId, String archiveOpinion, Long operatorUserId);
 
     void deleteReport(Long reportId, Long operatorUserId);

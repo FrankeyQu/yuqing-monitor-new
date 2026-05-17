@@ -1,13 +1,11 @@
 package com.stonedt.intelligence.controller.campus;
 
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.PageInfo;
 import com.stonedt.intelligence.entity.User;
 import com.stonedt.intelligence.entity.campus.CampusReport;
 import com.stonedt.intelligence.entity.campus.CampusReportEvent;
 import com.stonedt.intelligence.entity.campus.CampusReportTemplate;
-import com.stonedt.intelligence.service.campus.AiReportService;
 import com.stonedt.intelligence.service.campus.CampusAuditLogService;
 import com.stonedt.intelligence.service.campus.CampusReportService;
 import com.stonedt.intelligence.service.campus.ReportExportService;
@@ -24,7 +22,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
@@ -34,18 +31,15 @@ public class CampusReportController {
 
     private final CampusReportService campusReportService;
     private final CampusAuditLogService campusAuditLogService;
-    private final AiReportService aiReportService;
     private final ReportExportService reportExportService;
     private final UserUtil userUtil;
 
     public CampusReportController(CampusReportService campusReportService,
                                   CampusAuditLogService campusAuditLogService,
-                                  AiReportService aiReportService,
                                   ReportExportService reportExportService,
                                   UserUtil userUtil) {
         this.campusReportService = campusReportService;
         this.campusAuditLogService = campusAuditLogService;
-        this.aiReportService = aiReportService;
         this.reportExportService = reportExportService;
         this.userUtil = userUtil;
     }
@@ -202,23 +196,14 @@ public class CampusReportController {
      * Returns the full AI-generated markdown content once complete.
      */
     @PostMapping("/generate-ai")
-    public ResultVO<String> generateAi(@RequestParam Long reportId, HttpServletRequest request) {
+    public ResultVO<CampusReport> generateAi(@RequestParam Long reportId, HttpServletRequest request) {
         String params = "reportId=" + reportId;
         try {
-            CampusReport report = campusReportService.detail(reportId);
-            String dataJson = buildReportDataJson(report);
-            String periodStart = report.getPeriodStartTime() != null
-                    ? new SimpleDateFormat("yyyy-MM-dd").format(report.getPeriodStartTime()) : "";
-            String periodEnd = report.getPeriodEndTime() != null
-                    ? new SimpleDateFormat("yyyy-MM-dd").format(report.getPeriodEndTime()) : "";
-
-            String aiContent = aiReportService.generateReport(
-                    report.getReportType(), report.getReportTitle(),
-                    dataJson, periodStart, periodEnd, null);
-
+            User user = userUtil.getuser(request);
+            CampusReport saved = campusReportService.generateAi(reportId, user.getUser_id(), null);
             campusAuditLogService.record(request, "报告归档", "AI生成报告", "campus_report",
                     String.valueOf(reportId), params, true, null);
-            return ResultVO.success(aiContent);
+            return ResultVO.success(saved);
         } catch (Exception e) {
             campusAuditLogService.record(request, "报告归档", "AI生成报告", "campus_report",
                     String.valueOf(reportId), params, false, e.getMessage());
@@ -233,24 +218,17 @@ public class CampusReportController {
     @GetMapping(value = "/generate-ai-stream", produces = "text/event-stream;charset=UTF-8")
     public SseEmitter generateAiStream(@RequestParam Long reportId, HttpServletRequest request) {
         SseEmitter emitter = new SseEmitter(300000L);
+        User user = userUtil.getuser(request);
+        Long operatorUserId = user == null ? null : user.getUser_id();
 
         campusAuditLogService.record(request, "报告归档", "AI流式生成报告", "campus_report",
                 String.valueOf(reportId), "reportId=" + reportId, true, null);
 
         new Thread(() -> {
             try {
-                CampusReport report = campusReportService.detail(reportId);
-                String dataJson = buildReportDataJson(report);
-                String periodStart = report.getPeriodStartTime() != null
-                        ? new SimpleDateFormat("yyyy-MM-dd").format(report.getPeriodStartTime()) : "";
-                String periodEnd = report.getPeriodEndTime() != null
-                        ? new SimpleDateFormat("yyyy-MM-dd").format(report.getPeriodEndTime()) : "";
-
                 StringBuilder streamOutput = new StringBuilder();
-                aiReportService.generateReport(report.getReportType(), report.getReportTitle(),
-                        dataJson, periodStart, periodEnd, streamOutput);
+                campusReportService.generateAi(reportId, operatorUserId, streamOutput);
 
-                // Split content buffer into chunks and send as SSE events
                 int chunkSize = 50;
                 for (int i = 0; i < streamOutput.length(); i += chunkSize) {
                     int end = Math.min(i + chunkSize, streamOutput.length());
@@ -259,7 +237,7 @@ public class CampusReportController {
                             .name("message")
                             .data(chunk));
                 }
-                emitter.send(SseEmitter.event().name("end").data("done"));
+                emitter.send(SseEmitter.event().name("message").data("[DONE]"));
                 emitter.complete();
             } catch (Exception e) {
                 try {
@@ -349,23 +327,6 @@ public class CampusReportController {
     }
 
     // ==================== private helpers ====================
-
-    /**
-     * Build a JSON string of aggregated report data from the report entity
-     * and associated dashboard/event data.
-     */
-    private String buildReportDataJson(CampusReport report) {
-        JSONObject data = new JSONObject();
-        data.put("reportTitle", report.getReportTitle());
-        data.put("reportType", report.getReportType());
-        data.put("reportSummary", report.getReportSummary() != null ? report.getReportSummary() : "");
-        data.put("periodStart", report.getPeriodStartTime() != null
-                ? new SimpleDateFormat("yyyy-MM-dd").format(report.getPeriodStartTime()) : "");
-        data.put("periodEnd", report.getPeriodEndTime() != null
-                ? new SimpleDateFormat("yyyy-MM-dd").format(report.getPeriodEndTime()) : "");
-        data.put("reportContent", report.getReportContent() != null ? report.getReportContent() : "");
-        return data.toJSONString();
-    }
 
     private String buildExportFileName(CampusReport report, String extension) {
         String title = report.getReportTitle() != null

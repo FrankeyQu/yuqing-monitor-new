@@ -15,4 +15,9 @@ public interface CampusReportDataService {
      * @return 聚合后的报告数据，数据为空时返回空集合而非 null
      */
     ReportDataVO aggregateReportData(String keyword, Date startTime, Date endTime);
+
+    /**
+     * 聚合报告数据，优先按事件精确收敛，再按关键词过滤。
+     */
+    ReportDataVO aggregateReportData(String keyword, Long eventId, Date startTime, Date endTime);
 }

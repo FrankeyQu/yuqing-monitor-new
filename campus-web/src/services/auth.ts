@@ -2,6 +2,7 @@ import axios from 'axios';
 
 const LOGIN_FLAG = 'zhuoran_campus_logged_in';
 const LOGIN_NAME = 'zhuoran_campus_login_name';
+let sessionCheckPromise: Promise<boolean> | null = null;
 
 export interface LoginPayload {
   telephone: string;
@@ -31,15 +32,44 @@ export function isLoggedIn() {
 export function markLoggedIn(telephone: string) {
   localStorage.setItem(LOGIN_FLAG, '1');
   localStorage.setItem(LOGIN_NAME, telephone);
+  sessionCheckPromise = null;
 }
 
 export function clearLoginState() {
   localStorage.removeItem(LOGIN_FLAG);
   localStorage.removeItem(LOGIN_NAME);
+  sessionCheckPromise = null;
 }
 
 export function currentLoginName() {
   return localStorage.getItem(LOGIN_NAME) || '校园值班账号';
+}
+
+export async function ensureSession() {
+  if (!isLoggedIn()) {
+    return false;
+  }
+  if (!sessionCheckPromise) {
+    sessionCheckPromise = axios.get('/campus/system/current-user', {
+      withCredentials: true,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    }).then((response) => {
+      const payload = response.data;
+      const ok = payload && typeof payload === 'object' && payload.code === 200;
+      if (!ok) {
+        clearLoginState();
+      }
+      return ok;
+    }).catch(() => {
+      clearLoginState();
+      return false;
+    }).finally(() => {
+      sessionCheckPromise = null;
+    });
+  }
+  return sessionCheckPromise;
 }
 
 export async function login(payload: LoginPayload) {

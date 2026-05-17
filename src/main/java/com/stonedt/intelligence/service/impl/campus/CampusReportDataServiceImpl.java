@@ -29,6 +29,11 @@ public class CampusReportDataServiceImpl implements CampusReportDataService {
 
     @Override
     public ReportDataVO aggregateReportData(String keyword, Date startTime, Date endTime) {
+        return aggregateReportData(keyword, null, startTime, endTime);
+    }
+
+    @Override
+    public ReportDataVO aggregateReportData(String keyword, Long eventId, Date startTime, Date endTime) {
         ReportDataVO vo = new ReportDataVO();
 
         // 日期格式化
@@ -42,38 +47,26 @@ public class CampusReportDataServiceImpl implements CampusReportDataService {
 
         // 计算趋势天数：基于日期范围，最小 1 天，最大 30 天
         int days = computeDays(startTime, endTime);
-
-        boolean hasKeyword = StringUtils.isNotBlank(keyword);
+        String scopedKeyword = eventId == null ? StringUtils.trimToNull(keyword) : null;
+        List<CampusClue> scopedClues = campusClueDao.listForReportScope(scopedKeyword, eventId, startTime, endTime);
+        if (scopedClues == null) {
+            scopedClues = Collections.emptyList();
+        }
 
         // ---- 1. 舆情走势 (daily trend) ----
-        List<Map<String, Object>> trend;
-        if (hasKeyword) {
-            trend = campusClueDao.getDailyTrendByKeyword(days, keyword);
-        } else {
-            trend = campusClueDao.getDailyTrend(days);
-        }
+        List<Map<String, Object>> trend = campusClueDao.getReportDailyTrend(scopedKeyword, eventId, startTime, endTime, days);
         vo.setTrend(trend != null ? trend : Collections.<Map<String, Object>>emptyList());
 
         // ---- 2. 媒体分布 (platform distribution) ----
-        List<Map<String, Object>> mediaDistribution;
-        if (hasKeyword) {
-            mediaDistribution = campusClueDao.countByPlatformByKeyword(keyword);
-        } else {
-            mediaDistribution = campusClueDao.countByPlatform();
-        }
-        vo.setMediaDistribution(mediaDistribution != null ? mediaDistribution : Collections.<Map<String, Object>>emptyList());
+        List<Map<String, Object>> mediaDistribution = buildPlatformDistribution(scopedClues);
+        vo.setMediaDistribution(mediaDistribution);
 
         // ---- 3. 平台排名 (复用 mediaDistribution，已按 value DESC 排序 TOP 10) ----
-        vo.setPlatformRanking(mediaDistribution != null ? mediaDistribution : Collections.<Map<String, Object>>emptyList());
+        vo.setPlatformRanking(mediaDistribution);
 
         // ---- 4. 情感分布 (sentiment distribution) ----
-        List<Map<String, Object>> sentimentDistribution;
-        if (hasKeyword) {
-            sentimentDistribution = campusClueDao.countBySentimentByKeyword(keyword);
-        } else {
-            sentimentDistribution = campusClueDao.countBySentiment();
-        }
-        vo.setSentimentDistribution(sentimentDistribution != null ? sentimentDistribution : Collections.<Map<String, Object>>emptyList());
+        List<Map<String, Object>> sentimentDistribution = buildSentimentDistribution(scopedClues);
+        vo.setSentimentDistribution(sentimentDistribution);
 
         // ---- 5. 情感计数 ----
         int negative = 0, neutral = 0, positive = 0;
@@ -108,18 +101,14 @@ public class CampusReportDataServiceImpl implements CampusReportDataService {
         vo.setPositiveCount(positive);
 
         // ---- 6. 总数 ----
-        if (hasKeyword) {
-            vo.setTotalCount(campusClueDao.countByKeyword(keyword));
-        } else {
-            vo.setTotalCount(campusClueDao.countByKeyword(null));
-        }
+        vo.setTotalCount(scopedClues.size());
 
         // ---- 7. 热词分析 (top 20 keywords by frequency) ----
-        List<Map<String, Object>> hotKeywords = buildHotKeywords(hasKeyword, keyword, startTime, endTime);
+        List<Map<String, Object>> hotKeywords = buildHotKeywords(scopedClues);
         vo.setHotKeywords(hotKeywords);
 
         // ---- 8. 热点文章 (top 10 hot articles) ----
-        List<Map<String, Object>> hotArticles = buildHotArticles(hasKeyword, keyword, startTime, endTime);
+        List<Map<String, Object>> hotArticles = buildHotArticles(scopedClues);
         vo.setHotArticles(hotArticles);
 
         // ---- 9. 概览摘要 ----
@@ -145,42 +134,60 @@ public class CampusReportDataServiceImpl implements CampusReportDataService {
         return 7;
     }
 
-    /**
-     * 构建热词 TOP 20
-     * - 无关键词过滤时，使用 getAllKeywords() 获取所有线索的关键词字段并统计频次
-     * - 有关键词过滤时，通过 list 查询匹配的线索并解析其 keywords 字段
-     */
-    private List<Map<String, Object>> buildHotKeywords(boolean hasKeyword, String keyword, Date startTime, Date endTime) {
-        Map<String, Integer> freqMap = new LinkedHashMap<>();
-        List<String> keywordStrings;
-
-        if (hasKeyword) {
-            // 关键词过滤场景：查询匹配的线索，解析其 keywords 字段
-            List<CampusClue> clues = campusClueDao.list(
-                    keyword, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null,
-                    null, true, null
-            );
-            keywordStrings = new ArrayList<>();
-            if (clues != null) {
-                for (CampusClue clue : clues) {
-                    if (StringUtils.isNotBlank(clue.getKeywords())) {
-                        keywordStrings.add(clue.getKeywords());
-                    }
-                }
-            }
-        } else {
-            // 无过滤：从所有线索获取关键词
-            List<String> all = campusClueDao.getAllKeywords();
-            keywordStrings = all != null ? all : Collections.<String>emptyList();
+    private List<Map<String, Object>> buildPlatformDistribution(List<CampusClue> clues) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (CampusClue clue : clues) {
+            String platform = StringUtils.defaultIfBlank(clue.getSourcePlatform(), "其它");
+            counts.merge(platform, 1, Integer::sum);
         }
+        return toSortedNameValueList(counts, 10);
+    }
 
-        // 拆分逗号分隔的关键词并统计频次
-        for (String kwStr : keywordStrings) {
+    private List<Map<String, Object>> buildSentimentDistribution(List<CampusClue> clues) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (CampusClue clue : clues) {
+            counts.merge(sentimentLabel(clue.getSentiment()), 1, Integer::sum);
+        }
+        return toSortedNameValueList(counts, 10);
+    }
+
+    private List<Map<String, Object>> toSortedNameValueList(Map<String, Integer> counts, int limit) {
+        return counts.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(limit)
+                .map(e -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("name", e.getKey());
+                    m.put("value", e.getValue());
+                    return m;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private String sentimentLabel(String sentiment) {
+        if ("positive".equals(sentiment) || StringUtils.contains(sentiment, "正")) {
+            return "正面";
+        }
+        if ("neutral".equals(sentiment) || StringUtils.contains(sentiment, "中")) {
+            return "中性";
+        }
+        if ("negative".equals(sentiment) || StringUtils.contains(sentiment, "负")) {
+            return "负面";
+        }
+        return "未知";
+    }
+
+    /**
+     * 构建热词 TOP 20，严格使用同一个报告 scope 下的线索。
+     */
+    private List<Map<String, Object>> buildHotKeywords(List<CampusClue> clues) {
+        Map<String, Integer> freqMap = new LinkedHashMap<>();
+        for (CampusClue clue : clues) {
+            String kwStr = clue.getKeywords();
             if (StringUtils.isBlank(kwStr)) {
                 continue;
             }
-            String[] parts = kwStr.split(",");
+            String[] parts = kwStr.split("[,，;；、\\s]+");
             for (String part : parts) {
                 String trimmed = part.trim();
                 if (trimmed.isEmpty()) {
@@ -207,15 +214,7 @@ public class CampusReportDataServiceImpl implements CampusReportDataService {
      * 构建热点文章 TOP 10
      * 按 discover_time 倒序，取前 10 条
      */
-    private List<Map<String, Object>> buildHotArticles(boolean hasKeyword, String keyword, Date startTime, Date endTime) {
-        String kw = hasKeyword ? keyword : null;
-
-        List<CampusClue> clues = campusClueDao.list(
-                kw, null, null, null, null, null, null, null, null,
-                startTime, endTime, null, null, null, null,
-                null, true, null
-        );
-
+    private List<Map<String, Object>> buildHotArticles(List<CampusClue> clues) {
         if (clues == null || clues.isEmpty()) {
             return Collections.emptyList();
         }

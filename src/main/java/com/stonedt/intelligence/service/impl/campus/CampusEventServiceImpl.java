@@ -9,6 +9,7 @@ import com.stonedt.intelligence.service.campus.support.CampusRiskLevel;
 import com.stonedt.intelligence.util.SnowflakeUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -25,6 +26,8 @@ public class CampusEventServiceImpl implements CampusEventService {
     private static final String STATUS_REVIEWED = "reviewed";
     private static final String STATUS_RATED = "rated";
     private static final String STATUS_ARCHIVED = "archived";
+    private static final String CLUE_STATUS_ARCHIVED = "archived";
+    private static final String CLUE_STATUS_CONVERTED = "converted";
     private static final String TASK_PENDING = "pending";
     private static final String TASK_COMPLETED = "completed";
     private static final String TASK_RETURNED = "returned";
@@ -55,6 +58,7 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusEvent save(CampusEvent event, Long operatorUserId) {
         validateEvent(event);
         if (event.getEventId() == null) {
@@ -74,11 +78,13 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusEvent createFromClue(Long clueId, CampusEvent event, Long operatorUserId) {
         CampusClue clue = campusClueDao.selectByClueId(clueId);
         if (clue == null) {
             throw new IllegalArgumentException("线索不存在");
         }
+        ensureClueCanConvert(clue);
         if (event == null) {
             event = new CampusEvent();
         }
@@ -105,7 +111,10 @@ public class CampusEventServiceImpl implements CampusEventService {
         }
         CampusEvent saved = save(event, operatorUserId);
         addEventClue(saved.getEventId(), clueId, operatorUserId);
-        campusClueDao.markConverted(clueId, saved.getEventId(), operatorUserId);
+        int converted = campusClueDao.markConverted(clueId, saved.getEventId(), operatorUserId);
+        if (converted != 1) {
+            throw new IllegalArgumentException("线索状态已变化，不能重复转事件");
+        }
         return saved;
     }
 
@@ -128,6 +137,7 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusEvent rate(Long eventId, String riskLevel, String disposalRequirement, Long operatorUserId) {
         CampusEvent event = requireEvent(eventId);
         ensureStatus(event, "风险定级", STATUS_PENDING_JUDGE, STATUS_RATED);
@@ -139,6 +149,7 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusEventAccount addAccount(Long eventId, Long accountId, Long operatorUserId) {
         CampusEvent event = requireEvent(eventId);
         ensureNotArchived(event);
@@ -156,6 +167,7 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusDisposalTask assign(CampusDisposalTask task, Long operatorUserId) {
         validateTask(task);
         CampusEvent event = requireEvent(task.getEventId());
@@ -177,6 +189,7 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusDisposalRecord feedback(Long disposalTaskId,
                                          String recordContent,
                                          String attachmentDesc,
@@ -193,6 +206,7 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusDisposalRecord returnTask(Long disposalTaskId,
                                            String recordContent,
                                            Long operatorUserId,
@@ -208,6 +222,7 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusDisposalRecord confirm(Long disposalTaskId,
                                         String recordContent,
                                         Long operatorUserId,
@@ -223,6 +238,7 @@ public class CampusEventServiceImpl implements CampusEventService {
     }
 
     @Override
+    @Transactional
     public CampusEvent archive(Long eventId, String archiveConclusion, Long operatorUserId) {
         CampusEvent event = requireEvent(eventId);
         ensureStatus(event, "归档", STATUS_REVIEWED);
@@ -318,6 +334,18 @@ public class CampusEventServiceImpl implements CampusEventService {
     private void ensureNotArchived(CampusEvent event) {
         if (event != null && STATUS_ARCHIVED.equals(event.getEventStatus())) {
             throw new IllegalArgumentException("已归档事件不能继续编辑或流转");
+        }
+    }
+
+    private void ensureClueCanConvert(CampusClue clue) {
+        if (clue == null) {
+            throw new IllegalArgumentException("线索不存在");
+        }
+        if (CLUE_STATUS_ARCHIVED.equals(clue.getClueStatus())) {
+            throw new IllegalArgumentException("已归档线索不能转事件");
+        }
+        if (CLUE_STATUS_CONVERTED.equals(clue.getClueStatus()) || clue.getEventId() != null) {
+            throw new IllegalArgumentException("线索已转事件，不能重复转事件");
         }
     }
 

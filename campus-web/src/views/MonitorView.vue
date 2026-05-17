@@ -64,13 +64,11 @@
         <div class="filter-row">
           <span class="filter-label">情感类型：</span>
           <el-checkbox-group v-model="sentimentChecks" size="small" @change="onSentimentChange">
-            <el-checkbox label="全部">全部</el-checkbox>
-            <el-checkbox label="疑似正面">疑似正面</el-checkbox>
-            <el-checkbox label="确认正面">确认正面</el-checkbox>
-            <el-checkbox label="疑似中性">疑似中性</el-checkbox>
-            <el-checkbox label="确认中性">确认中性</el-checkbox>
-            <el-checkbox label="疑似负面">疑似负面</el-checkbox>
-            <el-checkbox label="确认负面">确认负面</el-checkbox>
+            <el-checkbox label="all">全部</el-checkbox>
+            <el-checkbox label="positive">正面</el-checkbox>
+            <el-checkbox label="neutral">中性</el-checkbox>
+            <el-checkbox label="negative">负面</el-checkbox>
+            <el-checkbox label="none">未知</el-checkbox>
           </el-checkbox-group>
         </div>
 
@@ -87,9 +85,9 @@
           </el-radio-group>
         </div>
 
-        <!-- 相似信息 + 匹配对象 -->
+        <!-- 合并相似信息 + 匹配对象 -->
         <div class="filter-row">
-          <span class="filter-label">相似信息：</span>
+          <span class="filter-label">合并相似信息：</span>
           <el-switch v-model="similarDedup" size="small" @change="onSimilarDedupChange" />
           <span class="filter-label" style="margin-left: 16px;">匹配对象：</span>
           <el-radio-group v-model="query.matchScope" size="small" :disabled="!similarDedup" @change="handleFilterChange">
@@ -102,12 +100,11 @@
         <!-- 排序 + 关键词 -->
         <div class="filter-row">
           <span class="filter-label">排序：</span>
-          <el-select v-model="query.sortBy" size="small" placeholder="价值度" style="width: 140px" @change="handleFilterChange">
-            <el-option label="价值度" value="value" />
-            <el-option label="情感等级" value="sentiment" />
+          <el-select v-model="query.sortBy" size="small" placeholder="发布时间" style="width: 140px" @change="handleFilterChange">
             <el-option label="发布时间" value="publishTime" />
-            <el-option label="网站等级" value="siteLevel" />
+            <el-option label="采集时间" value="collectTime" />
             <el-option label="相关度" value="relevance" />
+            <el-option label="情感" value="sentiment" />
           </el-select>
           <span class="filter-label" style="margin-left: 16px;">搜索关键词：</span>
           <el-input
@@ -223,11 +220,8 @@
             </template>
           </el-popover>
           <el-button size="small" @click="markPageRead">标记本页已读</el-button>
-          <el-button size="small" @click="addArticleVisible = true">
-            <Plus :size="14" /> 添加文章
-          </el-button>
           <el-button size="small" @click="openCreateClue">
-            <Plus :size="14" /> 新增线索
+            <Plus :size="14" /> 新增人工线索
           </el-button>
           <el-button size="small" @click="handleExport">导出</el-button>
           <el-button size="small" @click="handleBatchOp">批量操作</el-button>
@@ -305,7 +299,7 @@
                 {{ monitorInformationStatusLabel(row) }}
               </el-tag>
             </el-tooltip>
-            <span v-else-if="col.key === 'infoTime'">{{ formatTime(row.infoTime || row.discoverTime || row.createTime) }}</span>
+            <span v-else-if="col.key === 'infoTime'">{{ formatTime(row.collectTime || row.infoTime || row.discoverTime || row.createTime) }}</span>
             <div v-else-if="col.key === 'actions'" class="row-actions">
               <el-button link type="primary" size="small" @click="viewMonitorInformation(row)">详情</el-button>
               <el-dropdown trigger="click">
@@ -597,7 +591,8 @@
           <div class="information-detail-meta">
             <PlatformBadge :platform="currentInformation.platform || currentInformation.sourcePlatform || ''" />
             <span>{{ currentInformation.authorName || currentInformation.involvedAccount || '未知账号' }}</span>
-            <span>{{ currentInformation.publishTime ? formatTime(currentInformation.publishTime) : '发布时间未采集' }}</span>
+            <span>{{ currentInformation.publishTime ? formatTime(currentInformation.publishTime) : '发布时间未知' }}</span>
+            <span>采集于 {{ formatTime(currentInformation.collectTime || currentInformation.infoTime || currentInformation.discoverTime || currentInformation.createTime) }}</span>
             <span>{{ contentCaptureLabel(currentInformation) }}</span>
           </div>
         </div>
@@ -634,40 +629,6 @@
       <template #footer>
         <el-button @click="informationDetailVisible = false">关闭</el-button>
         <el-button type="primary" :disabled="!safeOriginalUrl(currentInformation?.originalUrl)" @click="openInformationOriginalUrl">查看原链接</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- ====== 添加文章 Dialog ====== -->
-    <el-dialog v-model="addArticleVisible" title="添加文章" width="560px" destroy-on-close>
-      <el-form ref="addArticleFormRef" :model="addArticleForm" :rules="addArticleRules" label-position="top">
-        <el-form-item label="标题" prop="clueTitle">
-          <el-input v-model="addArticleForm.clueTitle" placeholder="请输入标题" />
-        </el-form-item>
-        <el-form-item label="内容摘要">
-          <el-input v-model="addArticleForm.clueContent" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }" placeholder="请输入内容摘要" />
-        </el-form-item>
-        <el-form-item label="来源平台" prop="sourcePlatform">
-          <el-select v-model="addArticleForm.sourcePlatform" filterable placeholder="请选择来源平台" style="width: 100%">
-            <el-option v-for="item in platformOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="原文链接">
-          <el-input v-model="addArticleForm.originalUrl" placeholder="请输入原文链接" />
-        </el-form-item>
-        <el-form-item label="关键词">
-          <el-input v-model="addArticleForm.keywords" placeholder="多个关键词用逗号分隔" />
-        </el-form-item>
-        <el-form-item label="情感" prop="sentiment">
-          <el-select v-model="addArticleForm.sentiment" placeholder="请选择情感" style="width: 100%">
-            <el-option label="正面" value="正面" />
-            <el-option label="中性" value="中性" />
-            <el-option label="负面" value="负面" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="addArticleVisible = false">取消</el-button>
-        <el-button type="primary" :loading="savingArticle" @click="submitAddArticle">确认添加</el-button>
       </template>
     </el-dialog>
 
@@ -728,11 +689,16 @@
     </el-dialog>
 
     <!-- ====== 批量操作 Dialog ====== -->
-    <el-dialog v-model="batchOpVisible" title="批量操作" width="480px" destroy-on-close @closed="resetBatchForm">
-      <p style="margin-bottom: 12px; color: #606266;">已选择 <strong>{{ selectedClues.length }}</strong> 条数据</p>
+    <el-dialog v-model="batchOpVisible" title="批量操作" width="520px" destroy-on-close @closed="resetBatchForm">
+      <p style="margin-bottom: 12px; color: #606266;">
+        已选择 <strong>{{ selectedBatchTotal }}</strong> 条，其中监测命中 <strong>{{ selectedMonitorResultCount }}</strong> 条，已转线索 <strong>{{ selectedClueCount }}</strong> 条
+      </p>
       <el-radio-group v-model="batchAction" style="display: flex; flex-direction: column; gap: 12px;">
-        <el-radio value="judge">批量研判 — 对选中线索统一设置风险级别</el-radio>
-        <el-radio value="joinEvent">批量加入事件 — 将选中线索关联到已有事件</el-radio>
+        <el-radio value="convert" :disabled="selectedMonitorResultCount === 0">批量转线索 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
+        <el-radio value="alert" :disabled="selectedMonitorResultCount === 0">批量转预警 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
+        <el-radio value="ignore" :disabled="selectedMonitorResultCount === 0">批量忽略 — 处理 {{ selectedMonitorResultCount }} 条监测命中</el-radio>
+        <el-radio value="judge" :disabled="selectedClueCount === 0">批量研判 — 处理 {{ selectedClueCount }} 条已转线索</el-radio>
+        <el-radio value="joinEvent" :disabled="selectedClueCount === 0">批量加入事件 — 处理 {{ selectedClueCount }} 条已转线索</el-radio>
       </el-radio-group>
       <div v-if="batchAction === 'judge'" style="margin-top: 16px;">
         <el-form label-position="top">
@@ -762,7 +728,7 @@
     </el-dialog>
 
     <!-- ====== 新增/编辑线索 Dialog ====== -->
-    <el-dialog v-model="clueFormVisible" :title="clueForm.clueId ? '编辑线索' : '新增线索'" width="720px" destroy-on-close>
+    <el-dialog v-model="clueFormVisible" :title="clueForm.clueId ? '编辑线索' : '新增人工线索'" width="720px" destroy-on-close>
       <el-form label-position="top">
         <el-form-item label="线索标题" required>
           <el-input v-model.trim="clueForm.clueTitle" />
@@ -850,7 +816,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowDown, Plus, RefreshCw, Settings2 } from 'lucide-vue-next';
 import * as echarts from 'echarts';
 import type { ECharts, EChartsOption } from 'echarts';
@@ -949,7 +915,7 @@ const collectTimePreset = ref('year');
 const publishTimePreset = ref('');
 const collectTimeRange = ref<[string, string] | null>(null);
 const publishTimeRange = ref<[string, string] | null>(null);
-const sentimentChecks = ref<string[]>(['全部']);
+const sentimentChecks = ref<string[]>(['all']);
 const similarDedup = ref(false);
 const searchKeyword = ref('');
 const informationDetailVisible = ref(false);
@@ -965,7 +931,7 @@ const query = reactive<ClueAdvancedQuery>({
   sourceSubPlatform: '',
   matchScope: '',
   similarDedup: false,
-  sortBy: 'value',
+  sortBy: 'publishTime',
   collectTimeStart: '',
   collectTimeEnd: '',
   publishTimeStart: '',
@@ -983,6 +949,12 @@ const infoTotal = ref(0);
 const loading = ref(false);
 const selectedInfos = ref<CampusMonitorInformation[]>([]);
 const selectedClues = ref<CampusClue[]>([]);
+const selectedMonitorResults = computed(() => selectedInfos.value
+  .filter((row) => row.monitorResultId)
+  .map((row) => toMonitorResult(row)));
+const selectedMonitorResultCount = computed(() => selectedMonitorResults.value.length);
+const selectedClueCount = computed(() => selectedClues.value.length);
+const selectedBatchTotal = computed(() => Math.max(selectedInfos.value.length, selectedClues.value.length));
 const tableRef = ref();
 const draggedColumnKey = ref('');
 
@@ -1020,8 +992,6 @@ type PlatformConnection = {
 };
 
 const platformConnections = ref<Record<string, PlatformConnection>>({});
-
-const addArticleVisible = ref(false);
 
 // ========== 主题分析 ==========
 const keywordChartRef = ref<HTMLElement | null>(null);
@@ -1247,51 +1217,9 @@ function handleAlertItem(row: CampusAlert) {
   ElMessage.info(`处理预警: ${row.alertTitle}`);
 }
 
-// ========== 添加文章 ==========
-const addArticleFormRef = ref<FormInstance>();
-const savingArticle = ref(false);
-const addArticleForm = reactive<CampusClue & { keywords?: string }>({
-  clueTitle: '',
-  clueContent: '',
-  sourcePlatform: '',
-  originalUrl: '',
-  sentiment: '',
-  keywords: ''
-});
-
-const addArticleRules: FormRules = {
-  clueTitle: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  sourcePlatform: [{ required: true, message: '请选择来源平台', trigger: 'change' }],
-  sentiment: [{ required: true, message: '请选择情感', trigger: 'change' }]
-};
-
-async function submitAddArticle() {
-  const valid = await addArticleFormRef.value?.validate().catch(() => false);
-  if (!valid) return;
-  savingArticle.value = true;
-  try {
-    const payload: CampusClue = {
-      clueTitle: addArticleForm.clueTitle,
-      clueContent: addArticleForm.clueContent || '',
-      sourcePlatform: addArticleForm.sourcePlatform || '',
-      originalUrl: addArticleForm.originalUrl || '',
-      sentiment: addArticleForm.sentiment || '',
-      keywords: addArticleForm.keywords || ''
-    };
-    await saveClue(payload);
-    ElMessage.success('文章添加成功');
-    addArticleVisible.value = false;
-    loadData();
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '添加失败');
-  } finally {
-    savingArticle.value = false;
-  }
-}
-
 // ========== 批量操作 ==========
 const batchOpVisible = ref(false);
-const batchAction = ref('judge');
+const batchAction = ref('convert');
 const batchExecuting = ref(false);
 const batchJudgeForm = reactive({
   riskLevel: 'concern',
@@ -1302,7 +1230,7 @@ const eventOptions = ref<CampusEvent[]>([]);
 const eventSearchLoading = ref(false);
 
 function resetBatchForm() {
-  batchAction.value = 'judge';
+  batchAction.value = selectedMonitorResultCount.value > 0 ? 'convert' : 'judge';
   batchJudgeForm.riskLevel = 'concern';
   batchJudgeForm.judgeOpinion = '';
   batchJoinEventId.value = null;
@@ -1326,11 +1254,55 @@ async function searchEvents(query: string) {
 }
 
 async function executeBatchOp() {
-  if (selectedClues.value.length === 0) {
+  if (selectedBatchTotal.value === 0) {
     ElMessage.warning('请先选择数据');
     return;
   }
-  if (batchAction.value === 'judge') {
+  if (['convert', 'alert', 'ignore'].includes(batchAction.value)) {
+    const targets = selectedMonitorResults.value;
+    if (targets.length === 0) {
+      ElMessage.warning('当前操作没有可处理的监测命中');
+      return;
+    }
+    batchExecuting.value = true;
+    let successCount = 0;
+    let failCount = 0;
+    let skipCount = selectedInfos.value.length - targets.length;
+    for (const result of targets) {
+      try {
+        if (batchAction.value === 'convert') {
+          if (result.clueId) {
+            skipCount++;
+            continue;
+          }
+          await convertMonitorResultToClue(result.monitorResultId!);
+        } else if (batchAction.value === 'alert') {
+          if (result.resultStatus === 'alerted') {
+            skipCount++;
+            continue;
+          }
+          await alertMonitorResult(result.monitorResultId!);
+        } else {
+          if (result.resultStatus === 'ignored') {
+            skipCount++;
+            continue;
+          }
+          await ignoreMonitorResult(result.monitorResultId!);
+        }
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    batchExecuting.value = false;
+    showBatchResult('批量操作完成', successCount, failCount, skipCount);
+    batchOpVisible.value = false;
+    loadData();
+  } else if (batchAction.value === 'judge') {
+    if (selectedClues.value.length === 0) {
+      ElMessage.warning('当前操作没有可处理的已转线索');
+      return;
+    }
     if (!batchJudgeForm.riskLevel) {
       ElMessage.warning('请选择风险级别');
       return;
@@ -1347,14 +1319,14 @@ async function executeBatchOp() {
       }
     }
     batchExecuting.value = false;
-    if (failCount === 0) {
-      ElMessage.success(`批量研判完成，成功 ${successCount} 条`);
-    } else {
-      ElMessage.warning(`批量研判完成，成功 ${successCount} 条，失败 ${failCount} 条`);
-    }
+    showBatchResult('批量研判完成', successCount, failCount, selectedBatchTotal.value - selectedClues.value.length);
     batchOpVisible.value = false;
     loadData();
   } else if (batchAction.value === 'joinEvent') {
+    if (selectedClues.value.length === 0) {
+      ElMessage.warning('当前操作没有可处理的已转线索');
+      return;
+    }
     if (!batchJoinEventId.value) {
       ElMessage.warning('请选择目标事件');
       return;
@@ -1375,13 +1347,18 @@ async function executeBatchOp() {
       }
     }
     batchExecuting.value = false;
-    if (failCount === 0) {
-      ElMessage.success(`已成功将 ${successCount} 条线索加入事件`);
-    } else {
-      ElMessage.warning(`加入事件完成，成功 ${successCount} 条，失败 ${failCount} 条`);
-    }
+    showBatchResult('加入事件完成', successCount, failCount, selectedBatchTotal.value - selectedClues.value.length);
     batchOpVisible.value = false;
     loadData();
+  }
+}
+
+function showBatchResult(title: string, successCount: number, failCount: number, skipCount: number) {
+  const message = `${title}，成功 ${successCount} 条，失败 ${failCount} 条，跳过 ${skipCount} 条`;
+  if (failCount > 0) {
+    ElMessage.warning(message);
+  } else {
+    ElMessage.success(message);
   }
 }
 
@@ -1435,24 +1412,12 @@ const watchTargetForm = reactive<CampusMonitorWatchTarget>({
   remark: ''
 });
 
-const platformOptions = [
-  { label: '全部平台', value: '*' },
-  { label: '公开网页', value: '公开网页' },
-  { label: '微博', value: '微博' },
-  { label: '抖音', value: '抖音' },
-  { label: '小红书', value: '小红书' },
-  { label: 'B站', value: 'B站' },
-  { label: '知乎', value: '知乎' },
-  { label: '微信公众号', value: '微信公众号' },
-  { label: '快手', value: '快手' }
-];
-
 // ========== 情感快捷标签 ==========
 const sentimentTags = [
-  { label: '负面', value: '负面', color: '#f56c6c' },
-  { label: '中性', value: '中性', color: '#e6a23c' },
-  { label: '正面', value: '正面', color: '#67c23a' },
-  { label: '无', value: 'none', color: '#909399' }
+  { label: '负面', value: 'negative', color: '#f56c6c' },
+  { label: '中性', value: 'neutral', color: '#e6a23c' },
+  { label: '正面', value: 'positive', color: '#67c23a' },
+  { label: '未知', value: 'none', color: '#909399' }
 ];
 
 // ========== 线索 CRUD 函数 ==========
@@ -1490,8 +1455,9 @@ async function submitClueForm() {
   }
   savingClue.value = true;
   try {
+    const creating = !clueForm.clueId;
     await saveClue({ ...clueForm });
-    ElMessage.success('保存成功');
+    ElMessage.success(creating ? '人工线索已新增' : '保存成功');
     clueFormVisible.value = false;
     loadData();
   } catch (error) {
@@ -1940,7 +1906,7 @@ function formatTime(val?: string | Date): string {
 }
 
 function publishTimeLabel(row: CampusMonitorInformation): string {
-  return row.publishTime ? formatTime(row.publishTime) : '未采集';
+  return row.publishTime ? formatTime(row.publishTime) : '发布时间未知';
 }
 
 function contentCaptureLabel(row: CampusMonitorInformation): string {
@@ -2052,16 +2018,15 @@ function onPublishTimeCustomChange(val: [string, string] | null) {
 }
 
 function onSentimentChange(values: string[]) {
-  if (values.includes('全部')) {
+  if (values.includes('all')) {
     if (values.length > 1) {
-      // User clicked a specific option while "全部" was selected
-      sentimentChecks.value = values.filter((v) => v !== '全部');
+      sentimentChecks.value = values.filter((v) => v !== 'all');
       query.sentiment = sentimentChecks.value.join(',');
     } else {
       query.sentiment = '';
     }
   } else if (values.length === 0) {
-    sentimentChecks.value = ['全部'];
+    sentimentChecks.value = ['all'];
     query.sentiment = '';
   } else {
     query.sentiment = values.join(',');
@@ -2076,14 +2041,14 @@ function resetInformationNarrowFilters() {
   query.sourcePlatform = '';
   query.sourceSubPlatform = '';
   query.sentiment = '';
-  sentimentChecks.value = ['全部'];
+  sentimentChecks.value = ['all'];
   query.resultStatus = '';
   query.riskLevel = '';
   query.clueStatus = '';
   query.language = '';
   query.keyword = '';
   searchKeyword.value = '';
-  query.sortBy = 'value';
+  query.sortBy = 'publishTime';
   similarDedup.value = false;
   query.similarDedup = false;
   query.matchScope = '';
@@ -2192,7 +2157,7 @@ function toClue(row: CampusMonitorInformation): CampusClue {
     sourceSubPlatform: row.sourceSubPlatform || '',
     originalUrl: row.originalUrl || '',
     publishTime: row.publishTime,
-    discoverTime: row.discoverTime || row.infoTime,
+    discoverTime: row.collectTime || row.discoverTime || row.infoTime,
     involvedAccount: row.involvedAccount || row.authorName || '',
     keywords: row.keywords || row.matchedKeywords || '',
     sentiment: row.sentiment || '',
@@ -2315,7 +2280,7 @@ function handleExport() {
     item.sentiment || '',
     monitorInformationStatusLabel(item),
     item.publishTime ? formatTime(item.publishTime) : '',
-    item.infoTime || item.discoverTime || item.createTime ? formatTime(item.infoTime || item.discoverTime || item.createTime) : '',
+    item.collectTime || item.infoTime || item.discoverTime || item.createTime ? formatTime(item.collectTime || item.infoTime || item.discoverTime || item.createTime) : '',
     item.originalUrl || ''
   ]);
   const csvContent = [headers, ...rows]
@@ -2335,10 +2300,6 @@ function handleExport() {
 function handleBatchOp() {
   if (selectedInfos.value.length === 0) {
     ElMessage.warning('请先选择数据');
-    return;
-  }
-  if (selectedClues.value.length === 0) {
-    ElMessage.warning('当前批量操作仅支持已转入线索库的数据，请先转线索');
     return;
   }
   resetBatchForm();

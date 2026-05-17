@@ -14,12 +14,14 @@ import com.stonedt.intelligence.service.campus.CampusClueService;
 import com.stonedt.intelligence.service.campus.support.CampusRiskLevel;
 import com.stonedt.intelligence.service.campus.support.CampusSchoolRelevance;
 import com.stonedt.intelligence.service.campus.support.CampusSchoolRelevanceService;
+import com.stonedt.intelligence.service.campus.support.CampusSentimentNormalizer;
 import com.stonedt.intelligence.service.campus.support.CampusTopicClassification;
 import com.stonedt.intelligence.service.campus.support.CampusTopicClassifier;
 import com.stonedt.intelligence.util.MD5Util;
 import com.stonedt.intelligence.util.SnowflakeUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
@@ -50,6 +52,7 @@ public class CampusClueServiceImpl implements CampusClueService {
     }
 
     @Override
+    @Transactional
     public CampusClue save(CampusClue clue, Long operatorUserId, String operatorName) {
         validate(clue);
         if (clue.getClueId() == null) {
@@ -65,6 +68,7 @@ public class CampusClueServiceImpl implements CampusClueService {
         }
 
         CampusClue old = requireClue(clue.getClueId());
+        ensureNotArchived(old, "编辑线索");
         clue.setUpdateUserId(operatorUserId);
         setDefaultsForUpdate(clue);
         ensureDuplicateKey(clue);
@@ -111,6 +115,7 @@ public class CampusClueServiceImpl implements CampusClueService {
     }
 
     @Override
+    @Transactional
     public CampusClue judge(Long clueId,
                             String riskLevel,
                             String judgeOpinion,
@@ -121,7 +126,11 @@ public class CampusClueServiceImpl implements CampusClueService {
         }
         String normalizedRiskLevel = CampusRiskLevel.requireValid(riskLevel);
         CampusClue old = requireClue(clueId);
-        campusClueDao.judge(clueId, normalizedRiskLevel, judgeOpinion, operatorUserId, operatorUserId);
+        ensureStatus(old, "研判线索", STATUS_PENDING_JUDGE, STATUS_JUDGED);
+        int updated = campusClueDao.judge(clueId, normalizedRiskLevel, judgeOpinion, operatorUserId, operatorUserId);
+        if (updated != 1) {
+            throw new IllegalArgumentException("线索状态已变化，不能继续研判");
+        }
         CampusClue saved = campusClueDao.selectByClueId(clueId);
         addOperationLog(clueId, "judge", "研判线索", JSON.toJSONString(old), JSON.toJSONString(saved),
                 operatorUserId, operatorName);
@@ -129,11 +138,13 @@ public class CampusClueServiceImpl implements CampusClueService {
     }
 
     @Override
+    @Transactional
     public CampusClue archive(Long clueId,
                               String archiveReason,
                               Long operatorUserId,
                               String operatorName) {
         CampusClue old = requireClue(clueId);
+        ensureNotArchived(old, "归档线索");
         campusClueDao.archive(clueId, archiveReason, operatorUserId);
         CampusClue saved = campusClueDao.selectByClueId(clueId);
         addOperationLog(clueId, "archive", "归档线索", JSON.toJSONString(old), JSON.toJSONString(saved),
@@ -142,6 +153,7 @@ public class CampusClueServiceImpl implements CampusClueService {
     }
 
     @Override
+    @Transactional
     public void delete(Long clueId, Long operatorUserId, String operatorName) {
         CampusClue old = requireClue(clueId);
         campusClueDao.logicalDelete(clueId, operatorUserId);
@@ -254,6 +266,7 @@ public class CampusClueServiceImpl implements CampusClueService {
         if (StringUtils.isBlank(clue.getClueStatus())) {
             clue.setClueStatus(STATUS_PENDING_JUDGE);
         }
+        clue.setSentiment(CampusSentimentNormalizer.normalize(clue.getSentiment()));
         fillRelevanceAndTopic(clue, true);
         clue.setDeleted(0);
     }
@@ -266,6 +279,9 @@ public class CampusClueServiceImpl implements CampusClueService {
         }
         if (StringUtils.isBlank(clue.getClueStatus())) {
             clue.setClueStatus(null);
+        }
+        if (StringUtils.isNotBlank(clue.getSentiment())) {
+            clue.setSentiment(CampusSentimentNormalizer.normalize(clue.getSentiment()));
         }
         fillRelevanceAndTopic(clue, false);
     }
@@ -341,6 +357,25 @@ public class CampusClueServiceImpl implements CampusClueService {
         operationLog.setOperatorUserId(operatorUserId);
         operationLog.setOperatorName(operatorName);
         campusClueOperationLogDao.insert(operationLog);
+    }
+
+    private void ensureNotArchived(CampusClue clue, String operation) {
+        if (clue != null && STATUS_ARCHIVED.equals(clue.getClueStatus())) {
+            throw new IllegalArgumentException("已归档线索不能" + operation);
+        }
+    }
+
+    private void ensureStatus(CampusClue clue, String operation, String... allowedStatuses) {
+        if (clue == null) {
+            throw new IllegalArgumentException("线索不存在");
+        }
+        String status = StringUtils.defaultString(clue.getClueStatus());
+        for (String allowedStatus : allowedStatuses) {
+            if (StringUtils.equals(status, allowedStatus)) {
+                return;
+            }
+        }
+        throw new IllegalArgumentException(operation + "不允许在当前线索状态执行");
     }
 
     private String limit(String value, int maxLength) {

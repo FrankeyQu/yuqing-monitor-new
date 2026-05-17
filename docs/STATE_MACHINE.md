@@ -186,7 +186,32 @@ pending_judge / judged / converted → archived
 
 **禁止流转**：
 - 已归档线索不应再回到 `pending_judge` 或 `judged`，除非后续明确设计“反归档”接口。
+- 已转事件线索不得再次研判或重复转事件；如需结束存档，只允许从 `converted` 进入 `archived`。
 - 删除为 `deleted=1` 软删除，不应与业务状态混用。
+
+## 校园监测结果状态与风险标记（campus_monitor_result）
+
+| 字段/状态 | 含义 | 说明 |
+|-----------|------|------|
+| `result_status=pending` | 待处理 | 关键词命中后的默认处理状态 |
+| `result_status=alerted` | 已转预警 | 人工或规则转入 `campus_alert` |
+| `result_status=ignored` | 已忽略 | 人工确认无需继续处理 |
+| `result_status=converted` | 已转线索 | 已沉淀到 `campus_clue` |
+| `riskMarked=true` | 风险标记 | 由负面词、非普通风险等级、已预警等条件推导，不是独立状态 |
+
+**允许流转**：
+```
+关键词命中 → pending
+pending → alerted / ignored / converted
+alerted → converted
+```
+
+**统一口径**：
+- 新监测命中只以 `keywords` 为条件；`monitor_subject/subject_aliases` 只作任务展示和历史兼容。
+- `negative_words` 只生成 `riskMarked` 与风险展示，不决定普通命中是否进入列表。
+- `hitScope=all` 展示全部关键词命中；`hitScope=risk` 只展示 `riskMarked=true`。
+- 情感值统一为 `positive/neutral/negative/none`；“疑似/确认”由研判状态表达，不再作为情感状态。
+- UI 噪声和历史错误接入记录采用 `deleted=1` 软隐藏，不做物理删除。
 
 ## 校园事件状态（campus_event.event_status）
 
@@ -324,15 +349,17 @@ failed → converted [可通过重试实现，当前未形成专门重试 API]
 |--------|------|
 | `running` | 运行中 |
 | `success` | 成功 |
+| `partial_success` | 部分成功：本次运行既有成功入库，也有失败记录 |
 | `failed` | 失败 |
 
 **允许流转**：
 ```
 running → success
+running → partial_success
 running → failed
 ```
 
-**触发 API / Service**：`POST /campus/ingest/run/start`、`POST /campus/ingest/run/finish`、`POST /campus/ingest/task/run`、调度任务。
+**触发 API / Service**：`POST /campus/ingest/run/start`、`POST /campus/ingest/run/finish`、`POST /campus/ingest/task/run`、调度任务。未显式指定 `runStatus` 时，服务层会按 `successCount/failCount` 推导：有成功且有失败为 `partial_success`，只有失败为 `failed`，否则为 `success`。
 
 ## 校园监测状态（campus_monitor_*）
 
@@ -565,6 +592,8 @@ active ↔ expired / cancelled [待确认，当前 update-status 可直接写入
 
 ## 校园辅助研判状态（campus_analysis_*）
 
+当前 `/campus/analysis/**` 为规则辅助研判能力，默认模型来源为 `local_heuristic`；结果必须人工复核后才能作为处置参考。
+
 | 字段 | 状态值 | 含义 |
 |------|--------|------|
 | `campus_analysis_task.task_status` | `pending` | 待运行 |
@@ -600,6 +629,7 @@ analysis_result: pending → adopted / rejected
 **允许流转**：
 ```
 report: draft → generated → archived
+report: draft/generated → generated  # 传统生成或 AI 生成会写入最新 reportContent
 report: generated → published [待确认]
 job: paused ↔ active; active/paused → disabled
 generation_log: running → success/failed

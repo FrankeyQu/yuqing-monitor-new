@@ -30,17 +30,13 @@
         <Activity :size="16" />
         态势大屏
       </el-button>
-      <el-button @click="$router.push('/ingest')">
-        <Database :size="16" />
-        数据接入
-      </el-button>
       <el-button @click="$router.push('/alerts')">
         <Bell :size="16" />
         预警处理
       </el-button>
       <el-button @click="$router.push('/analysis')">
         <BrainCircuit :size="16" />
-        辅助研判
+        规则辅助研判
       </el-button>
     </section>
 
@@ -184,7 +180,6 @@ import {
   BrainCircuit,
   ClipboardList,
   ClockAlert,
-  Database,
   Globe,
   Music,
   Newspaper,

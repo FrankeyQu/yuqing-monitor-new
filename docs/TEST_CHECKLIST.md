@@ -34,6 +34,19 @@ npm run build  # 大屏 Vue 2 构建，仅修改 large_screen 时需要
 
 ⚠️ **当前状态**：`campus-web` 和 `large_screen` 均无前端单元测试/E2E 测试脚本，主要依赖构建与人工浏览器验收。
 
+## 2026-05-17 监测新版页面统一口径验收
+
+- [ ] `/monitor` 默认请求 `hitScope=all`，普通关键词命中和风险命中都可见；`hitScope=risk` 只返回 `riskMarked=true`。
+- [ ] 主体词/别名命中但关键词未命中时不生成新监测结果；关键词命中且负面词未命中时生成普通监测结果；关键词与负面词同时命中时生成风险标记。
+- [ ] 发布时间为空时显示“发布时间未知”，并按采集时间在未知发布时间记录内部倒序；`collectTimeStart/End` 只过滤采集时间。
+- [ ] 情感筛选只展示全部、正面、中性、负面、未知；接口参数使用 `positive/neutral/negative/none` 并兼容历史中文值。
+- [ ] 排序只展示发布时间、采集时间、相关度、情感；旧 `value/siteLevel` 请求不报错并落到默认排序。
+- [ ] “合并相似信息”开启后，列表分页总数、媒体类型统计与实际列表一致。
+- [ ] “新增人工线索”保存后进入线索库，不新增普通监测命中；“添加文章”入口不可见。
+- [ ] 批量操作对监测命中支持转线索、转预警、忽略；对已转线索支持研判、加入事件；混选时展示成功、失败、跳过数量。
+- [ ] 客户后台看不到“数据接入”，直接访问 `/admin/ingest` 重定向到 `/admin/monitor-tasks`；无后台菜单权限账号看不到“后台管理”。
+- [ ] session 过期或 `/campus/system/current-user` 校验失败时刷新受保护页面跳转登录页。
+
 ## Lint / TypeCheck / Build 命令
 
 ```powershell
@@ -53,6 +66,14 @@ npm run build
 
 ## 最近验证记录
 
+### 2026-05-17 Batch1-Batch6 报告/统计/接入/状态/搜索口径验证
+- 代码检查：`git diff --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。
+- 后端编译：使用 `.codex-tools/jdk8` 设置 `JAVA_HOME` 后执行 `.\mvnw.cmd -DskipTests compile` 通过，编译 491 个 Java source files，仅有旧代码内部 API、deprecated、unchecked 警告。
+- 后端测试：`.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过，16 个测试类共 55 个用例，0 failures / 0 errors / 0 skipped。
+- 前端构建：`campus-web npm run build` 通过；仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- XML 检查：`CampusClueMapper.xml`、`CampusMonitorResultMapper.xml` 可被 XML parser 正常解析。
+- 验收口径：报告 AI 生成会持久化内容；报告统计按事件/关键词/周期同一 scope 聚合；首页监测指标改用统一监测信息风险口径；接入运行支持 `partial_success` 并继承记录风险；线索/事件写链路加入事务和状态保护；搜索页明确为线索搜索，辅助研判明确为规则辅助。
+
 ### 2026-05-17 监测命中预览与筛选交互修正验证
 - 代码检查：`git diff --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。
 - 前端构建：`campus-web npm run build` 通过；仅保留既有 Rollup PURE 注释和 chunk 体积警告。
@@ -67,7 +88,7 @@ npm run build
 - 代码检查：`git diff --check` 通过；仅有 Git 提示的 LF 到 CRLF 工作区换行警告，无 whitespace error。
 - 前端构建：`campus-web npm run build` 通过；仅保留既有 Rollup PURE 注释和 chunk 体积警告。
 - 后端编译/测试：使用 `.codex-tools/jdk8` 设置 `JAVA_HOME` 后执行 `.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd test -DskipTests=false` 通过，16 个测试类共 55 个用例，0 failures / 0 errors / 0 skipped；`CampusMonitorResultMapper.xml` 可被 XML parser 正常解析。
-- 验收口径：`/campus/monitor/information/**` 新增 `hitScope=risk/all`；默认 `risk` 保持风险命中口径，`all` 只放开主体词-only 的真实监测命中用于覆盖面排查，仍不混入普通线索或搜索过程内容。
+- 验收口径：`/campus/monitor/information/**` 使用 `hitScope=risk/all`；默认 `all` 展示全部关键词命中，`risk` 只展示风险标记命中；主体词-only、普通线索和搜索过程内容均不进入监测信息。
 - 线上冒烟：备份 `/home/ubuntu/yuqing-backups/deploy-20260517-032925-hit-scope`；`yuqing/nginx` active，`https://yuqing.zhuoran.cc/monitor` 返回 200，未登录 `/campus/monitor/information/list?...hitScope=all` 返回 302；正式库口径核验 `hitScope=all` 为 296 条、`hitScope=risk` 为 12 条。
 
 ### 2026-05-17 前后台入口与监测信息口径纠偏验证

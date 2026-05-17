@@ -64,9 +64,9 @@ public class CampusIngestServiceImpl implements CampusIngestService {
     private static final String ADAPTER_MANUAL_PUSH = "manual_push";
     private static final String ADAPTER_THIRD_PARTY_API = "third_party_api";
     private static final String ADAPTER_PUBLIC_WEB_PULL = "public_web_pull";
-    private static final String RISK_NORMAL = CampusRiskLevel.normalCode();
     private static final String RUN_RUNNING = "running";
     private static final String RUN_SUCCESS = "success";
+    private static final String RUN_PARTIAL_SUCCESS = "partial_success";
     private static final String RUN_FAILED = "failed";
     private static final Long SYSTEM_USER_ID = 0L;
     private static final int DEFAULT_LOCK_MINUTES = 10;
@@ -333,9 +333,10 @@ public class CampusIngestServiceImpl implements CampusIngestService {
                                         String errorMessage,
                                         Long operatorUserId) {
         CampusIngestRunLog runLog = requireRun(runId);
-        String resolvedStatus = StringUtils.defaultIfBlank(runStatus, RUN_SUCCESS);
-        String errorType = RUN_FAILED.equals(resolvedStatus) ? classifyErrorType(errorMessage, 0) : null;
-        campusIngestRunLogDao.finish(runId, StringUtils.defaultIfBlank(runStatus, "success"),
+        String resolvedStatus = resolveRunStatus(runStatus, successCount, failCount);
+        String errorType = (RUN_FAILED.equals(resolvedStatus) || RUN_PARTIAL_SUCCESS.equals(resolvedStatus))
+                ? classifyErrorType(errorMessage, defaultCount(failCount)) : null;
+        campusIngestRunLogDao.finish(runId, resolvedStatus,
                 defaultCount(fetchedCount), defaultCount(successCount), 0, 0,
                 defaultCount(failCount), errorMessage, durationSince(runLog.getStartTime()), errorType);
         campusIngestTaskDao.updateLastRunTime(runLog.getTaskId(), operatorUserId);
@@ -464,11 +465,13 @@ public class CampusIngestServiceImpl implements CampusIngestService {
                     errorMessage = appendError(errorMessage, e.getMessage());
                 }
             }
-            if (failCount > 0) {
+            if (failCount > 0 && successCount == 0) {
                 throw new IllegalStateException(StringUtils.defaultIfBlank(errorMessage, "接入任务运行失败"));
             }
-            campusIngestRunLogDao.finish(runLog.getRunId(), RUN_SUCCESS, fetchedCount, successCount,
-                    duplicateCount, invalidCount, failCount, errorMessage, elapsedMillis(startMillis), null);
+            boolean partialSuccess = failCount > 0;
+            campusIngestRunLogDao.finish(runLog.getRunId(), partialSuccess ? RUN_PARTIAL_SUCCESS : RUN_SUCCESS,
+                    fetchedCount, successCount, duplicateCount, invalidCount, failCount, errorMessage,
+                    elapsedMillis(startMillis), partialSuccess ? classifyErrorType(errorMessage, failCount) : null);
             CampusIngestRunLog finishedRunLog = campusIngestRunLogDao.selectByRunId(runLog.getRunId());
             if (successCount > 0 && !insertedRecordIds.isEmpty() && shouldAutoConvertToClue(task)) {
                 int clueCount = autoConvertRecordsToClues(task, insertedRecordIds, operatorUserId);
@@ -1003,7 +1006,7 @@ public class CampusIngestServiceImpl implements CampusIngestService {
                 clue.setDiscoverTime(new Date());
                 clue.setInvolvedAccount(record.getAuthorName());
                 clue.setKeywords(record.getKeywords());
-                clue.setRiskLevel(RISK_NORMAL);
+                clue.setRiskLevel(CampusRiskLevel.normalizeOrDefault(record.getRiskLevel()));
                 clue.setSentiment(record.getSentiment());
                 clue.setLanguage(detectedLang);
 
@@ -1024,6 +1027,8 @@ public class CampusIngestServiceImpl implements CampusIngestService {
 
                 converted++;
             } catch (Exception e) {
+                campusIngestRecordDao.updateStatus(recordId, STATUS_FAILED, TARGET_CLUE,
+                        null, e.getMessage(), operatorUserId);
                 log.warn("Auto-convert failed for record {}: {}", recordId, e.getMessage());
             }
         }
@@ -1093,6 +1098,21 @@ public class CampusIngestServiceImpl implements CampusIngestService {
             return ERROR_NORMALIZE_FAILED;
         }
         return ERROR_UNKNOWN;
+    }
+
+    private String resolveRunStatus(String requestedStatus, Integer successCount, Integer failCount) {
+        if (StringUtils.isNotBlank(requestedStatus)) {
+            return requestedStatus;
+        }
+        int success = defaultCount(successCount);
+        int failed = defaultCount(failCount);
+        if (failed > 0 && success > 0) {
+            return RUN_PARTIAL_SUCCESS;
+        }
+        if (failed > 0) {
+            return RUN_FAILED;
+        }
+        return RUN_SUCCESS;
     }
 
     private Long durationSince(Date startTime) {

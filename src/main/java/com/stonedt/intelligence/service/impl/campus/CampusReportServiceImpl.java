@@ -1,5 +1,7 @@
 package com.stonedt.intelligence.service.impl.campus;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.stonedt.intelligence.dao.campus.CampusDashboardDao;
@@ -11,6 +13,7 @@ import com.stonedt.intelligence.entity.campus.CampusEvent;
 import com.stonedt.intelligence.entity.campus.CampusReport;
 import com.stonedt.intelligence.entity.campus.CampusReportEvent;
 import com.stonedt.intelligence.entity.campus.CampusReportTemplate;
+import com.stonedt.intelligence.service.campus.AiReportService;
 import com.stonedt.intelligence.service.campus.CampusReportDataService;
 import com.stonedt.intelligence.service.campus.CampusReportService;
 import com.stonedt.intelligence.util.SnowflakeUtil;
@@ -21,6 +24,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayInputStream;
 import java.net.URLEncoder;
@@ -43,19 +47,22 @@ public class CampusReportServiceImpl implements CampusReportService {
     private final CampusEventDao campusEventDao;
     private final CampusDashboardDao campusDashboardDao;
     private final CampusReportDataService campusReportDataService;
+    private final AiReportService aiReportService;
 
     public CampusReportServiceImpl(CampusReportTemplateDao campusReportTemplateDao,
                                    CampusReportDao campusReportDao,
                                    CampusReportEventDao campusReportEventDao,
                                    CampusEventDao campusEventDao,
                                    CampusDashboardDao campusDashboardDao,
-                                   CampusReportDataService campusReportDataService) {
+                                   CampusReportDataService campusReportDataService,
+                                   AiReportService aiReportService) {
         this.campusReportTemplateDao = campusReportTemplateDao;
         this.campusReportDao = campusReportDao;
         this.campusReportEventDao = campusReportEventDao;
         this.campusEventDao = campusEventDao;
         this.campusDashboardDao = campusDashboardDao;
         this.campusReportDataService = campusReportDataService;
+        this.aiReportService = aiReportService;
     }
 
     @Override
@@ -93,6 +100,7 @@ public class CampusReportServiceImpl implements CampusReportService {
     }
 
     @Override
+    @Transactional
     public CampusReport saveReport(CampusReport report, Long operatorUserId) {
         validateReport(report);
         if (report.getReportId() == null) {
@@ -129,22 +137,35 @@ public class CampusReportServiceImpl implements CampusReportService {
     }
 
     @Override
+    @Transactional
     public CampusReport generate(Long reportId, Long operatorUserId) {
         CampusReport report = requireReport(reportId);
-        CampusReport update = new CampusReport();
-        update.setReportId(reportId);
-        update.setReportStatus(STATUS_GENERATED);
-        update.setReportFormat(StringUtils.defaultIfBlank(report.getReportFormat(), FORMAT_MARKDOWN));
-        update.setReportContent(StringUtils.isBlank(report.getReportContent()) ? buildReportContent(report) : report.getReportContent());
-        update.setFileName(StringUtils.defaultIfBlank(report.getFileName(), buildFileName(report)));
-        update.setGeneratedBy(operatorUserId);
-        update.setGenerateTime(new Date());
-        update.setUpdateUserId(operatorUserId);
-        campusReportDao.update(update);
-        return campusReportDao.selectByReportId(reportId);
+        String content = StringUtils.isBlank(report.getReportContent()) ? buildReportContent(report) : report.getReportContent();
+        return saveGeneratedContent(report, content, operatorUserId);
     }
 
     @Override
+    public CampusReport generateAi(Long reportId, Long operatorUserId, StringBuilder streamOutput) {
+        CampusReport report = requireReport(reportId);
+        String dataJson = buildReportDataJson(report);
+        String content = aiReportService.generateReport(
+                report.getReportType(),
+                report.getReportTitle(),
+                dataJson,
+                formatDate(report.getPeriodStartTime()),
+                formatDate(report.getPeriodEndTime()),
+                streamOutput);
+        if (StringUtils.isBlank(content) && streamOutput != null) {
+            content = streamOutput.toString();
+        }
+        if (StringUtils.isBlank(content)) {
+            throw new IllegalStateException("AI报告生成未返回有效内容");
+        }
+        return saveGeneratedContent(report, content, operatorUserId);
+    }
+
+    @Override
+    @Transactional
     public CampusReport archive(Long reportId, String archiveOpinion, Long operatorUserId) {
         requireReport(reportId);
         campusReportDao.archive(reportId, archiveOpinion, operatorUserId, operatorUserId);
@@ -152,6 +173,7 @@ public class CampusReportServiceImpl implements CampusReportService {
     }
 
     @Override
+    @Transactional
     public void deleteReport(Long reportId, Long operatorUserId) {
         requireReport(reportId);
         campusReportDao.logicalDelete(reportId, operatorUserId);
@@ -219,7 +241,7 @@ public class CampusReportServiceImpl implements CampusReportService {
         }
 
         ReportDataVO reportData = campusReportDataService.aggregateReportData(
-                keyword, report.getPeriodStartTime(), report.getPeriodEndTime());
+                keyword, report.getEventId(), report.getPeriodStartTime(), report.getPeriodEndTime());
 
         if (template != null && StringUtils.isNotBlank(template.getTemplateContent())) {
             return applyTemplate(template.getTemplateContent(), report, event, reportData);
@@ -296,6 +318,50 @@ public class CampusReportServiceImpl implements CampusReportService {
         return b.toString();
     }
 
+    private CampusReport saveGeneratedContent(CampusReport report, String content, Long operatorUserId) {
+        CampusReport update = new CampusReport();
+        update.setReportId(report.getReportId());
+        update.setReportStatus(STATUS_GENERATED);
+        update.setReportFormat(FORMAT_MARKDOWN);
+        update.setReportContent(content);
+        update.setFileName(buildFileNameForFormat(report, FORMAT_MARKDOWN));
+        update.setGeneratedBy(operatorUserId);
+        update.setGenerateTime(new Date());
+        update.setUpdateUserId(operatorUserId);
+        campusReportDao.update(update);
+        return campusReportDao.selectByReportId(report.getReportId());
+    }
+
+    private String buildReportDataJson(CampusReport report) {
+        CampusEvent event = report.getEventId() == null ? null : campusEventDao.selectByEventId(report.getEventId());
+        String keyword = resolveReportKeyword(report, event);
+        ReportDataVO reportData = campusReportDataService.aggregateReportData(
+                keyword, report.getEventId(), report.getPeriodStartTime(), report.getPeriodEndTime());
+        JSONObject data = new JSONObject();
+        data.put("reportId", report.getReportId());
+        data.put("reportTitle", report.getReportTitle());
+        data.put("reportType", report.getReportType());
+        data.put("reportSummary", StringUtils.defaultString(report.getReportSummary()));
+        data.put("periodStart", formatDate(report.getPeriodStartTime()));
+        data.put("periodEnd", formatDate(report.getPeriodEndTime()));
+        data.put("eventId", report.getEventId());
+        if (event != null) {
+            data.put("eventTitle", event.getEventTitle());
+            data.put("eventSummary", event.getEventSummary());
+            data.put("eventStatus", event.getEventStatus());
+            data.put("riskLevel", event.getRiskLevel());
+        }
+        data.put("reportData", JSON.toJSON(reportData));
+        return data.toJSONString();
+    }
+
+    private String resolveReportKeyword(CampusReport report, CampusEvent event) {
+        if (event != null && StringUtils.isNotBlank(event.getEventTitle())) {
+            return event.getEventTitle();
+        }
+        return report == null ? null : StringUtils.trimToNull(report.getReportTitle());
+    }
+
     private String applyTemplate(String templateContent,
                                  CampusReport report,
                                  CampusEvent event,
@@ -357,8 +423,12 @@ public class CampusReportServiceImpl implements CampusReportService {
     }
 
     private String buildFileName(CampusReport report) {
-        String suffix = "html".equals(report.getReportFormat()) ? ".html" : ".md";
-        if ("text".equals(report.getReportFormat())) {
+        return buildFileNameForFormat(report, report.getReportFormat());
+    }
+
+    private String buildFileNameForFormat(CampusReport report, String reportFormat) {
+        String suffix = "html".equals(reportFormat) ? ".html" : ".md";
+        if ("text".equals(reportFormat)) {
             suffix = ".txt";
         }
         String title = StringUtils.defaultIfBlank(report.getReportTitle(), "campus-report");

@@ -2,6 +2,7 @@ package com.stonedt.intelligence.service.impl.campus;
 
 import com.stonedt.intelligence.dao.campus.CampusClueDao;
 import com.stonedt.intelligence.dao.campus.CampusDashboardDao;
+import com.stonedt.intelligence.dao.campus.CampusMonitorResultDao;
 import com.stonedt.intelligence.service.campus.CampusDashboardService;
 import com.stonedt.intelligence.service.campus.ai.CampusAiKeywordService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ public class CampusDashboardServiceImpl implements CampusDashboardService {
 
     private final CampusDashboardDao campusDashboardDao;
     private final CampusClueDao campusClueDao;
+    private final CampusMonitorResultDao campusMonitorResultDao;
     private final CampusAiKeywordService campusAiKeywordService;
     private volatile List<Map<String, Object>> cachedWordCloud;
     private volatile long cachedWordCloudAt;
@@ -28,9 +30,11 @@ public class CampusDashboardServiceImpl implements CampusDashboardService {
     @Autowired
     public CampusDashboardServiceImpl(CampusDashboardDao campusDashboardDao,
                                        CampusClueDao campusClueDao,
+                                       CampusMonitorResultDao campusMonitorResultDao,
                                        CampusAiKeywordService campusAiKeywordService) {
         this.campusDashboardDao = campusDashboardDao;
         this.campusClueDao = campusClueDao;
+        this.campusMonitorResultDao = campusMonitorResultDao;
         this.campusAiKeywordService = campusAiKeywordService;
     }
 
@@ -38,6 +42,7 @@ public class CampusDashboardServiceImpl implements CampusDashboardService {
                                       CampusClueDao campusClueDao) {
         this.campusDashboardDao = campusDashboardDao;
         this.campusClueDao = campusClueDao;
+        this.campusMonitorResultDao = null;
         this.campusAiKeywordService = null;
     }
 
@@ -49,13 +54,20 @@ public class CampusDashboardServiceImpl implements CampusDashboardService {
     @Override
     public Map<String, Object> statistics() {
         Map<String, Object> statistics = new LinkedHashMap<>();
+        Map<String, Object> monitorOverview = campusDashboardDao.monitorOverview();
+        List<Map<String, Object>> monitorTrend = campusDashboardDao.monitorTrendByDay();
+        if (campusMonitorResultDao != null) {
+            monitorOverview = monitorOverview == null ? new LinkedHashMap<>() : new LinkedHashMap<>(monitorOverview);
+            monitorOverview.put("todayResultCount", campusMonitorResultDao.countInformationToday("risk"));
+            monitorTrend = campusMonitorResultDao.monitorInformationTrendByDay("risk", 7);
+        }
         statistics.put("overview", campusDashboardDao.overview());
-        statistics.put("monitorOverview", campusDashboardDao.monitorOverview());
+        statistics.put("monitorOverview", monitorOverview);
         statistics.put("riskDistribution", campusDashboardDao.riskDistribution());
         statistics.put("clueSourceDistribution", campusDashboardDao.clueSourceDistribution());
         statistics.put("eventStatusDistribution", campusDashboardDao.eventStatusDistribution());
         statistics.put("trendByDay", campusDashboardDao.trendByDay());
-        statistics.put("monitorTrendByDay", campusDashboardDao.monitorTrendByDay());
+        statistics.put("monitorTrendByDay", monitorTrend);
         statistics.put("alertRiskDistribution", campusDashboardDao.alertRiskDistribution());
         statistics.put("detectionHitRiskDistribution", campusDashboardDao.detectionHitRiskDistribution());
         statistics.put("sourceRiskDistribution", campusDashboardDao.sourceRiskDistribution());

@@ -105,7 +105,7 @@ export function generateReport(reportId: number) {
 }
 
 export function generateReportAi(reportId: number) {
-  return apiPost<string>('/campus/report/generate-ai', undefined, { reportId });
+  return apiPost<CampusReport>('/campus/report/generate-ai', undefined, { reportId });
 }
 
 export function getGenerateAiStreamUrl(reportId: number) {

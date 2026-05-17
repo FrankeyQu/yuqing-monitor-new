@@ -7,6 +7,7 @@ import com.stonedt.intelligence.entity.campus.CampusClue;
 import com.stonedt.intelligence.service.campus.ai.CampusAiChatRequest;
 import com.stonedt.intelligence.service.campus.ai.CampusAiChatResponse;
 import com.stonedt.intelligence.service.campus.ai.CampusAiChatService;
+import com.stonedt.intelligence.service.campus.support.CampusSentimentNormalizer;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,22 +56,10 @@ public class AiJudgmentEngine {
     }
 
     /**
-     * Sentiment label mapping: English -> Chinese display text.
+     * Sentiment mapping: AI output -> canonical storage value.
      */
     private static String mapSentiment(String raw) {
-        if (raw == null) {
-            return "疑似中性";
-        }
-        switch (raw.trim().toLowerCase()) {
-            case "positive":
-                return "疑似正面";
-            case "negative":
-                return "疑似负面";
-            case "neutral":
-                return "疑似中性";
-            default:
-                return "疑似中性";
-        }
+        return CampusSentimentNormalizer.normalizeOrDefault(raw, "neutral");
     }
 
     /**
@@ -230,7 +219,7 @@ public class AiJudgmentEngine {
             clue.setRiskLevel(riskLevel.trim().toLowerCase());
         }
 
-        // Sentiment (mapped to Chinese display labels)
+        // Sentiment (canonical storage value)
         String sentiment = analysis.getString("sentiment");
         clue.setSentiment(mapSentiment(sentiment));
 

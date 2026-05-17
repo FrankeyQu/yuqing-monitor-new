@@ -94,6 +94,11 @@ public interface CampusMonitorResultDao {
                                                             @Param("similarDedup") Boolean similarDedup,
                                                             @Param("hitScope") String hitScope);
 
+    int countInformationToday(@Param("hitScope") String hitScope);
+
+    List<Map<String, Object>> monitorInformationTrendByDay(@Param("hitScope") String hitScope,
+                                                           @Param("days") Integer days);
+
     int countToday();
 
     int logicalDeleteBefore(@Param("expireBefore") Date expireBefore,

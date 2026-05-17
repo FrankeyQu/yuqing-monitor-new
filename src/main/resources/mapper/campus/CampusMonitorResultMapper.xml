@@ -62,6 +62,8 @@
         <result column="author_name" property="authorName"/>
         <result column="involved_account" property="involvedAccount"/>
         <result column="publish_time" property="publishTime"/>
+        <result column="collect_time" property="collectTime"/>
+        <result column="publish_time_status" property="publishTimeStatus"/>
         <result column="discover_time" property="discoverTime"/>
         <result column="create_time" property="createTime"/>
         <result column="info_time" property="infoTime"/>
@@ -83,6 +85,7 @@
         <result column="result_status" property="resultStatus"/>
         <result column="clue_status" property="clueStatus"/>
         <result column="alert_id" property="alertId"/>
+        <result column="risk_marked" property="riskMarked"/>
         <result column="like_count" property="likeCount"/>
         <result column="comment_count" property="commentCount"/>
         <result column="share_count" property="shareCount"/>
@@ -210,9 +213,14 @@
             COALESCE(NULLIF(mr.author_name, ''), ir.author_name) AS author_name,
             COALESCE(NULLIF(mr.author_name, ''), ir.author_name) AS involved_account,
             COALESCE(mr.publish_time, ir.publish_time) AS publish_time,
+            COALESCE(ir.create_time, mr.create_time) AS collect_time,
+            CASE
+                WHEN COALESCE(mr.publish_time, ir.publish_time) IS NULL THEN 'missing'
+                ELSE 'known'
+            END AS publish_time_status,
             mr.create_time AS discover_time,
             mr.create_time,
-            COALESCE(mr.publish_time, ir.publish_time, mr.create_time) AS info_time,
+            COALESCE(mr.publish_time, ir.publish_time, ir.create_time, mr.create_time) AS info_time,
             COALESCE(NULLIF(mr.language, ''), ir.language) AS language,
             mr.matched_subjects,
             mr.matched_keywords,
@@ -231,6 +239,25 @@
             mr.result_status,
             CASE WHEN mr.clue_id IS NULL THEN NULL ELSE 'converted' END AS clue_status,
             mr.alert_id,
+            CASE
+                WHEN IFNULL(mr.matched_negative_words, '') != ''
+                  OR LOWER(IFNULL(mr.risk_level, '')) IN ('concern', 'major', 'urgent')
+                  OR mr.alert_id IS NOT NULL
+                  OR mr.result_status = 'alerted'
+                THEN 1
+                ELSE 0
+            END AS risk_marked,
+            CASE
+                WHEN ir.content_hash IS NOT NULL AND ir.content_hash != ''
+                THEN CONCAT('hash:', ir.content_hash)
+                WHEN <include refid="ValidMonitorResultOriginalUrlExpr"/> IS NOT NULL
+                THEN CONCAT('url:', LOWER(<include refid="ValidMonitorResultOriginalUrlExpr"/>))
+                WHEN COALESCE(NULLIF(mr.title, ''), ir.title) IS NOT NULL
+                 AND COALESCE(NULLIF(mr.title, ''), ir.title) != ''
+                THEN CONCAT('title:', LOWER(TRIM(COALESCE(NULLIF(mr.title, ''), ir.title))),
+                            '|', LOWER(TRIM(COALESCE(NULLIF(mr.platform, ''), ir.platform, ''))))
+                ELSE CONCAT('id:', mr.monitor_result_id)
+            END AS similar_key,
             COALESCE(ir.like_count, mr.like_count) AS like_count,
             COALESCE(ir.comment_count, mr.comment_count) AS comment_count,
             COALESCE(ir.share_count, mr.share_count) AS share_count,
@@ -246,12 +273,28 @@
           ON ir.record_id = mr.ingest_record_id
          AND ir.deleted = 0
         WHERE mr.deleted = 0
-        <if test="hitScope == null or hitScope == '' or hitScope != 'all'">
-          AND <include refid="MonitorResultPrecisionPredicate"/>
-        </if>
     </sql>
 
-    <sql id="InformationFilters">
+    <sql id="InformationQualityFilters">
+        AND NOT (
+            LOWER(IFNULL(platform, '')) IN ('weibo', '微博', '新浪微博')
+            AND (
+                original_url IS NULL
+                OR original_url = ''
+                OR original_url NOT LIKE 'http%'
+                OR LOWER(original_url) LIKE 'http://s.weibo.com/%'
+                OR LOWER(original_url) LIKE 'https://s.weibo.com/%'
+                OR NOT (
+                    LOWER(original_url) REGEXP '^https?://weibo\\.com/[0-9]+/[0-9]{13,}'
+                    OR LOWER(original_url) REGEXP '^https?://m\\.weibo\\.cn/detail/[0-9]{13,}'
+                )
+                OR content LIKE '%实时资讯，海量讨论%'
+                OR title REGEXP '^[0-9.]+万?帖子'
+            )
+        )
+    </sql>
+
+    <sql id="InformationCoreFilters">
         <if test="keyword != null and keyword != ''">
             <choose>
                 <when test="matchScope == 'title'">
@@ -275,22 +318,7 @@
                 </otherwise>
             </choose>
         </if>
-        AND NOT (
-            LOWER(IFNULL(platform, '')) IN ('weibo', '微博', '新浪微博')
-            AND (
-                original_url IS NULL
-                OR original_url = ''
-                OR original_url NOT LIKE 'http%'
-                OR LOWER(original_url) LIKE 'http://s.weibo.com/%'
-                OR LOWER(original_url) LIKE 'https://s.weibo.com/%'
-                OR NOT (
-                    LOWER(original_url) REGEXP '^https?://weibo\\.com/[0-9]+/[0-9]{13,}'
-                    OR LOWER(original_url) REGEXP '^https?://m\\.weibo\\.cn/detail/[0-9]{13,}'
-                )
-                OR content LIKE '%实时资讯，海量讨论%'
-                OR title REGEXP '^[0-9.]+万?帖子'
-            )
-        )
+        <include refid="InformationQualityFilters"/>
         <if test="monitorTaskId != null">
             AND monitor_task_id = #{monitorTaskId}
         </if>
@@ -325,6 +353,9 @@
         <if test="riskLevel != null and riskLevel != ''">
             AND risk_level = #{riskLevel}
         </if>
+        <if test="hitScope == 'risk'">
+            AND risk_marked = 1
+        </if>
         <if test="clueStatus != null and clueStatus != ''">
             AND clue_status = #{clueStatus}
         </if>
@@ -347,6 +378,10 @@
                 <otherwise>
                     AND (
                         FIND_IN_SET(sentiment, #{sentiment}) &gt; 0
+                        OR (FIND_IN_SET('negative', #{sentiment}) &gt; 0 AND (LOWER(sentiment) = 'negative' OR sentiment LIKE '%负%'))
+                        OR (FIND_IN_SET('neutral', #{sentiment}) &gt; 0 AND (LOWER(sentiment) = 'neutral' OR sentiment LIKE '%中%'))
+                        OR (FIND_IN_SET('positive', #{sentiment}) &gt; 0 AND (LOWER(sentiment) = 'positive' OR sentiment LIKE '%正%'))
+                        OR (FIND_IN_SET('none', #{sentiment}) &gt; 0 AND (sentiment IS NULL OR sentiment = '' OR LOWER(sentiment) = 'none' OR sentiment = '未知'))
                         OR (#{sentiment} = '负面' AND (sentiment LIKE '%负%' OR LOWER(sentiment) = 'negative'))
                         OR (#{sentiment} = '中性' AND (sentiment LIKE '%中%' OR LOWER(sentiment) = 'neutral'))
                         OR (#{sentiment} = '正面' AND (sentiment LIKE '%正%' OR LOWER(sentiment) = 'positive'))
@@ -364,11 +399,45 @@
             AND publish_time &lt; DATE_ADD(#{publishTimeEnd}, INTERVAL 1 DAY)
         </if>
         <if test="collectTimeStart != null">
-            AND info_time &gt;= #{collectTimeStart}
+            AND collect_time &gt;= #{collectTimeStart}
         </if>
         <if test="collectTimeEnd != null">
-            AND info_time &lt; DATE_ADD(#{collectTimeEnd}, INTERVAL 1 DAY)
+            AND collect_time &lt; DATE_ADD(#{collectTimeEnd}, INTERVAL 1 DAY)
         </if>
+    </sql>
+
+    <sql id="InformationSimilarDedupFilter">
+        <if test="similarDedup != null and similarDedup == true">
+            AND CAST(info_id AS CHAR) IN (
+                SELECT latest_info_id
+                FROM (
+                    SELECT SUBSTRING_INDEX(
+                               GROUP_CONCAT(
+                                   CAST(info_id AS CHAR)
+                                   ORDER BY
+                                       CASE WHEN publish_time IS NULL THEN 1 ELSE 0 END ASC,
+                                       publish_time DESC,
+                                       collect_time DESC,
+                                       info_id DESC
+                                   SEPARATOR ','
+                               ),
+                               ',',
+                               1
+                           ) AS latest_info_id
+                    FROM (
+                        <include refid="InformationUnion"/>
+                    ) info
+                    WHERE 1 = 1
+                    <include refid="InformationCoreFilters"/>
+                    GROUP BY similar_key
+                ) dedup
+            )
+        </if>
+    </sql>
+
+    <sql id="InformationFilters">
+        <include refid="InformationCoreFilters"/>
+        <include refid="InformationSimilarDedupFilter"/>
     </sql>
 
     <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusMonitorResult">
@@ -531,10 +600,11 @@
         WHERE 1 = 1
         <include refid="InformationFilters"/>
         <choose>
-            <when test="sortBy == 'publish_time' or sortBy == 'publishTime'">ORDER BY publish_time DESC, info_id DESC</when>
+            <when test="sortBy == 'collect_time' or sortBy == 'collectTime'">ORDER BY collect_time DESC, info_id DESC</when>
+            <when test="sortBy == 'publish_time' or sortBy == 'publishTime'">ORDER BY CASE WHEN publish_time IS NULL THEN 1 ELSE 0 END ASC, publish_time DESC, collect_time DESC, info_id DESC</when>
             <when test="sortBy == 'sentiment_level' or sortBy == 'sentiment'">ORDER BY sentiment DESC, info_id DESC</when>
-            <when test="sortBy == 'relevance'">ORDER BY school_relevance_score DESC, info_time DESC, info_id DESC</when>
-            <otherwise>ORDER BY info_time DESC, info_id DESC</otherwise>
+            <when test="sortBy == 'relevance'">ORDER BY school_relevance_score DESC, CASE WHEN publish_time IS NULL THEN 1 ELSE 0 END ASC, publish_time DESC, collect_time DESC, info_id DESC</when>
+            <otherwise>ORDER BY CASE WHEN publish_time IS NULL THEN 1 ELSE 0 END ASC, publish_time DESC, collect_time DESC, info_id DESC</otherwise>
         </choose>
     </select>
 
@@ -560,6 +630,77 @@
         ORDER BY value DESC
     </select>
 
+    <select id="countInformationToday" resultType="int">
+        SELECT COUNT(1)
+        FROM (
+            <include refid="InformationUnion"/>
+        ) info
+        WHERE 1 = 1
+        <include refid="InformationQualityFilters"/>
+        <if test="hitScope == 'risk'">
+            AND risk_marked = 1
+        </if>
+          AND collect_time &gt;= CURDATE()
+    </select>
+
+    <select id="monitorInformationTrendByDay" resultType="java.util.Map">
+        SELECT
+            DATE_FORMAT(dates.d, '%m-%d') AS name,
+            COALESCE(m.cnt, 0) AS monitorResultCount,
+            COALESCE(a.cnt, 0) AS monitorAlertCount
+        FROM (
+            SELECT DATE_SUB(CURDATE(), INTERVAL seq.seq DAY) AS d
+            FROM (
+                SELECT 0 AS seq UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+                UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+                UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19
+                UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+                UNION ALL SELECT 24 UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27
+                UNION ALL SELECT 28 UNION ALL SELECT 29
+            ) seq
+            WHERE seq.seq &lt; #{days}
+        ) dates
+        LEFT JOIN (
+            SELECT DATE(collect_time) AS d, COUNT(1) AS cnt
+            FROM (
+                <include refid="InformationUnion"/>
+            ) info
+            WHERE 1 = 1
+            <include refid="InformationQualityFilters"/>
+            <if test="hitScope == 'risk'">
+                AND risk_marked = 1
+            </if>
+            GROUP BY DATE(collect_time)
+        ) m ON dates.d = m.d
+        LEFT JOIN (
+            SELECT DATE(a.create_time) AS d, COUNT(1) AS cnt
+            FROM campus_alert a
+            JOIN campus_monitor_result mr
+              ON a.alert_source = 'monitor'
+             AND a.source_object_id = mr.monitor_result_id
+             AND mr.deleted = 0
+            JOIN campus_monitor_task mt
+              ON mt.monitor_task_id = mr.monitor_task_id
+             AND mt.deleted = 0
+             AND mt.task_status = 'active'
+             AND IFNULL(mt.display_enabled, 1) = 1
+            WHERE a.deleted = 0
+              AND a.alert_source = 'monitor'
+              <if test="hitScope == 'risk'">
+                AND (
+                    IFNULL(mr.matched_negative_words, '') != ''
+                    OR LOWER(IFNULL(mr.risk_level, '')) IN ('concern', 'major', 'urgent')
+                    OR mr.alert_id IS NOT NULL
+                    OR mr.result_status = 'alerted'
+                )
+              </if>
+            GROUP BY DATE(a.create_time)
+        ) a ON dates.d = a.d
+        ORDER BY dates.d
+    </select>
+
     <select id="countToday" resultType="int">
         SELECT COUNT(1)
         FROM campus_monitor_result mr
@@ -569,7 +710,6 @@
          AND mt.task_status = 'active'
          AND IFNULL(mt.display_enabled, 1) = 1
         WHERE mr.deleted = 0
-          AND <include refid="MonitorResultPrecisionPredicate"/>
           AND mr.create_time &gt;= CURDATE()
     </select>
 

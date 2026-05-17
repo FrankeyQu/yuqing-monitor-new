@@ -7,9 +7,21 @@
 - **当前阶段**：Batch41-B47 蓝图 MVP 已发布，继续进入线上验收与细节修正
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
 - **当前 Git 状态**：`claude/batch33-monitor-admin` 分支，已推送到服务器远端 `deploy-vps`
-- **最近已发布功能提交**：commit `9c2ba43` — fix: preserve applied flyway migration
+- **最近已发布功能提交**：commit `feat: unify monitor information workflow`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
+
+## 2026-05-17 Batch1-Batch6 新界面业务闭环修正
+
+- **执行边界**：按用户要求作为主线程完成 Batch1-Batch6；本轮不考虑权限问题，不新增账号/角色逻辑，不改 `pom.xml` 和核心配置，不创建/切换分支。
+- **Batch1 报告 AI 生成闭环**：`/campus/report/generate-ai` 改为返回并持久化 `CampusReport`，`generate-ai-stream` 结束后前端重新读取报告详情；报告 Service 统一保存 `reportContent/reportStatus/reportFormat/fileName/generatedBy/generateTime`。
+- **Batch2 报告统计周期口径**：报告数据聚合新增 `eventId + keyword + period` scope，媒体分布、情感分布、热词、热点文章、走势和总数共用同一批线索，避免不同统计块口径漂移。
+- **Batch3 首页与监测口径统一**：首页监测概览的今日监测数和 7 日趋势改用 `campus_monitor_result` 统一监测信息风险口径，继续只统计 active 且允许展示任务。
+- **Batch4 接入部分成功与风险继承**：接入运行日志新增 `partial_success` 推导；任务运行有成功也有失败时不再整体失败；`target_type=clue` 自动转线索继承接入记录风险等级，转换异常会标记记录失败。
+- **Batch5 线索事件事务与状态保护**：线索保存、研判、归档、删除和事件保存、转事件、定级、分派、反馈、退回、复核、归档均补事务；已归档线索禁止编辑/研判/重复归档，已转事件线索禁止重复研判或重复转事件，SQL 层补充并发保护。
+- **Batch6 搜索与辅助研判定位**：前端搜索明确为“线索搜索”，继续调用 `/campus/clue/list`；辅助研判页面标注为“规则辅助研判”，默认 `local_heuristic`，避免误导为完整 AI 研判。
+- **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/TEST_CHECKLIST.md` 以及 `campus_report/campus_ingest/campus_clue/campus_event` manifest。
+- **本地验证**：`git diff --check` 通过；`.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过，16 个测试类 55 tests；`campus-web npm run build` 通过；`CampusClueMapper.xml` 和 `CampusMonitorResultMapper.xml` XML 解析通过。
 
 ## 2026-05-17 Batch41-B47 生产发布与 Flyway 修复
 
@@ -680,10 +692,26 @@ service/minority/
 ```
 修改：`config/config.properties`、`docs/API_CONTRACT.md`
 
+## 2026-05-17 新版监测统一方案落地与生产发布
+
+- **工作分支 / worktree**：`claude/batch33-monitor-admin`，`D:\PRJ\yuqing`；未触碰 `D:\PRJ\yuqing-daily-monthly-reports`。
+- **方案基线**：已按 `docs/campus-monitor-unified-implementation-plan.md` 落地，保留 `docs/campus-monitor-implementation-plan.md` 与 `docs/new-ui-visible-feature-consolidation-plan.md` 作为来源方案。
+- **后端口径**：监测扫描改为只按 `keywords` 生成命中；`monitor_subject/subject_aliases` 只保留展示与历史兼容；负面词只生成风险标记。`/campus/monitor/information/**` 默认 `hitScope=all`，`hitScope=risk` 使用 `riskMarked` 过滤；返回补齐 `collectTime/publishTimeStatus/riskMarked`，默认排序按明确发布时间优先、未知发布时间按采集时间倒序。
+- **治理与迁移**：新增 `V1.43__CampusMonitorUnifiedGovernance.sql`，隐藏数据接入菜单、规范历史情感值、逻辑隐藏快手搜索反馈/UI 噪声记录；新增 `CampusSentimentNormalizer`，接入、监测、线索、规则研判和 AI 研判统一写入 `positive/neutral/negative/none`。
+- **前端收口**：监测页删除“添加文章”，保留“新增人工线索”；情感筛选改为全部/正面/中性/负面/未知；排序移除“价值度/网站等级”；“相似信息”改为“合并相似信息”；批量操作按监测命中与已转线索分流并显示成功/失败/跳过数量。
+- **权限与入口**：客户后台隐藏“数据接入”，`/admin/ingest` 重定向 `/admin/monitor-tasks`；受保护路由进入前调用 `/campus/system/current-user` 校验真实 session；权限加载失败或后台菜单为空时不再展示全部后台菜单，无后台权限账号隐藏“后台管理”。
+- **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/PERMISSION_RULES.md`、`docs/STATE_MACHINE.md`、`docs/TEST_CHECKLIST.md`、`docs/modules/campus_monitor/manifest.md`、`docs/modules/campus_ingest/manifest.md`、`docs/modules/campus_clue/manifest.md`。
+- **本地验证**：`CampusMonitorResultMapper.xml`、`CampusClueMapper.xml` XML 解析通过；`git diff --check` 通过（仅换行提示）；`.codex-tools/jdk8` 下 `.\mvnw.cmd -DskipTests compile` 通过；`.\mvnw.cmd "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过，16 个测试类 57 tests；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`.\mvnw.cmd -DskipTests package` 通过，jar 内确认包含 `V1.43`、`CampusMonitorResultMapper.xml` 和 `CampusSentimentNormalizer.class`。
+- **Git 提交与生产发布**：提交 `feat: unify monitor information workflow`；发布前备份 `/opt/yuqing/app` jar、`/opt/yuqing/web` 和 `campus_yuqing` 数据库，备份目录 `/home/ubuntu/yuqing-backups/deploy-20260517-122325-monitor-unified`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 和 `/opt/yuqing/web`，重启 `yuqing` 并 reload `nginx`。
+- **线上验收**：`yuqing/nginx` active，后端监听 `8084`；Flyway 已应用 `1.43 CampusMonitorUnifiedGovernance` 且 success=1；`campus_permission_menu.ingest` 已为 `visible=0,status=0`；`https://yuqing.zhuoran.cc/`、`/monitor`、`/admin/ingest` 均返回前端 index 200，未登录访问 `/campus/monitor/information/list?...hitScope=all` 返回 302，符合鉴权预期。
+
 ## 重要决策记录
 
 | 日期 | 决策 | 说明 |
 |------|------|------|
+| 2026-05-17 | 新版监测统一方案已落地并发布 | 监测命中、风险标记、时间排序、情感、人工线索、批量操作、数据接入隐藏和权限导航按统一方案完成，生产已应用 `V1.43` |
+| 2026-05-17 | 校园监测与新版页面统一实施方案已形成 | 融合 `docs/campus-monitor-implementation-plan.md` 与 `docs/new-ui-visible-feature-consolidation-plan.md`，新增 `docs/campus-monitor-unified-implementation-plan.md` 作为后续唯一综合执行口径 |
+| 2026-05-17 | 新版页面可见功能收口方案已固化为文档 | 在 `claude/batch33-monitor-admin` 分支、`D:\PRJ\yuqing` worktree 中新增 `docs/new-ui-visible-feature-consolidation-plan.md`，仅保存方案，不修改业务代码 |
 | 2026-05-15 | Jina Reader 定位为正文增强层 | 搜索发现仍由百度/TikHub/DPI/上级平台完成；Jina Reader 只读取已发现且合规的公开 URL 正文，监测任务不直接外呼 Reader |
 | 2026-05-16 | 小红书采用 TikHub 两段式详情增强 | `search_notes` 负责发现 `note_id`，图文/视频详情接口只增强同一接入记录；精确去重口径为 `source_id + external_id` |
 | 2026-05-15 | 完成接入能力盘点与平台任务补齐 | 服务器已建立抖音、小红书、B站、百度新闻/网页、公开网页来源和接入任务；抖音/B站/百度已跑通并进入监测信息；2026-05-16 已补齐小红书详情增强并复跑通过 |
@@ -728,3 +756,25 @@ service/minority/
   }
   ```
   无需额外 Tomcat 实例，性能更好、资源更省。
+
+## 2026-05-17 监测采集与展示口径固化方案
+
+**工作分支 / worktree**
+- 分支：`claude/batch33-monitor-admin`
+- worktree：`D:\PRJ\yuqing`
+- 当前 HEAD：`0090f98`
+
+**新增项目记录**
+- 新增方案文档：`docs/campus-monitor-implementation-plan.md`
+
+**固化口径**
+- 监测任务名称 / 主体词只表示任务对象，不作为命中条件。
+- 监测命中只依据 `keywords`；命中关键词后再识别 `negative_words`。
+- `/monitor` 默认展示全部关键词命中结果，风险词命中只作为标记和筛选条件。
+- 接入层必须过滤搜索反馈项、平台 UI 文案、控件文案等非内容记录。
+- `publishTime` 与 `collectTime` 分离；发布时间缺失时展示为“发布时间未知”，排序时不能压过明确发布时间内容。
+
+**当前现状记录**
+- 当前“新疆大学”任务中主体词与关键词基本一致，因此既有监测命中整体可保留。
+- 当前存在快手 UI 文案混入、部分平台发布时间缺失、旧文档描述与新口径不一致等问题。
+- 后续实施应按 `docs/campus-monitor-implementation-plan.md` 分阶段推进，并同步更新模块 manifest、API 契约、状态机和测试清单。

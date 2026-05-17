@@ -55,7 +55,6 @@ interface AdminNavItem {
 const allNavItems: AdminNavItem[] = [
   { path: '/admin/accounts', label: '重点账号', permissions: ['campus:account:view'], routes: ['/admin/accounts', '/accounts'] },
   { path: '/admin/monitor-tasks', label: '监测任务管理', permissions: ['campus:monitor:view'], routes: ['/admin/monitor-tasks'] },
-  { path: '/admin/ingest', label: '数据接入', permissions: ['campus:ingest:view'], routes: ['/admin/ingest', '/ingest'] },
   { path: '/admin/settings/ai', label: 'AI能力', permissions: ['campus:ai:view'], routes: ['/admin/settings/ai'] },
   { path: '/admin/education', label: '教育专题', permissions: ['campus:education:view'], routes: ['/admin/education'] },
   {
@@ -65,7 +64,7 @@ const allNavItems: AdminNavItem[] = [
     routes: ['/admin/settings/departments', '/admin/settings/dicts', '/admin/settings/audit', '/admin/settings/permissions']
   }
 ];
-const navItems = ref<AdminNavItem[]>(allNavItems);
+const navItems = ref<AdminNavItem[]>([]);
 
 const loginName = computed(() => currentLoginName());
 const currentPath = computed(() => route.path);
@@ -81,15 +80,28 @@ async function loadAdminNav() {
     const routeSet = new Set(flattenMenus(current.menus || []).map((menu) => menu.routePath).filter(Boolean) as string[]);
     if (permissionSet.has('role:campus_admin') || permissionSet.has('campus:api:all')) {
       navItems.value = allNavItems;
+      redirectIfCurrentRouteUnavailable();
       return;
     }
     const filtered = allNavItems.filter((item) => {
       return item.permissions.some((code) => permissionSet.has(code))
         || item.routes.some((path) => routeSet.has(path));
     });
-    navItems.value = filtered.length > 0 ? filtered : allNavItems;
+    navItems.value = filtered;
+    redirectIfCurrentRouteUnavailable();
   } catch {
-    navItems.value = allNavItems;
+    navItems.value = [];
+    router.replace('/');
+  }
+}
+
+function redirectIfCurrentRouteUnavailable() {
+  if (navItems.value.length === 0) {
+    router.replace('/');
+    return;
+  }
+  if (!navItems.value.some((item) => isNavActive(item))) {
+    router.replace(navItems.value[0].path);
   }
 }
 

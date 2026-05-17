@@ -17,7 +17,7 @@ export interface SearchResult {
   total: number;
 }
 
-export async function searchArticles(query: string, type: string, page: number, pageSize: number): Promise<SearchResult> {
+export async function searchClues(query: string, type: string, page: number, pageSize: number): Promise<SearchResult> {
   const data = await apiGet<PageResult<CampusClue>>('/campus/clue/list', {
     keyword: query,
     sourcePlatform: type === 'all' ? undefined : type,

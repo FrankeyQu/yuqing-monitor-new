@@ -25,7 +25,7 @@
 - `campus_monitor_watch_target`
 - `CampusMonitorInformation`（只读 DTO，不新增表；合并 `campus_monitor_result` 与未被命中结果引用的 `campus_clue`）
 
-`CampusMonitorInformation` 的平台、发布时间、作者、正文完整性和互动指标以监测结果为主，并可从关联 `campus_ingest_record` 回填更完整的正文、原文链接和互动数。统一列表必须排除普通线索/搜索沉淀内容、自动监测宽泛接入在规则命中前误转出的独立线索，以及只命中主体词/别名、未命中有效关键词或负面/风险词的历史监测结果。
+`CampusMonitorInformation` 的平台、发布时间、采集时间、作者、正文完整性和互动指标以监测结果为主，并可从关联 `campus_ingest_record` 回填更完整的正文、原文链接和互动数。统一列表必须排除普通线索、搜索沉淀内容和手工新增线索；新命中只以 `keywords` 为条件，`monitor_subject/subject_aliases` 只保留展示与历史兼容语义。
 
 `campus_monitor_result` 记录学校相关性和主题分类字段：`school_relevance_score/school_relevance_reason/matched_school_terms/excluded_reason/topic_category/topic_sub_category/topic_reason`。这些字段用于解释为什么一条公开内容与学校相关、归入哪个校园事件主题，并在转线索、转预警和报表治理指标中继续传递。
 
@@ -55,11 +55,14 @@
 - 任务保存必须校验密钥/Token/Cookie/签名字段不可进入任务配置。
 - 多语言关键词必须兼容旧字段 `keywords` / `negative_words`。
 - 监测信息统一列表必须能在默认“本年 + 发布时间全部”条件下返回本年度数据，并展示固定平台标签：全部、抖音、小红书、知乎、新闻/网页、微博、微信公众号、B站、快手；“全部”标签不拼接年份或时间范围；无数据平台应区分“未接入 / 未启用 / 0 条”。
-- 监测信息 API 默认 `hitScope=risk`，只展示风险命中；切换 `hitScope=all` 时展示全部真实监测命中，用于排查采集覆盖面，但仍不得混入普通线索、搜索过程沉淀内容或手工新增线索。
+- 监测信息 API 默认 `hitScope=all`，展示全部关键词命中；切换 `hitScope=risk` 时只展示 `riskMarked=true` 的风险标记命中。
 - 前端 `/monitor` 菜单入口默认使用 `hitScope=all` 展示完整监测记录；允许通过 `?hitScope=risk` 直接进入风险命中口径；切换口径时应重置平台、情感、状态、关键词和时间等窄筛选，避免把预览或历史筛选误认为全量记录。
 - 公开论坛不再作为独立固定平台入口；历史论坛、贴吧、豆瓣数据按新闻/网页口径兼容统计，`count-by-sub-platform` 仅作为历史子来源接口保留。
 - 监测信息必须展示 `contentCaptureStatus/contentCaptureLabel`，区分完整正文、摘要/标题、详情失败/摘要和未采集；转线索和告警内容应优先使用详情增强后的正文。
-- 监测命中必须满足“主体词/别名 + 有效关键词或负面/风险词”；主体词/别名不能再次作为有效关键词制造命中。
+- 监测命中必须满足有效关键词；主体词/别名不能作为新命中条件，负面/风险词只生成风险标记。
+- 监测信息必须返回 `collectTime/publishTimeStatus/riskMarked`；发布时间未知内容显示“发布时间未知”，默认排序按明确发布时间优先、未知发布时间按采集时间倒序。
+- 监测信息情感值统一为 `positive/neutral/negative/none`，前后端兼容历史“疑似/确认”中文值但不得继续写入。
+- `similarDedup=true` 必须按 `content_hash → 有效原文链接 → 标题+平台` 合并相似展示，并保持列表分页与平台统计口径一致。
 - 微博自动监测只接收真实帖子候选：必须能解析微博帖子 ID 且含正文文本；搜索页、超话/话题统计卡、账号资料卡等对象不能入库为舆情内容。微博详情通过 TikHub `weibo_post_detail_v2` 按帖子 ID 增强同一接入记录；监测信息页只展示真实帖子链接，隐藏旧 profile/search/external 链接数据。
 - 监测信息“详情”必须展示站内已同步内容；外部原文只能通过详情中的“查看原链接”打开，列表行详情不得直接跳转外站；非 `http/https` 原文链接不得作为可点击外链。
 - 首页词云优先可用 DeepSeek 从近期线索正文提取结构化热词，AI 失败、停用或密钥缺失时必须回退 `campus_clue.keywords` 频次统计，不能影响工作台访问。

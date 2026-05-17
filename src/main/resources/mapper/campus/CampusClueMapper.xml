@@ -110,6 +110,9 @@
             update_user_id = #{updateUserId}
         WHERE clue_id = #{clueId}
           AND deleted = 0
+          AND clue_status != 'archived'
+          AND clue_status != 'converted'
+          AND event_id IS NULL
     </update>
 
     <update id="archive">
@@ -128,6 +131,9 @@
             update_user_id = #{updateUserId}
         WHERE clue_id = #{clueId}
           AND deleted = 0
+          AND clue_status != 'archived'
+          AND clue_status != 'converted'
+          AND event_id IS NULL
     </update>
 
     <update id="logicalDelete">
@@ -194,9 +200,13 @@
                 <otherwise>
                     AND (
                         FIND_IN_SET(sentiment, #{sentiment}) &gt; 0
-                        OR (#{sentiment} = '负面' AND sentiment LIKE '%负%')
-                        OR (#{sentiment} = '中性' AND sentiment LIKE '%中%')
-                        OR (#{sentiment} = '正面' AND sentiment LIKE '%正%')
+                        OR (FIND_IN_SET('negative', #{sentiment}) &gt; 0 AND (LOWER(sentiment) = 'negative' OR sentiment LIKE '%负%'))
+                        OR (FIND_IN_SET('neutral', #{sentiment}) &gt; 0 AND (LOWER(sentiment) = 'neutral' OR sentiment LIKE '%中%'))
+                        OR (FIND_IN_SET('positive', #{sentiment}) &gt; 0 AND (LOWER(sentiment) = 'positive' OR sentiment LIKE '%正%'))
+                        OR (FIND_IN_SET('none', #{sentiment}) &gt; 0 AND (sentiment IS NULL OR sentiment = '' OR LOWER(sentiment) = 'none' OR sentiment = '未知'))
+                        OR (#{sentiment} = '负面' AND (sentiment LIKE '%负%' OR LOWER(sentiment) = 'negative'))
+                        OR (#{sentiment} = '中性' AND (sentiment LIKE '%中%' OR LOWER(sentiment) = 'neutral'))
+                        OR (#{sentiment} = '正面' AND (sentiment LIKE '%正%' OR LOWER(sentiment) = 'positive'))
                         OR (#{sentiment} LIKE '%负%' AND LOWER(sentiment) = 'negative')
                         OR (#{sentiment} LIKE '%中%' AND LOWER(sentiment) = 'neutral')
                         OR (#{sentiment} LIKE '%正%' AND LOWER(sentiment) = 'positive')
@@ -297,6 +307,108 @@
             AND discover_time &lt; DATE_ADD(#{endTime}, INTERVAL 1 DAY)
         </if>
         ORDER BY discover_time DESC, id DESC
+    </select>
+
+    <sql id="ReportScopeFilters">
+        <choose>
+            <when test="eventId != null">
+                AND event_id = #{eventId}
+            </when>
+            <otherwise>
+                <if test="keyword != null and keyword != ''">
+                    AND (
+                        clue_title LIKE CONCAT('%', #{keyword}, '%')
+                        OR clue_content LIKE CONCAT('%', #{keyword}, '%')
+                        OR keywords LIKE CONCAT('%', #{keyword}, '%')
+                        OR involved_account LIKE CONCAT('%', #{keyword}, '%')
+                        OR matched_school_terms LIKE CONCAT('%', #{keyword}, '%')
+                        OR topic_category LIKE CONCAT('%', #{keyword}, '%')
+                        OR topic_reason LIKE CONCAT('%', #{keyword}, '%')
+                    )
+                </if>
+            </otherwise>
+        </choose>
+        <if test="startTime != null">
+            AND COALESCE(publish_time, discover_time, create_time) &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND COALESCE(publish_time, discover_time, create_time) &lt; DATE_ADD(#{endTime}, INTERVAL 1 DAY)
+        </if>
+    </sql>
+
+    <sql id="ReportScopeFiltersAlias">
+        <choose>
+            <when test="eventId != null">
+                AND c.event_id = #{eventId}
+            </when>
+            <otherwise>
+                <if test="keyword != null and keyword != ''">
+                    AND (
+                        c.clue_title LIKE CONCAT('%', #{keyword}, '%')
+                        OR c.clue_content LIKE CONCAT('%', #{keyword}, '%')
+                        OR c.keywords LIKE CONCAT('%', #{keyword}, '%')
+                        OR c.involved_account LIKE CONCAT('%', #{keyword}, '%')
+                        OR c.matched_school_terms LIKE CONCAT('%', #{keyword}, '%')
+                        OR c.topic_category LIKE CONCAT('%', #{keyword}, '%')
+                        OR c.topic_reason LIKE CONCAT('%', #{keyword}, '%')
+                    )
+                </if>
+            </otherwise>
+        </choose>
+        <if test="startTime != null">
+            AND COALESCE(c.publish_time, c.discover_time, c.create_time) &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND COALESCE(c.publish_time, c.discover_time, c.create_time) &lt; DATE_ADD(#{endTime}, INTERVAL 1 DAY)
+        </if>
+    </sql>
+
+    <select id="listForReportScope" resultMap="CampusClueResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_clue
+        WHERE deleted = 0
+        <include refid="ReportScopeFilters"/>
+        ORDER BY COALESCE(publish_time, discover_time, create_time) DESC, id DESC
+    </select>
+
+    <select id="getReportDailyTrend" resultType="java.util.Map">
+        SELECT
+            DATE_FORMAT(dates.d, '%m-%d') AS date,
+            COALESCE(c.cnt, 0) AS clueCount,
+            COALESCE(a.cnt, 0) AS alertCount
+        FROM (
+            SELECT DATE_SUB(COALESCE(DATE(#{endTime}), CURDATE()), INTERVAL seq.seq DAY) AS d
+            FROM (
+                SELECT 0 AS seq UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3
+                UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+                UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10 UNION ALL SELECT 11
+                UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19
+                UNION ALL SELECT 20 UNION ALL SELECT 21 UNION ALL SELECT 22 UNION ALL SELECT 23
+                UNION ALL SELECT 24 UNION ALL SELECT 25 UNION ALL SELECT 26 UNION ALL SELECT 27
+                UNION ALL SELECT 28 UNION ALL SELECT 29
+            ) seq
+            WHERE seq.seq &lt; #{days}
+        ) dates
+        LEFT JOIN (
+            SELECT DATE(COALESCE(publish_time, discover_time, create_time)) AS d, COUNT(1) AS cnt
+            FROM campus_clue
+            WHERE deleted = 0
+            <include refid="ReportScopeFilters"/>
+            GROUP BY DATE(COALESCE(publish_time, discover_time, create_time))
+        ) c ON dates.d = c.d
+        LEFT JOIN (
+            SELECT DATE(COALESCE(c.publish_time, c.discover_time, c.create_time)) AS d, COUNT(1) AS cnt
+            FROM campus_alert a
+            JOIN campus_clue c
+              ON a.alert_source = 'clue'
+             AND a.source_object_id = c.clue_id
+             AND c.deleted = 0
+            WHERE a.deleted = 0
+            <include refid="ReportScopeFiltersAlias"/>
+            GROUP BY DATE(COALESCE(c.publish_time, c.discover_time, c.create_time))
+        ) a ON dates.d = a.d
+        ORDER BY dates.d
     </select>
 
     <select id="countBySubject" resultType="java.util.Map">

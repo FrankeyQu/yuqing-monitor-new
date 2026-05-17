@@ -11,7 +11,7 @@
 ## 依赖模块
 
 - `campus_ingest`：通过 Service 创建/复用/运行合法接入任务，并读取对应接入记录。
-- `campus_ai`：首页词云热词提取、AI 研判和后续摘要增强读取功能绑定、模型和失败策略；不可用时必须按本模块原有统计或规则回退。
+- `campus_ai`：首页词云热词提取、监测任务 AI 体检、监测命中 AI 分析和后续摘要增强读取功能绑定、模型和失败策略；不可用时必须按本模块原有统计或规则回退。
 - `campus_clue`：将有价值的监测命中转入线索库。
 - `campus_account_watch`：任务内重点账号/链接约束和一键加入重点账号。
 - `campus_lexicon`：读取负面词、风险词等统一词库。
@@ -28,6 +28,8 @@
 `CampusMonitorInformation` 的平台、发布时间、采集时间、作者、正文完整性和互动指标以监测结果为主，并可从关联 `campus_ingest_record` 回填更完整的正文、原文链接和互动数。统一列表必须排除普通线索、搜索沉淀内容和手工新增线索；新命中只以 `keywords` 为条件，`monitor_subject/subject_aliases` 只保留展示与历史兼容语义。
 
 `campus_monitor_result` 记录学校相关性和主题分类字段：`school_relevance_score/school_relevance_reason/matched_school_terms/excluded_reason/topic_category/topic_sub_category/topic_reason`。这些字段用于解释为什么一条公开内容与学校相关、归入哪个校园事件主题，并在转线索、转预警和报表治理指标中继续传递。
+
+`campus_monitor_result` AI 辅助字段：`ai_summary/ai_hit_recommendation/ai_hit_reason/ai_confidence/ai_analysis_time/ai_provider_code/ai_model_code`。这些字段只记录人工触发 AI 分析后的辅助结论；`ai_hit_recommendation=not_hit` 不等于自动忽略，仍需人工操作结果状态。
 
 `campus_monitor_task` 新增治理字段：`display_enabled` 控制 active 任务数据是否进入前台监测信息；`auto_ingest_enabled` 控制是否自动维护接入任务；`last_collect_time/last_match_count/display_result_count/last_error_message/ingest_capability_status` 用于后台任务列表可观测。`task_status=paused/disabled` 的任务不再进入前台监测信息和平台统计。
 
@@ -63,6 +65,10 @@
 - 监测信息必须返回 `collectTime/publishTimeStatus/riskMarked`；发布时间未知内容显示“发布时间未知”，默认排序按明确发布时间优先、未知发布时间按采集时间倒序。
 - 监测信息情感值统一为 `positive/neutral/negative/none`，前后端兼容历史“疑似/确认”中文值但不得继续写入。
 - 监测信息页支持人工修改单条或批量监测命中情感；写入必须走 `/campus/monitor/result/sentiment`，已转线索时同步 `campus_clue.sentiment`，已归档线索关联的监测命中不得修改情感。
+- 后台 `/admin/monitor-tasks` 支持手动 AI 体检，接口 `/campus/monitor/task/ai-diagnose` 只返回任务配置建议，不写回任务、不展示具体采集内容。
+- 监测信息页支持单条、选中批量和当前页 AI 分析，接口 `/campus/monitor/result/ai-analyze` 最多一次处理 20 条；AI 可更新情感、一句话摘要、学校相关性和主题分类，但不得自动转预警、自动忽略、自动删除或改变风险等级/状态机。
+- AI 判断“不建议命中”必须只作为 `ai_hit_recommendation` 和理由展示，后续是否忽略由学校线下/人工判断后手动操作。
+- 已转未归档线索在监测命中 AI 分析成功后同步情感、学校相关性和主题字段；已归档线索关联的监测命中必须跳过写入并返回明确反馈。
 - `similarDedup=true` 必须按 `content_hash → 有效原文链接 → 标题+平台` 合并相似展示，并保持列表分页与平台统计口径一致。
 - 微博自动监测只接收真实帖子候选：必须能解析微博帖子 ID 且含正文文本；搜索页、超话/话题统计卡、账号资料卡等对象不能入库为舆情内容。微博详情通过 TikHub `weibo_post_detail_v2` 按帖子 ID 增强同一接入记录；监测信息页只展示真实帖子链接，隐藏旧 profile/search/external 链接数据。
 - 监测信息“详情”必须展示站内已同步内容；外部原文只能通过详情中的“查看原链接”打开，列表行详情不得直接跳转外站；非 `http/https` 原文链接不得作为可点击外链。

@@ -1,6 +1,7 @@
 package com.stonedt.intelligence.service.impl.campus;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
@@ -14,6 +15,10 @@ import com.stonedt.intelligence.dao.campus.CampusMonitorResultDao;
 import com.stonedt.intelligence.dao.campus.CampusMonitorRunLogDao;
 import com.stonedt.intelligence.dao.campus.CampusMonitorTaskDao;
 import com.stonedt.intelligence.dao.campus.CampusMonitorWatchTargetDao;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeRequest;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeResponse;
+import com.stonedt.intelligence.dto.campus.CampusMonitorTaskAiDiagnosis;
+import com.stonedt.intelligence.entity.campus.CampusAiPromptTemplate;
 import com.stonedt.intelligence.entity.campus.CampusAlert;
 import com.stonedt.intelligence.entity.campus.CampusClue;
 import com.stonedt.intelligence.entity.campus.CampusDictItem;
@@ -30,6 +35,11 @@ import com.stonedt.intelligence.service.campus.CampusAlertService;
 import com.stonedt.intelligence.service.campus.CampusClueService;
 import com.stonedt.intelligence.service.campus.CampusIngestService;
 import com.stonedt.intelligence.service.campus.CampusMonitorService;
+import com.stonedt.intelligence.service.campus.ai.CampusAiChatRequest;
+import com.stonedt.intelligence.service.campus.ai.CampusAiChatResponse;
+import com.stonedt.intelligence.service.campus.ai.CampusAiChatService;
+import com.stonedt.intelligence.service.campus.ai.CampusAiRuntimeConfig;
+import com.stonedt.intelligence.service.campus.ai.CampusAiRuntimeService;
 import com.stonedt.intelligence.service.campus.support.CampusRiskLevel;
 import com.stonedt.intelligence.service.campus.support.CampusSchoolRelevance;
 import com.stonedt.intelligence.service.campus.support.CampusSchoolRelevanceService;
@@ -41,12 +51,17 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -90,6 +105,8 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     private static final String WATCH_STATUS_ACTIVE = "active";
     private static final String DICT_NEGATIVE_WORD = "campus_negative_word";
     private static final String DICT_RISK_WORD = "campus_risk_word";
+    private static final String FEATURE_MONITOR_RESULT_ANALYSIS = "monitor_result_analysis";
+    private static final String FEATURE_MONITOR_TASK_DIAGNOSIS = "monitor_task_diagnosis";
     private static final Long SYSTEM_USER_ID = 0L;
     private static final int DEFAULT_LOCK_MINUTES = 10;
     private static final int DEFAULT_SCAN_FREQUENCY_MINUTES = 60;
@@ -102,6 +119,8 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     private static final int DEFAULT_CLEANUP_BATCH_SIZE = 1000;
     private static final int MAX_CLEANUP_BATCH_SIZE = 5000;
     private static final int MAX_CLEANUP_BATCHES = 20;
+    private static final int DEFAULT_AI_ANALYZE_LIMIT = 20;
+    private static final int MAX_AI_ANALYZE_LIMIT = 20;
 
     private final CampusSchoolRelevanceService schoolRelevanceService = new CampusSchoolRelevanceService();
     private final CampusTopicClassifier topicClassifier = new CampusTopicClassifier();
@@ -128,6 +147,9 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     private final CampusIngestService campusIngestService;
     private final CampusAlertService campusAlertService;
     private final CampusClueService campusClueService;
+    private final CampusAiChatService campusAiChatService;
+    private final CampusAiRuntimeService campusAiRuntimeService;
+    private final TransactionTemplate transactionTemplate;
 
     public CampusMonitorServiceImpl(CampusMonitorTaskDao campusMonitorTaskDao,
                                     CampusMonitorIngestTaskRelationDao campusMonitorIngestTaskRelationDao,
@@ -141,7 +163,10 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
                                     CampusAlertDao campusAlertDao,
                                     CampusIngestService campusIngestService,
                                     CampusAlertService campusAlertService,
-                                    CampusClueService campusClueService) {
+                                    CampusClueService campusClueService,
+                                    CampusAiChatService campusAiChatService,
+                                    CampusAiRuntimeService campusAiRuntimeService,
+                                    PlatformTransactionManager transactionManager) {
         this.campusMonitorTaskDao = campusMonitorTaskDao;
         this.campusMonitorIngestTaskRelationDao = campusMonitorIngestTaskRelationDao;
         this.campusMonitorResultDao = campusMonitorResultDao;
@@ -155,6 +180,9 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         this.campusIngestService = campusIngestService;
         this.campusAlertService = campusAlertService;
         this.campusClueService = campusClueService;
+        this.campusAiChatService = campusAiChatService;
+        this.campusAiRuntimeService = campusAiRuntimeService;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @Override
@@ -239,6 +267,40 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             campusMonitorTaskDao.releaseScheduleLockBefore(monitorTaskId, lockUntil);
             throw ex;
         }
+    }
+
+    @Override
+    public CampusMonitorTaskAiDiagnosis diagnoseTask(Long monitorTaskId, Long operatorUserId) {
+        CampusMonitorTask task = requireTask(monitorTaskId);
+        List<CampusMonitorResult> recentResults = campusMonitorResultDao.listRecentForAi(monitorTaskId, DEFAULT_AI_ANALYZE_LIMIT);
+        JSONObject taskJson = buildTaskDiagnosisJson(task);
+        JSONObject statsJson = buildTaskDiagnosisStats(recentResults);
+        Map<String, String> variables = new HashMap<>();
+        variables.put("taskJson", taskJson.toJSONString());
+        variables.put("statsJson", statsJson.toJSONString());
+
+        CampusAiRuntimeConfig config = resolveAiConfig(FEATURE_MONITOR_TASK_DIAGNOSIS);
+        CampusAiPromptTemplate prompt = campusAiRuntimeService.getActivePrompt(FEATURE_MONITOR_TASK_DIAGNOSIS);
+        String systemPrompt = StringUtils.defaultIfBlank(prompt == null ? null : prompt.getSystemPrompt(),
+                "你是校园舆情监测任务配置顾问。请只返回JSON，不要展示具体采集内容。");
+        String userPrompt = applyPromptTemplate(StringUtils.defaultIfBlank(prompt == null ? null : prompt.getUserPrompt(),
+                "请体检以下监测任务配置和近期统计，只给配置建议，不修改配置。任务：${taskJson}。近期统计：${statsJson}。"),
+                variables);
+
+        CampusAiChatRequest chatRequest = new CampusAiChatRequest();
+        chatRequest.setFeatureCode(FEATURE_MONITOR_TASK_DIAGNOSIS);
+        chatRequest.setSystemPrompt(systemPrompt);
+        chatRequest.setUserPrompt(userPrompt);
+        chatRequest.setMaxTokens(2048);
+        chatRequest.setTemperature(new BigDecimal("0.10"));
+        CampusAiChatResponse chatResponse = campusAiChatService.chat(chatRequest);
+        String content = chatResponse == null ? null : chatResponse.getContent();
+        CampusMonitorTaskAiDiagnosis diagnosis = parseTaskDiagnosis(content);
+        diagnosis.setMonitorTaskId(task.getMonitorTaskId());
+        diagnosis.setTaskName(task.getTaskName());
+        diagnosis.setProviderCode(config == null ? null : config.getProviderCode());
+        diagnosis.setModelCode(config == null ? null : config.getModelCode());
+        return diagnosis;
     }
 
     @Override
@@ -525,6 +587,324 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     }
 
     @Override
+    public CampusMonitorAiAnalyzeResponse analyzeResults(CampusMonitorAiAnalyzeRequest request,
+                                                         Long operatorUserId,
+                                                         String operatorName) {
+        CampusMonitorAiAnalyzeResponse response = new CampusMonitorAiAnalyzeResponse();
+        List<CampusMonitorResult> targets = resolveAiAnalyzeTargets(request);
+        if (targets.isEmpty()) {
+            return response;
+        }
+
+        List<CampusMonitorResult> analyzable = new ArrayList<>();
+        for (CampusMonitorResult target : targets) {
+            if (target == null || target.getMonitorResultId() == null) {
+                continue;
+            }
+            if (isArchivedLinkedClue(target)) {
+                response.add(aiAnalyzeItem(target.getMonitorResultId(), false, true,
+                        "已归档线索关联的监测命中跳过AI分析", null));
+                continue;
+            }
+            analyzable.add(target);
+        }
+        if (analyzable.isEmpty()) {
+            return response;
+        }
+
+        CampusAiRuntimeConfig config = resolveAiConfig(FEATURE_MONITOR_RESULT_ANALYSIS);
+        String content;
+        try {
+            content = callMonitorResultAnalysisAi(analyzable);
+        } catch (Exception ex) {
+            String message = StringUtils.defaultIfBlank(ex.getMessage(), "AI分析失败");
+            for (CampusMonitorResult target : analyzable) {
+                response.add(aiAnalyzeItem(target.getMonitorResultId(), false, false, message, null));
+            }
+            return response;
+        }
+
+        Map<String, JSONObject> resultMap;
+        try {
+            resultMap = parseMonitorResultAnalysisMap(content);
+        } catch (Exception ex) {
+            String message = StringUtils.defaultIfBlank(ex.getMessage(), "AI返回格式解析失败");
+            for (CampusMonitorResult target : analyzable) {
+                response.add(aiAnalyzeItem(target.getMonitorResultId(), false, false, message, null));
+            }
+            return response;
+        }
+
+        for (CampusMonitorResult target : analyzable) {
+            JSONObject analysis = resultMap.get(String.valueOf(target.getMonitorResultId()));
+            if (analysis == null) {
+                response.add(aiAnalyzeItem(target.getMonitorResultId(), false, false,
+                        "AI未返回该条结果", null));
+                continue;
+            }
+            try {
+                AiResultAnalysis parsed = normalizeAiResultAnalysis(analysis);
+                parsed.providerCode = config == null ? null : config.getProviderCode();
+                parsed.modelCode = config == null ? null : config.getModelCode();
+                CampusMonitorResult saved = applyAiResultAnalysis(target, parsed, operatorUserId, operatorName);
+                response.add(aiAnalyzeItem(target.getMonitorResultId(), true, false, "AI分析完成", saved));
+            } catch (Exception ex) {
+                response.add(aiAnalyzeItem(target.getMonitorResultId(), false, false,
+                        StringUtils.defaultIfBlank(ex.getMessage(), "AI分析写入失败"), null));
+            }
+        }
+        return response;
+    }
+
+    private List<CampusMonitorResult> resolveAiAnalyzeTargets(CampusMonitorAiAnalyzeRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("AI分析参数不能为空");
+        }
+        int limit = safeAiAnalyzeLimit(request.getLimit());
+        if (request.getMonitorResultIds() != null && !request.getMonitorResultIds().isEmpty()) {
+            List<Long> ids = new ArrayList<>();
+            for (Long id : request.getMonitorResultIds()) {
+                if (id != null && !ids.contains(id)) {
+                    ids.add(id);
+                }
+                if (ids.size() >= limit) {
+                    break;
+                }
+            }
+            if (ids.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return campusMonitorResultDao.listByResultIds(ids);
+        }
+        if (request.getMonitorTaskId() != null) {
+            requireTask(request.getMonitorTaskId());
+            return campusMonitorResultDao.listRecentForAi(request.getMonitorTaskId(), limit);
+        }
+        throw new IllegalArgumentException("请选择监测信息或监测任务");
+    }
+
+    private int safeAiAnalyzeLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return DEFAULT_AI_ANALYZE_LIMIT;
+        }
+        return Math.min(limit, MAX_AI_ANALYZE_LIMIT);
+    }
+
+    private boolean isArchivedLinkedClue(CampusMonitorResult result) {
+        if (result == null || result.getClueId() == null) {
+            return false;
+        }
+        try {
+            CampusClue clue = campusClueService.detail(result.getClueId());
+            return clue != null && "archived".equals(clue.getClueStatus());
+        } catch (RuntimeException ex) {
+            return false;
+        }
+    }
+
+    private String callMonitorResultAnalysisAi(List<CampusMonitorResult> targets) {
+        JSONObject taskJson = buildCommonTaskJson(targets);
+        JSONArray itemsJson = buildAiAnalyzeItemsJson(targets);
+        Map<String, String> variables = new HashMap<>();
+        variables.put("taskJson", taskJson.toJSONString());
+        variables.put("itemsJson", itemsJson.toJSONString());
+        CampusAiPromptTemplate prompt = campusAiRuntimeService.getActivePrompt(FEATURE_MONITOR_RESULT_ANALYSIS);
+        String systemPrompt = StringUtils.defaultIfBlank(prompt == null ? null : prompt.getSystemPrompt(),
+                "你是校园舆情监测分析助手。请只返回JSON，不要输出解释。");
+        String userPrompt = applyPromptTemplate(StringUtils.defaultIfBlank(prompt == null ? null : prompt.getUserPrompt(),
+                "请分析以下监测命中列表。任务信息：${taskJson}。命中列表：${itemsJson}。逐条判断情感、一句话摘要、是否应该算作该任务命中、学校相关性、主题分类和理由。"),
+                variables);
+
+        CampusAiChatRequest chatRequest = new CampusAiChatRequest();
+        chatRequest.setFeatureCode(FEATURE_MONITOR_RESULT_ANALYSIS);
+        chatRequest.setSystemPrompt(systemPrompt);
+        chatRequest.setUserPrompt(userPrompt);
+        chatRequest.setMaxTokens(4096);
+        chatRequest.setTemperature(new BigDecimal("0.10"));
+        CampusAiChatResponse chatResponse = campusAiChatService.chat(chatRequest);
+        return chatResponse == null ? null : chatResponse.getContent();
+    }
+
+    private JSONArray buildAiAnalyzeItemsJson(List<CampusMonitorResult> targets) {
+        JSONArray array = new JSONArray();
+        Map<Long, CampusMonitorTask> taskCache = new HashMap<>();
+        for (CampusMonitorResult result : targets) {
+            CampusMonitorTask task = null;
+            if (result.getMonitorTaskId() != null) {
+                task = taskCache.get(result.getMonitorTaskId());
+                if (task == null) {
+                    task = campusMonitorTaskDao.selectByTaskId(result.getMonitorTaskId());
+                    taskCache.put(result.getMonitorTaskId(), task);
+                }
+            }
+            CampusIngestRecord record = result.getIngestRecordId() == null
+                    ? null
+                    : campusIngestRecordDao.selectByRecordId(result.getIngestRecordId());
+            JSONObject item = new JSONObject();
+            item.put("monitorResultId", String.valueOf(result.getMonitorResultId()));
+            item.put("task", buildMonitorResultTaskJson(task));
+            item.put("title", StringUtils.left(preferText(result.getTitle(), record == null ? null : record.getTitle()), 300));
+            item.put("content", StringUtils.left(preferLongerText(result.getContent(), record == null ? null : record.getContent()), 1200));
+            item.put("platform", StringUtils.defaultIfBlank(result.getPlatform(), record == null ? null : record.getPlatform()));
+            item.put("authorName", StringUtils.defaultIfBlank(result.getAuthorName(), record == null ? null : record.getAuthorName()));
+            item.put("matchedSubjects", result.getMatchedSubjects());
+            item.put("matchedKeywords", result.getMatchedKeywords());
+            item.put("matchedNegativeWords", result.getMatchedNegativeWords());
+            item.put("currentSentiment", result.getSentiment());
+            array.add(item);
+        }
+        return array;
+    }
+
+    private JSONObject buildCommonTaskJson(List<CampusMonitorResult> targets) {
+        JSONObject json = new JSONObject();
+        Set<Long> taskIds = new LinkedHashSet<>();
+        for (CampusMonitorResult result : targets) {
+            if (result != null && result.getMonitorTaskId() != null) {
+                taskIds.add(result.getMonitorTaskId());
+            }
+        }
+        if (taskIds.size() == 1) {
+            CampusMonitorTask task = campusMonitorTaskDao.selectByTaskId(taskIds.iterator().next());
+            return buildMonitorResultTaskJson(task);
+        }
+        json.put("scope", "multiple_tasks");
+        json.put("taskCount", taskIds.size());
+        return json;
+    }
+
+    private JSONObject buildMonitorResultTaskJson(CampusMonitorTask task) {
+        JSONObject json = new JSONObject();
+        if (task == null) {
+            return json;
+        }
+        json.put("monitorTaskId", String.valueOf(task.getMonitorTaskId()));
+        json.put("taskName", task.getTaskName());
+        json.put("monitorSubject", task.getMonitorSubject());
+        json.put("subjectAliases", task.getSubjectAliases());
+        json.put("keywords", task.getKeywords());
+        json.put("negativeWords", task.getNegativeWords());
+        json.put("excludeWords", task.getExcludeWords());
+        json.put("platformScope", task.getPlatformScope());
+        return json;
+    }
+
+    private Map<String, JSONObject> parseMonitorResultAnalysisMap(String content) {
+        JSONObject root = parseAiObject(content);
+        JSONArray results = root == null ? null : root.getJSONArray("results");
+        if (results == null || results.isEmpty()) {
+            throw new IllegalArgumentException("AI响应缺少results数组");
+        }
+        Map<String, JSONObject> map = new LinkedHashMap<>();
+        for (int i = 0; i < results.size(); i++) {
+            JSONObject item = results.getJSONObject(i);
+            if (item == null) {
+                continue;
+            }
+            String monitorResultId = StringUtils.trimToNull(item.getString("monitorResultId"));
+            if (monitorResultId != null) {
+                map.put(monitorResultId, item);
+            }
+        }
+        if (map.isEmpty()) {
+            throw new IllegalArgumentException("AI响应未包含有效监测结果ID");
+        }
+        return map;
+    }
+
+    private AiResultAnalysis normalizeAiResultAnalysis(JSONObject json) {
+        AiResultAnalysis analysis = new AiResultAnalysis();
+        String sentiment = CampusSentimentNormalizer.normalize(json.getString("sentiment"));
+        analysis.sentiment = StringUtils.defaultIfBlank(sentiment, "none");
+        analysis.summary = StringUtils.left(json.getString("summary"), 255);
+        analysis.hitRecommendation = normalizeAiHitRecommendation(StringUtils.defaultIfBlank(
+                json.getString("shouldHit"), json.getString("aiHitRecommendation")));
+        analysis.hitReason = StringUtils.left(json.getString("hitReason"), 512);
+        analysis.confidence = clamp(json.getInteger("confidence"), 0, 100);
+        analysis.schoolRelevanceScore = clamp(json.getInteger("schoolRelevanceScore"), 0, 100);
+        analysis.matchedSchoolTerms = StringUtils.left(json.getString("matchedSchoolTerms"), 512);
+        analysis.schoolRelevanceReason = StringUtils.left(StringUtils.defaultIfBlank(
+                json.getString("schoolRelevanceReason"), analysis.hitReason), 1024);
+        analysis.topicCategory = StringUtils.left(json.getString("topicCategory"), 64);
+        analysis.topicSubCategory = StringUtils.left(json.getString("topicSubCategory"), 64);
+        analysis.topicReason = StringUtils.left(json.getString("topicReason"), 1024);
+        return analysis;
+    }
+
+    private CampusMonitorResult applyAiResultAnalysis(CampusMonitorResult result,
+                                                      AiResultAnalysis analysis,
+                                                      Long operatorUserId,
+                                                      String operatorName) {
+        final Date now = new Date();
+        final String excludedReason = "not_hit".equals(analysis.hitRecommendation)
+                ? StringUtils.left(analysis.hitReason, 512)
+                : null;
+        final Integer schoolScore = analysis.schoolRelevanceScore == null
+                ? result.getSchoolRelevanceScore()
+                : analysis.schoolRelevanceScore;
+        final String schoolReason = StringUtils.defaultIfBlank(analysis.schoolRelevanceReason, result.getSchoolRelevanceReason());
+        final String schoolTerms = StringUtils.defaultIfBlank(analysis.matchedSchoolTerms, result.getMatchedSchoolTerms());
+        final String topicCategory = StringUtils.defaultIfBlank(analysis.topicCategory, result.getTopicCategory());
+        final String topicSubCategory = StringUtils.defaultIfBlank(analysis.topicSubCategory, result.getTopicSubCategory());
+        final String topicReason = StringUtils.defaultIfBlank(analysis.topicReason, result.getTopicReason());
+        final String sentiment = StringUtils.defaultIfBlank(analysis.sentiment,
+                CampusSentimentNormalizer.normalizeOrDefault(result.getSentiment(), "none"));
+
+        return transactionTemplate.execute(status -> {
+            if (result.getClueId() != null) {
+                campusClueService.updateAnalysisFromMonitor(result.getClueId(), sentiment,
+                        schoolScore, schoolReason, schoolTerms, excludedReason,
+                        topicCategory, topicSubCategory, topicReason,
+                        result.getMonitorResultId(), operatorUserId, operatorName);
+            }
+            int updated = campusMonitorResultDao.updateAiAnalysis(result.getMonitorResultId(),
+                    sentiment,
+                    StringUtils.left(analysis.summary, 255),
+                    analysis.hitRecommendation,
+                    StringUtils.left(analysis.hitReason, 512),
+                    analysis.confidence,
+                    now,
+                    StringUtils.left(analysis.providerCode, 64),
+                    StringUtils.left(analysis.modelCode, 64),
+                    schoolScore,
+                    StringUtils.left(schoolReason, 1024),
+                    StringUtils.left(schoolTerms, 512),
+                    excludedReason,
+                    StringUtils.left(topicCategory, 64),
+                    StringUtils.left(topicSubCategory, 64),
+                    StringUtils.left(topicReason, 1024),
+                    operatorUserId);
+            if (updated != 1) {
+                throw new IllegalArgumentException("监测结果不存在或已删除");
+            }
+            return campusMonitorResultDao.selectByResultId(result.getMonitorResultId());
+        });
+    }
+
+    private CampusMonitorAiAnalyzeResponse.Item aiAnalyzeItem(Long monitorResultId,
+                                                              boolean success,
+                                                              boolean skipped,
+                                                              String message,
+                                                              CampusMonitorResult saved) {
+        CampusMonitorAiAnalyzeResponse.Item item = new CampusMonitorAiAnalyzeResponse.Item();
+        item.setMonitorResultId(monitorResultId);
+        item.setSuccess(success);
+        item.setSkipped(skipped);
+        item.setMessage(message);
+        if (saved != null) {
+            item.setSentiment(saved.getSentiment());
+            item.setAiSummary(saved.getAiSummary());
+            item.setAiHitRecommendation(saved.getAiHitRecommendation());
+            item.setAiHitReason(saved.getAiHitReason());
+            item.setAiConfidence(saved.getAiConfidence());
+            item.setSchoolRelevanceScore(saved.getSchoolRelevanceScore());
+            item.setTopicCategory(saved.getTopicCategory());
+            item.setTopicSubCategory(saved.getTopicSubCategory());
+        }
+        return item;
+    }
+
+    @Override
     @Transactional
     public CampusClue convertResultToClue(Long monitorResultId, Long operatorUserId, String operatorName) {
         CampusMonitorResult result = requireResult(monitorResultId);
@@ -563,6 +943,164 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         campusMonitorResultDao.updateClue(monitorResultId, RESULT_CONVERTED, saved.getClueId(), operatorUserId);
         bindIngestRecordToClue(result.getIngestRecordId(), saved.getClueId(), operatorUserId);
         return saved;
+    }
+
+    private CampusAiRuntimeConfig resolveAiConfig(String featureCode) {
+        return campusAiRuntimeService.resolveFeature(featureCode,
+                "deepseek", "deepseek-chat", null, "DEEPSEEK_API_KEY", 180000);
+    }
+
+    private JSONObject buildTaskDiagnosisJson(CampusMonitorTask task) {
+        JSONObject json = new JSONObject();
+        json.put("monitorTaskId", String.valueOf(task.getMonitorTaskId()));
+        json.put("taskName", task.getTaskName());
+        json.put("monitorSubject", task.getMonitorSubject());
+        json.put("subjectAliases", task.getSubjectAliases());
+        json.put("keywords", task.getKeywords());
+        json.put("keywordsI18n", task.getKeywordsI18n());
+        json.put("negativeWords", task.getNegativeWords());
+        json.put("negativeWordsI18n", task.getNegativeWordsI18n());
+        json.put("excludeWords", task.getExcludeWords());
+        json.put("excludeWordsI18n", task.getExcludeWordsI18n());
+        json.put("platformScope", task.getPlatformScope());
+        json.put("scanFrequencyMinutes", task.getScanFrequencyMinutes());
+        json.put("scheduleEnabled", task.getScheduleEnabled());
+        json.put("alertMode", task.getAlertMode());
+        json.put("autoIngestEnabled", task.getAutoIngestEnabled());
+        json.put("displayEnabled", task.getDisplayEnabled());
+        json.put("taskStatus", task.getTaskStatus());
+        json.put("ingestCapabilityStatus", task.getIngestCapabilityStatus());
+        json.put("lastMatchCount", task.getLastMatchCount());
+        json.put("displayResultCount", task.getDisplayResultCount());
+        json.put("lastErrorMessage", task.getLastErrorMessage());
+        return json;
+    }
+
+    private JSONObject buildTaskDiagnosisStats(List<CampusMonitorResult> recentResults) {
+        JSONObject stats = new JSONObject();
+        int total = recentResults == null ? 0 : recentResults.size();
+        int negative = 0;
+        int notAnalyzed = 0;
+        Map<String, Integer> platformCounts = new LinkedHashMap<>();
+        Map<String, Integer> topicCounts = new LinkedHashMap<>();
+        if (recentResults != null) {
+            for (CampusMonitorResult result : recentResults) {
+                if ("negative".equalsIgnoreCase(result.getSentiment())) {
+                    negative++;
+                }
+                if (StringUtils.isBlank(result.getAiHitRecommendation())) {
+                    notAnalyzed++;
+                }
+                increment(platformCounts, StringUtils.defaultIfBlank(result.getPlatform(), "unknown"));
+                increment(topicCounts, StringUtils.defaultIfBlank(result.getTopicCategory(), "unknown"));
+            }
+        }
+        stats.put("recentSampleCount", total);
+        stats.put("negativeCount", negative);
+        stats.put("notAiAnalyzedCount", notAnalyzed);
+        stats.put("platformCounts", platformCounts);
+        stats.put("topicCounts", topicCounts);
+        return stats;
+    }
+
+    private void increment(Map<String, Integer> map, String key) {
+        map.put(key, map.containsKey(key) ? map.get(key) + 1 : 1);
+    }
+
+    private CampusMonitorTaskAiDiagnosis parseTaskDiagnosis(String content) {
+        CampusMonitorTaskAiDiagnosis diagnosis = new CampusMonitorTaskAiDiagnosis();
+        diagnosis.setRawText(content);
+        JSONObject json = parseAiObject(content);
+        if (json == null) {
+            diagnosis.setSummary(StringUtils.left(StringUtils.defaultIfBlank(content, "AI未返回有效内容"), 1000));
+            return diagnosis;
+        }
+        diagnosis.setSummary(StringUtils.left(json.getString("summary"), 1000));
+        diagnosis.setKeywordSuggestions(jsonArrayToStringList(json.getJSONArray("keywordSuggestions")));
+        diagnosis.setNegativeWordSuggestions(jsonArrayToStringList(json.getJSONArray("negativeWordSuggestions")));
+        diagnosis.setExcludeWordSuggestions(jsonArrayToStringList(json.getJSONArray("excludeWordSuggestions")));
+        diagnosis.setPlatformSuggestions(jsonArrayToStringList(json.getJSONArray("platformSuggestions")));
+        diagnosis.setFrequencySuggestion(StringUtils.left(json.getString("frequencySuggestion"), 500));
+        diagnosis.setAlertModeSuggestion(StringUtils.left(json.getString("alertModeSuggestion"), 500));
+        diagnosis.setRisks(jsonArrayToStringList(json.getJSONArray("risks")));
+        diagnosis.setSuggestions(jsonArrayToStringList(json.getJSONArray("suggestions")));
+        return diagnosis;
+    }
+
+    private List<String> jsonArrayToStringList(JSONArray array) {
+        List<String> values = new ArrayList<>();
+        if (array == null) {
+            return values;
+        }
+        for (int i = 0; i < array.size(); i++) {
+            String value = StringUtils.trimToNull(array.getString(i));
+            if (value != null) {
+                values.add(StringUtils.left(value, 300));
+            }
+        }
+        return values;
+    }
+
+    private String applyPromptTemplate(String template, Map<String, String> variables) {
+        String result = StringUtils.defaultString(template);
+        if (variables == null || variables.isEmpty()) {
+            return result;
+        }
+        for (Map.Entry<String, String> entry : variables.entrySet()) {
+            result = result.replace("${" + entry.getKey() + "}", StringUtils.defaultString(entry.getValue()));
+        }
+        return result;
+    }
+
+    private JSONObject parseAiObject(String content) {
+        if (StringUtils.isBlank(content)) {
+            return null;
+        }
+        String json = content.trim();
+        if (json.startsWith("```")) {
+            int start = json.indexOf('\n');
+            if (start >= 0 && start < json.length() - 1) {
+                json = json.substring(start + 1);
+            }
+            int end = json.lastIndexOf("```");
+            if (end > 0) {
+                json = json.substring(0, end);
+            }
+            json = json.trim();
+        }
+        if (!json.startsWith("{")) {
+            int start = json.indexOf('{');
+            int end = json.lastIndexOf('}');
+            if (start >= 0 && end > start) {
+                json = json.substring(start, end + 1);
+            }
+        }
+        try {
+            return JSON.parseObject(json);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private String normalizeAiHitRecommendation(String value) {
+        String normalized = StringUtils.lowerCase(StringUtils.trimToEmpty(value));
+        if ("hit".equals(normalized) || "not_hit".equals(normalized) || "uncertain".equals(normalized)) {
+            return normalized;
+        }
+        if ("true".equals(normalized) || "yes".equals(normalized) || "保留".equals(normalized) || "命中".equals(normalized)) {
+            return "hit";
+        }
+        if ("false".equals(normalized) || "no".equals(normalized) || "忽略".equals(normalized) || "不命中".equals(normalized)) {
+            return "not_hit";
+        }
+        return "uncertain";
+    }
+
+    private Integer clamp(Integer value, int min, int max) {
+        if (value == null) {
+            return null;
+        }
+        return Math.max(min, Math.min(max, value));
     }
 
     private String preferText(String primary, String fallback) {
@@ -1993,6 +2531,22 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         private String errorMessage() {
             return StringUtils.join(errors, "；");
         }
+    }
+
+    private static class AiResultAnalysis {
+        private String sentiment;
+        private String summary;
+        private String hitRecommendation;
+        private String hitReason;
+        private Integer confidence;
+        private Integer schoolRelevanceScore;
+        private String schoolRelevanceReason;
+        private String matchedSchoolTerms;
+        private String topicCategory;
+        private String topicSubCategory;
+        private String topicReason;
+        private String providerCode;
+        private String modelCode;
     }
 
     private static class MonitorCounter {

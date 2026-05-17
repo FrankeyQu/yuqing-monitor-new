@@ -97,7 +97,7 @@
         <el-table-column prop="lastCollectTime" label="最近采集" width="168" show-overflow-tooltip />
         <el-table-column prop="lastRunTime" label="最近运行" width="168" show-overflow-tooltip />
         <el-table-column prop="nextRunTime" label="下次运行" width="168" show-overflow-tooltip />
-        <el-table-column label="操作" width="330" fixed="right">
+        <el-table-column label="操作" width="392" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :disabled="!canMonitorOperate" @click="openTaskEdit(row)">
               <Pencil :size="15" />
@@ -111,6 +111,10 @@
             >
               <Play :size="15" />
               运行
+            </el-button>
+            <el-button link type="primary" :disabled="!canMonitorOperate || aiDiagnosisLoading" @click="submitTaskDiagnosis(row)">
+              <Sparkles :size="15" />
+              AI体检
             </el-button>
             <el-dropdown :disabled="!canMonitorOperate" @command="handleTaskStatusCommand(row, $event)">
               <el-button link type="warning" :disabled="!canMonitorOperate">
@@ -377,6 +381,51 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="aiDiagnosisVisible" title="AI体检" width="720px" destroy-on-close>
+      <div v-loading="aiDiagnosisLoading" class="ai-diagnosis">
+        <div class="diagnosis-summary">{{ aiDiagnosis?.summary || '暂无体检结果' }}</div>
+        <div class="diagnosis-grid">
+          <section>
+            <h4>关键词建议</h4>
+            <el-tag v-for="item in aiDiagnosis?.keywordSuggestions || []" :key="item" effect="plain">{{ item }}</el-tag>
+            <span v-if="!(aiDiagnosis?.keywordSuggestions || []).length" class="empty-tip">-</span>
+          </section>
+          <section>
+            <h4>负面词建议</h4>
+            <el-tag v-for="item in aiDiagnosis?.negativeWordSuggestions || []" :key="item" type="danger" effect="plain">{{ item }}</el-tag>
+            <span v-if="!(aiDiagnosis?.negativeWordSuggestions || []).length" class="empty-tip">-</span>
+          </section>
+          <section>
+            <h4>排除词建议</h4>
+            <el-tag v-for="item in aiDiagnosis?.excludeWordSuggestions || []" :key="item" type="warning" effect="plain">{{ item }}</el-tag>
+            <span v-if="!(aiDiagnosis?.excludeWordSuggestions || []).length" class="empty-tip">-</span>
+          </section>
+          <section>
+            <h4>平台建议</h4>
+            <el-tag v-for="item in aiDiagnosis?.platformSuggestions || []" :key="item" type="success" effect="plain">{{ item }}</el-tag>
+            <span v-if="!(aiDiagnosis?.platformSuggestions || []).length" class="empty-tip">-</span>
+          </section>
+        </div>
+        <el-descriptions :column="1" size="small" border>
+          <el-descriptions-item label="频率建议">{{ aiDiagnosis?.frequencySuggestion || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="预警建议">{{ aiDiagnosis?.alertModeSuggestion || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        <div class="diagnosis-list">
+          <h4>风险提醒</h4>
+          <p v-for="item in aiDiagnosis?.risks || []" :key="item">{{ item }}</p>
+          <span v-if="!(aiDiagnosis?.risks || []).length" class="empty-tip">-</span>
+        </div>
+        <div class="diagnosis-list">
+          <h4>优化建议</h4>
+          <p v-for="item in aiDiagnosis?.suggestions || []" :key="item">{{ item }}</p>
+          <span v-if="!(aiDiagnosis?.suggestions || []).length" class="empty-tip">-</span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="aiDiagnosisVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
   </section>
 </template>
 
@@ -391,10 +440,12 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   Target,
   Trash2
 } from 'lucide-vue-next';
 import {
+  diagnoseMonitorTask,
   deleteMonitorTask,
   deleteMonitorWatchTarget,
   listMonitorTasks,
@@ -409,6 +460,7 @@ import { getCurrentCampusUser } from '../services/permission';
 import type {
   ApiId,
   CampusMonitorTask,
+  CampusMonitorTaskAiDiagnosis,
   CampusMonitorWatchTarget
 } from '../types/api';
 
@@ -451,6 +503,9 @@ const taskTotal = ref(0);
 const taskLoading = ref(false);
 const taskDialogVisible = ref(false);
 const saving = ref(false);
+const aiDiagnosisVisible = ref(false);
+const aiDiagnosisLoading = ref(false);
+const aiDiagnosis = ref<CampusMonitorTaskAiDiagnosis | null>(null);
 
 const taskForm = reactive<CampusMonitorTask>({
   taskName: '',
@@ -742,6 +797,23 @@ async function submitRunTask(row: CampusMonitorTask) {
     await loadTasks();
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '运行失败');
+  }
+}
+
+async function submitTaskDiagnosis(row: CampusMonitorTask) {
+  if (!row.monitorTaskId) {
+    return;
+  }
+  aiDiagnosis.value = null;
+  aiDiagnosisVisible.value = true;
+  aiDiagnosisLoading.value = true;
+  try {
+    aiDiagnosis.value = await diagnoseMonitorTask(row.monitorTaskId);
+  } catch (error) {
+    aiDiagnosisVisible.value = false;
+    ElMessage.error(error instanceof Error ? error.message : 'AI体检失败');
+  } finally {
+    aiDiagnosisLoading.value = false;
   }
 }
 
@@ -1088,9 +1160,60 @@ function targetStatusTagType(status?: string) {
   margin-top: 12px;
 }
 
+.ai-diagnosis {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 180px;
+}
+
+.diagnosis-summary {
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.diagnosis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.diagnosis-grid section,
+.diagnosis-list {
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.diagnosis-grid h4,
+.diagnosis-list h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.diagnosis-grid .el-tag {
+  margin: 0 6px 6px 0;
+}
+
+.diagnosis-list p {
+  margin: 0 0 6px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.empty-tip {
+  color: #94a3b8;
+}
+
 @media (max-width: 900px) {
   .form-grid,
-  .language-grid {
+  .language-grid,
+  .diagnosis-grid {
     grid-template-columns: 1fr;
   }
 

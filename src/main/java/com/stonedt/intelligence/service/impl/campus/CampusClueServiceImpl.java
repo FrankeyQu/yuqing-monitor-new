@@ -177,6 +177,41 @@ public class CampusClueServiceImpl implements CampusClueService {
 
     @Override
     @Transactional
+    public CampusClue updateAnalysisFromMonitor(Long clueId,
+                                                String sentiment,
+                                                Integer schoolRelevanceScore,
+                                                String schoolRelevanceReason,
+                                                String matchedSchoolTerms,
+                                                String excludedReason,
+                                                String topicCategory,
+                                                String topicSubCategory,
+                                                String topicReason,
+                                                Long monitorResultId,
+                                                Long operatorUserId,
+                                                String operatorName) {
+        String normalized = requireSentiment(sentiment);
+        CampusClue old = requireClue(clueId);
+        ensureNotArchived(old, "同步AI分析");
+        int updated = campusClueDao.updateAnalysisFromMonitor(clueId, normalized,
+                schoolRelevanceScore,
+                StringUtils.left(schoolRelevanceReason, 1024),
+                StringUtils.left(matchedSchoolTerms, 512),
+                StringUtils.left(excludedReason, 512),
+                StringUtils.left(topicCategory, 64),
+                StringUtils.left(topicSubCategory, 64),
+                StringUtils.left(topicReason, 1024),
+                operatorUserId);
+        if (updated != 1) {
+            throw new IllegalArgumentException("已归档线索不能同步AI分析");
+        }
+        CampusClue saved = campusClueDao.selectByClueId(clueId);
+        addOperationLog(clueId, "monitor_ai_analysis_sync", "监测信息同步AI分析：" + monitorResultId,
+                JSON.toJSONString(old), JSON.toJSONString(saved), operatorUserId, operatorName);
+        return saved;
+    }
+
+    @Override
+    @Transactional
     public void delete(Long clueId, Long operatorUserId, String operatorName) {
         CampusClue old = requireClue(clueId);
         campusClueDao.logicalDelete(clueId, operatorUserId);

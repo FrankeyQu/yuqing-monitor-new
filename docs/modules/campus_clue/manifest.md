@@ -9,7 +9,7 @@
 ## 依赖模块
 
 - `campus_ingest`：接入记录可转为线索。
-- `campus_monitor`：监测命中可转为线索。
+- `campus_monitor`：监测命中可转为线索；已转线索的监测命中在未归档时可同步人工情感校正和 AI 辅助分析结果。
 - `campus_lexicon`：后续研判可使用词库辅助。
 
 ## 数据模型
@@ -42,6 +42,7 @@
 - 线索保存和人工研判的风险等级必须统一归一为 `normal/concern/major/urgent`，兼容旧中文值但不得继续扩散旧口径。
 - 线索保存、规则研判和 AI 研判的情感值必须统一为 `positive/neutral/negative/none`；“疑似/确认”通过 `clue_status` 和研判记录表达，不再写入 `sentiment`。
 - 已转线索的监测命中在监测信息页人工改情感时，线索情感同步更新并写入 `campus_clue_operation_log`；已归档线索不得被监测页反向修改。
+- 已转线索的监测命中在监测信息页 AI 分析成功时，未归档线索同步情感、学校相关性和主题分类并写入 `campus_clue_operation_log`；已归档线索不得被 AI 分析反向修改。
 - 人工研判只允许 `pending_judge/judged` 状态执行；`archived` 和 `converted` 均不得重新研判。
 - 已归档线索不得继续编辑或重复归档；已转事件线索不得重复转事件。
 - 线索保存必须保留或自动补齐学校相关性与校园事件主题字段，供事件聚合、相似线索推荐和报告治理指标复用。

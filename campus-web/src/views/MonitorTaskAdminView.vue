@@ -29,8 +29,16 @@
         </el-button>
       </div>
 
-      <el-table :data="tasks" v-loading="taskLoading" size="small" height="620">
-        <el-table-column label="任务名称" min-width="210" fixed="left">
+      <el-table
+        :data="tasks"
+        v-loading="taskLoading"
+        size="small"
+        height="620"
+        border
+        :fit="false"
+        @header-dragend="onTaskColumnWidthChange"
+      >
+        <el-table-column prop="taskName" column-key="taskName" label="任务名称" :width="taskColumnWidths.taskName" fixed="left" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="task-title-cell">
               <span class="task-name">{{ row.taskName }}</span>
@@ -38,18 +46,18 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="monitorSubject" label="监测主体" min-width="160" show-overflow-tooltip />
-        <el-table-column label="关键词" min-width="220" show-overflow-tooltip>
+        <el-table-column prop="monitorSubject" column-key="monitorSubject" label="监测主体" :width="taskColumnWidths.monitorSubject" show-overflow-tooltip />
+        <el-table-column prop="keywords" column-key="keywords" label="关键词" :width="taskColumnWidths.keywords" show-overflow-tooltip>
           <template #default="{ row }">
             {{ formatKeywords(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="平台" width="120" show-overflow-tooltip>
+        <el-table-column prop="platformScope" column-key="platformScope" label="平台" :width="taskColumnWidths.platformScope" show-overflow-tooltip>
           <template #default="{ row }">
             {{ platformScopeLabel(row.platformScope) }}
           </template>
         </el-table-column>
-        <el-table-column label="前台展示" width="110">
+        <el-table-column prop="displayEnabled" column-key="displayEnabled" label="前台展示" :width="taskColumnWidths.displayEnabled">
           <template #default="{ row }">
             <el-switch
               :model-value="row.displayEnabled !== 0"
@@ -59,7 +67,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="接入状态" width="116">
+        <el-table-column prop="ingestCapabilityStatus" column-key="ingestCapabilityStatus" label="接入状态" :width="taskColumnWidths.ingestCapabilityStatus">
           <template #default="{ row }">
             <el-tooltip v-if="row.lastErrorMessage" :content="row.lastErrorMessage" placement="top">
               <el-tag :type="ingestCapabilityTagType(row.ingestCapabilityStatus)" effect="plain">
@@ -71,33 +79,33 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="最近命中" width="96">
+        <el-table-column prop="lastMatchCount" column-key="lastMatchCount" label="最近命中" :width="taskColumnWidths.lastMatchCount">
           <template #default="{ row }">{{ row.lastMatchCount ?? 0 }}</template>
         </el-table-column>
-        <el-table-column label="展示数据" width="96">
+        <el-table-column prop="displayResultCount" column-key="displayResultCount" label="展示数据" :width="taskColumnWidths.displayResultCount">
           <template #default="{ row }">{{ row.displayResultCount ?? 0 }}</template>
         </el-table-column>
-        <el-table-column label="调度" width="116">
+        <el-table-column prop="scanFrequencyMinutes" column-key="scanFrequencyMinutes" label="调度" :width="taskColumnWidths.scanFrequencyMinutes">
           <template #default="{ row }">
             <el-tag :type="row.scheduleEnabled === 0 ? 'info' : 'success'" effect="plain">
               {{ row.scheduleEnabled === 0 ? '手动' : `${row.scanFrequencyMinutes || 60}分钟` }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="预警" width="118">
+        <el-table-column prop="alertMode" column-key="alertMode" label="预警" :width="taskColumnWidths.alertMode">
           <template #default="{ row }">{{ alertModeLabel(row.alertMode) }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="96">
+        <el-table-column prop="taskStatus" column-key="taskStatus" label="状态" :width="taskColumnWidths.taskStatus">
           <template #default="{ row }">
             <el-tag :type="taskStatusTagType(row.taskStatus)" effect="plain">
               {{ taskStatusLabel(row.taskStatus) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="lastCollectTime" label="最近采集" width="168" show-overflow-tooltip />
-        <el-table-column prop="lastRunTime" label="最近运行" width="168" show-overflow-tooltip />
-        <el-table-column prop="nextRunTime" label="下次运行" width="168" show-overflow-tooltip />
-        <el-table-column label="操作" width="392" fixed="right">
+        <el-table-column prop="lastCollectTime" column-key="lastCollectTime" label="最近采集" :width="taskColumnWidths.lastCollectTime" show-overflow-tooltip />
+        <el-table-column prop="lastRunTime" column-key="lastRunTime" label="最近运行" :width="taskColumnWidths.lastRunTime" show-overflow-tooltip />
+        <el-table-column prop="nextRunTime" column-key="nextRunTime" label="下次运行" :width="taskColumnWidths.nextRunTime" show-overflow-tooltip />
+        <el-table-column column-key="actions" label="操作" :width="taskColumnWidths.actions" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :disabled="!canMonitorOperate" @click="openTaskEdit(row)">
               <Pencil :size="15" />
@@ -466,6 +474,22 @@ import type {
 
 type TaskStatus = 'active' | 'paused' | 'disabled';
 type WatchTargetType = 'account' | 'link';
+type TaskColumnKey =
+  | 'taskName'
+  | 'monitorSubject'
+  | 'keywords'
+  | 'platformScope'
+  | 'displayEnabled'
+  | 'ingestCapabilityStatus'
+  | 'lastMatchCount'
+  | 'displayResultCount'
+  | 'scanFrequencyMinutes'
+  | 'alertMode'
+  | 'taskStatus'
+  | 'lastCollectTime'
+  | 'lastRunTime'
+  | 'nextRunTime'
+  | 'actions';
 
 interface TaskLanguageForm {
   keywordsZh: string;
@@ -506,6 +530,24 @@ const saving = ref(false);
 const aiDiagnosisVisible = ref(false);
 const aiDiagnosisLoading = ref(false);
 const aiDiagnosis = ref<CampusMonitorTaskAiDiagnosis | null>(null);
+const TASK_COLUMN_WIDTH_STORAGE_KEY = 'monitor_task_column_widths_v1';
+const taskColumnWidths = reactive<Record<TaskColumnKey, number>>({
+  taskName: 230,
+  monitorSubject: 170,
+  keywords: 240,
+  platformScope: 120,
+  displayEnabled: 110,
+  ingestCapabilityStatus: 116,
+  lastMatchCount: 96,
+  displayResultCount: 96,
+  scanFrequencyMinutes: 116,
+  alertMode: 118,
+  taskStatus: 96,
+  lastCollectTime: 168,
+  lastRunTime: 168,
+  nextRunTime: 168,
+  actions: 392
+});
 
 const taskForm = reactive<CampusMonitorTask>({
   taskName: '',
@@ -607,8 +649,36 @@ const watchTargetDialogTitle = computed(() => {
   return selectedTask.value ? `监测目标 - ${selectedTask.value.taskName}` : '监测目标';
 });
 onMounted(async () => {
+  loadTaskColumnWidths();
   await Promise.all([loadCurrentPermissions(), loadTasks()]);
 });
+
+function onTaskColumnWidthChange(newWidth: number, _oldWidth: number, column: { columnKey?: string; property?: string }) {
+  const key = (column.columnKey || column.property || '') as TaskColumnKey;
+  if (!Object.prototype.hasOwnProperty.call(taskColumnWidths, key)) {
+    return;
+  }
+  taskColumnWidths[key] = Math.max(64, Math.round(newWidth));
+  saveTaskColumnWidths();
+}
+
+function loadTaskColumnWidths() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(TASK_COLUMN_WIDTH_STORAGE_KEY) || '{}') as Partial<Record<TaskColumnKey, number>>;
+    for (const key of Object.keys(taskColumnWidths) as TaskColumnKey[]) {
+      const width = Number(stored[key]);
+      if (Number.isFinite(width) && width > 0) {
+        taskColumnWidths[key] = Math.max(64, Math.round(width));
+      }
+    }
+  } catch {
+    localStorage.removeItem(TASK_COLUMN_WIDTH_STORAGE_KEY);
+  }
+}
+
+function saveTaskColumnWidths() {
+  localStorage.setItem(TASK_COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(taskColumnWidths));
+}
 
 async function loadCurrentPermissions() {
   try {

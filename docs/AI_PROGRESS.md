@@ -31,6 +31,14 @@
 - **生产发布**：发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-005633-main-ai-format`；已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`，后端包 SHA256 `748185da5b01032cec935b9ea2836f7caa921ebbbbaa33769ef0685ecddb7789`，前端包 SHA256 `3576b154f9d6933be0869db49dce9add0ac8c0bd7667e3d15670e26690db595e`。
 - **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0` 且监听 `8084`；`/monitor`、`/admin/monitor-tasks` 返回 200，未登录监测列表接口返回 302；Flyway `1.44/1.45/1.46` 均 success=1。
 
+## 2026-05-18 监测表格列宽与 AI 摘要展示优化
+
+- **用户目标**：监测任务表格每一列可以自主拖拽调整列宽；监测信息 AI 分析后的摘要前增加“AI摘要：”标识并使用蓝色突出；同时排查为什么中性内容大量显示为“一般预警”。
+- **前端调整**：`/admin/monitor-tasks` 主表开启表头拖拽改宽，所有业务列使用显式列宽并将调整结果保存到浏览器本地；`/monitor` 监测信息主表也支持拖拽改宽并保存；AI 摘要展示为蓝色“AI摘要：”前缀，非 AI 摘要保持原展示。
+- **风险等级排查**：线上 `campus_monitor_result` 中 `neutral + concern` 共 450 条，其中 442 条来自“新疆大学”任务且任务 `alert_mode=all_hits`；样本风险分多为 46 或 50，命中词包含学校主体和多语言别名，没有负面词。当前 `calculateRiskScore` 基础分 30，关键词命中可加到 20，两个以上普通关键词命中即可达到 `riskScore >= 45`，`resolveRiskLevel` 因此给出 `concern`，`all_hits` 模式又会把这类风险结果自动转预警。
+- **结论**：问题不是情感中性直接映射为一般预警，而是普通关键词/别名命中被纳入风险评分且阈值偏低；后续如要修业务口径，应调整风险评分和自动预警规则，只让负面词、原始风险、负面情感或明确风险词触发“一般预警”。
+- **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+
 ## 2026-05-17 多分支合并与生产部署收口
 
 - **用户目标**：把之前已完成的报告恢复、监测 AI 分析、工作台/大屏合并等改动合并到同一条可部署分支，并发布到服务器。

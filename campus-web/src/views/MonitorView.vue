@@ -244,17 +244,23 @@
         :data="monitorInfos"
         v-loading="loading"
         size="small"
+        border
+        :fit="false"
         class="clue-table"
         @selection-change="onSelectionChange"
+        @header-dragend="onInfoColumnWidthChange"
       >
-        <el-table-column type="selection" width="40" />
+        <el-table-column type="selection" width="40" :resizable="false" />
         <el-table-column
           v-for="col in visibleInfoColumns"
           :key="col.key"
+          :prop="col.key"
+          :column-key="col.key"
           :width="col.width"
           :min-width="col.minWidth"
           :align="col.align"
           :fixed="col.fixed"
+          :resizable="true"
           :show-overflow-tooltip="col.tooltip"
         >
           <template #header>
@@ -296,7 +302,12 @@
             </div>
             <div v-else-if="col.key === 'title'" class="title-summary-cell">
               <div class="clue-title" v-html="highlightTitle(row.title || '')" />
-              <div class="clue-summary">{{ row.aiSummary || row.summary || row.content || '' }}</div>
+              <div class="clue-summary" :class="{ 'is-ai-summary': !!row.aiSummary }">
+                <template v-if="row.aiSummary">
+                  <span class="ai-summary-prefix">AI摘要：</span>{{ row.aiSummary }}
+                </template>
+                <template v-else>{{ row.summary || row.content || '' }}</template>
+              </div>
             </div>
             <span v-else-if="col.key === 'publishTime'">{{ publishTimeLabel(row) }}</span>
             <PlatformBadge v-else-if="col.key === 'platform'" :platform="row.platform || row.sourcePlatform || ''" />
@@ -1019,11 +1030,12 @@ const selectedClueCount = computed(() => selectedClues.value.length);
 const selectedBatchTotal = computed(() => Math.max(selectedInfos.value.length, selectedClues.value.length));
 const tableRef = ref();
 const draggedColumnKey = ref('');
+const INFO_COLUMN_WIDTH_STORAGE_KEY = 'monitor_info_column_widths_v1';
 
 const infoColumns = ref<InfoColumn[]>([
   { key: 'index', label: '#', width: 55, align: 'center', visible: true, required: true },
   { key: 'sentiment', label: '情感', width: 80, align: 'center', visible: true },
-  { key: 'title', label: '标题-摘要', minWidth: 380, tooltip: true, visible: true, required: true },
+  { key: 'title', label: '标题-摘要', width: 420, minWidth: 320, tooltip: true, visible: true, required: true },
   { key: 'contentCapture', label: '正文', width: 94, align: 'center', visible: true },
   { key: 'publishTime', label: '发布时间', width: 150, align: 'center', visible: true },
   { key: 'platform', label: '来源', width: 110, align: 'center', visible: true },
@@ -2461,6 +2473,44 @@ function onColumnDrop(targetKey: string) {
   infoColumns.value = next;
 }
 
+function onInfoColumnWidthChange(newWidth: number, _oldWidth: number, column: { columnKey?: string; property?: string }) {
+  const key = column.columnKey || column.property;
+  if (!key) {
+    return;
+  }
+  const target = infoColumns.value.find((col) => col.key === key);
+  if (!target) {
+    return;
+  }
+  target.width = Math.max(48, Math.round(newWidth));
+  saveInfoColumnWidths();
+}
+
+function loadInfoColumnWidths() {
+  try {
+    const widths = JSON.parse(localStorage.getItem(INFO_COLUMN_WIDTH_STORAGE_KEY) || '{}') as Record<string, number>;
+    for (const col of infoColumns.value) {
+      const width = Number(widths[col.key]);
+      if (Number.isFinite(width) && width > 0) {
+        col.width = Math.max(48, Math.round(width));
+      }
+    }
+  } catch {
+    localStorage.removeItem(INFO_COLUMN_WIDTH_STORAGE_KEY);
+  }
+}
+
+function saveInfoColumnWidths() {
+  const widths: Record<string, number> = {};
+  for (const col of infoColumns.value) {
+    const width = Number(col.width);
+    if (Number.isFinite(width) && width > 0) {
+      widths[col.key] = Math.round(width);
+    }
+  }
+  localStorage.setItem(INFO_COLUMN_WIDTH_STORAGE_KEY, JSON.stringify(widths));
+}
+
 // ========== 工具栏操作 ==========
 function markPageRead() {
   if (monitorInfos.value.length === 0) {
@@ -2993,6 +3043,7 @@ async function loadSubPlatformCounts() {
 // ========== 初始化 ==========
 onMounted(async () => {
   initCurrentYear();
+  loadInfoColumnWidths();
   loadCurrentPermissions();
   loadData();
   await loadPlatformConnections();
@@ -3468,6 +3519,15 @@ function resizeTopicCharts() {
   line-height: 1.4;
   max-height: 34px;
   overflow: hidden;
+}
+
+.clue-summary.is-ai-summary {
+  color: #475569;
+}
+
+.ai-summary-prefix {
+  color: #2563eb;
+  font-weight: 600;
 }
 
 .information-detail {

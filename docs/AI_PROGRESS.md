@@ -4,10 +4,10 @@
 
 - **项目名称**：卓然舆情（Zhuoran Insight）
 - **开源协议**：GPLv3
-- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/智能驾驶舱大屏和接入去重修复已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收，监测命中 AI 分析返回格式兼容修复已发布
+- **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/智能驾驶舱大屏、接入去重修复和监测疑似误预警治理工具已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
 - **当前 Git 状态**：`main` 已推送到 GitHub，旧生产线 `claude/daily-monthly-reports` 以功能等价吸收和本地保护分支方式留痕
-- **最近已发布功能提交**：commit `2d1daba merge: clarify monitor alert status wording`
+- **最近已发布功能提交**：commit `f4e7f84 merge: add monitor alert cleanup tool`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -32,7 +32,9 @@
 - **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/PERMISSION_RULES.md`、`docs/TEST_CHECKLIST.md` 和 `docs/modules/campus_monitor/manifest.md`。
 - **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd -DskipTests package` 通过；`git diff --check` 通过（仅 CRLF 提示）。
 - **线上只读复核**：按最终 Mapper 候选 SQL 只读核验，未关联线索可处理候选 `451` 条、总候选 `453` 条、负面证据保留预警 `20` 条；本轮未执行线上取消操作。
-- **部署状态**：本轮仅完成代码和文档实现，尚未执行生产候选取消，也尚未部署。
+- **Git 合并**：功能提交 `990d79c feat: add monitor alert cleanup tool` 和审计提交 `b6dee05 docs: record monitor alert candidate audit` 已通过 merge commit `f4e7f84 merge: add monitor alert cleanup tool` 合并到 `main`，GitHub `origin/main` 已推送。
+- **生产部署**：已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-105107-monitor-alert-cleanup`；后端包 SHA256 `18cd38d347e53fbbcb4fd56b7ec5f79c12d3250ebe865acb1cca2712e83de425`，前端包 SHA256 `3176ba12d3fa8447d6b5041acc7fdc194e1cddd65e8a45c1090a34395e8b1c9d`。本轮无数据库结构迁移，且未执行线上候选取消操作。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`https://yuqing.zhuoran.cc/`、`/monitor`、`/situation` 返回 200，未登录 `/campus/monitor/result/alert-cleanup/preview?limit=1` 返回 302；线上 jar 已包含 `CampusMonitorAlertCleanup*` DTO 与更新后的 `CampusMonitorResultMapper.xml`，线上静态资源 `index-DsvIDQii.js` 已包含“误预警治理”、`alert-cleanup/preview`、`alert-cleanup/execute`。
 
 ## 2026-05-18 监测信息预警状态文案澄清
 

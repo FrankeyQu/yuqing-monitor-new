@@ -20,7 +20,9 @@
 - **业务保护**：AI 分析仍只更新情感、摘要、AI建议、风险辅助字段、学校相关性和主题字段；不自动忽略、不删除、不自动转预警、不改变 `resultStatus/alertId`；已归档线索关联记录继续跳过写入。
 - **文档同步**：已更新 `docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/TEST_CHECKLIST.md` 和 `docs/modules/campus_monitor/manifest.md`。
 - **本地验证**：`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd -DskipTests package`、`.\mvnw.cmd "-Dtest=CampusMonitorAiContentFirstTest" "-DskipTests=false" "-Dmaven.test.skip=false" test`、`campus-web npm run build` 均通过；`git diff --check` 仅保留既有 CRLF 提示。
-- **发布状态**：待合并 `main`、推送 GitHub 并部署服务器后回填备份目录和线上验收结果。
+- **Git 合并**：功能提交 `18c56d8 feat: add monitor auto ai analysis` 已通过 merge commit `30e40de merge: add monitor auto ai analysis` 合并到 `main`，GitHub `origin/main` 已推送。
+- **生产部署**：已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-121111-monitor-auto-ai`，包含 jar、web、数据库 `campus_yuqing.sql.gz` 和 `SHA256SUMS`；后端包 SHA256 `50a1e3fccaa6ce197707b443244d497f80934a915933924c1d7e622ffd24cacf`，前端包 SHA256 `5a8aeb5d1e14dc4c9ee5891445c941883d10ed4780ce2195ab045f1a3f6030a9`。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`/`、`/monitor`、`/situation` 返回 200，未登录 `/campus/monitor/information/list` 返回 302；Flyway `1.47 CampusMonitorAutoAiAnalysis` 成功，`campus_monitor_result` 已存在 `ai_analysis_status` 与 `ai_last_attempt_time` 字段；线上静态资源包含“AI正在分析新监测信息”和 `aiAnalysisStatus`。
 
 ## 2026-05-18 客户向产品介绍 PPT 初版
 

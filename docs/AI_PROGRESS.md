@@ -7,7 +7,7 @@
 - **当前阶段**：报告恢复、监测 AI 分析、舆情态势工作台/智能驾驶舱大屏和接入去重修复已发布，旧生产日报/月报分支已核对为当前 `main` 等价吸收，监测命中 AI 分析返回格式兼容修复已发布
 - **正式主线**：本地 `D:\PRJ\yuqing` 的 `main` 分支
 - **当前 Git 状态**：`main` 已推送到 GitHub，旧生产线 `claude/daily-monthly-reports` 以功能等价吸收和本地保护分支方式留痕
-- **最近已发布功能提交**：commit `6d90f54 merge: formalize campus dashboard screen`
+- **最近已发布功能提交**：commit `2d1daba merge: clarify monitor alert status wording`
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
@@ -19,6 +19,9 @@
 - **风险口径澄清**：仅在监测信息页内将风险等级展示为“普通关注 / 一般风险 / 重大风险 / 特别重大风险”，避免风险等级中的“预警”字样和状态列“已生成预警”混淆；后端状态机、预警中心和数据库值不变。
 - **历史数据处理**：本轮不直接清理线上历史 `alerted` 数据，避免误改已经生成的预警单；后续如需治理，应先按 `alert_mode=all_hits + neutral + 无负面词 + 无负面情感 + 无人工处理` 等条件生成候选清单，再由用户确认后批量取消预警。
 - **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 通过（仅 CRLF 提示）。本轮无后端接口、状态机、权限或数据库变更。
+- **Git 合并**：功能提交 `b9304d3 fix: clarify monitor alert status wording` 已通过 merge commit `2d1daba merge: clarify monitor alert status wording` 合并到 `main`，GitHub `origin/main` 已推送。
+- **生产部署**：仅前端静态资源变更，未重启后端；前端包 SHA256 `fd075672cf5769d8b5fd17c0bd9fb8c4621a26d33772521bd3f069088199d8d8`，发布前备份 `/opt/yuqing/web` 到 `/home/ubuntu/yuqing-backups/deploy-20260518-041020-monitor-alert-wording/web.tar.gz`，已覆盖 `/opt/yuqing/web` 并 reload `nginx`。
+- **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`https://yuqing.zhuoran.cc/`、`/monitor`、`/situation` 返回 200；线上静态资源 `index-DsLKlp-_.js` 已包含“已生成预警”“一般风险”“负面词/风险等级/已生成预警”。
 
 ## 2026-05-18 校园舆情智能驾驶舱大屏改造
 

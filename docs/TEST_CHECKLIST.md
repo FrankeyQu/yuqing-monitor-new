@@ -41,7 +41,8 @@ npm run build  # 大屏 Vue 2 构建，仅修改 large_screen 时需要
 - [ ] 发布时间为空时显示“发布时间未知”，并按采集时间在未知发布时间记录内部倒序；`collectTimeStart/End` 只过滤采集时间。
 - [ ] 情感筛选只展示全部、正面、中性、负面、未知；接口参数使用 `positive/neutral/negative/none` 并兼容历史中文值。
 - [ ] 监测信息页单条和批量修改情感可用；未转线索只更新监测结果，已转未归档线索同步更新线索情感，已归档线索关联记录提示失败且不写入。
-- [ ] 监测信息页单条、选中批量和当前页 AI 分析可用；成功后刷新情感、AI摘要、AI建议、主题和相关性；失败、跳过、成功数量反馈清晰。
+- [ ] 新生成的监测命中默认进入自动 AI 分析队列；监测信息页先展示条目和“AI正在分析新监测信息”进度条，完成后刷新情感、AI摘要、AI建议、主题和相关性。
+- [ ] 监测信息页单条、选中批量和当前页 AI 分析可用；多选超过 20 条时前端自动按 20 条分批调用并显示进度；失败、跳过、成功数量反馈清晰。
 - [ ] 监测命中 AI 分析同时比较标题和正文，优先依据更包含任务、校园主体、关键词、负面词或具体事实的一段；同样匹配时按正文优先、标题兜底。
 - [ ] AI 判断“不建议命中”后只展示 AI 建议和理由，不自动忽略、不自动转预警、不改变风险等级和结果状态。
 - [ ] 误预警治理入口可预览候选数量和样本；执行时只取消未关联线索、无负面证据的历史 `all_hits` 待处理预警，已关联线索默认跳过，原始监测信息不删除。
@@ -89,6 +90,13 @@ npm run build
 - 验收口径：标题作为主要依据且 AI 未明确返回 `riskLevel=concern` 时，不因负面情感自动升为“一般预警”；正文主导的负面情感仍可进入一般预警。
 - 线上发布：merge commit `3b6b964` 已推送 GitHub `origin/main`；仅覆盖后端 jar，备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-024024-monitor-ai-title-content`，包 SHA256 `2fb3f748ddf6a251fca744c5b561e288ca60a996df94cf1a232f98401495f449`。
 - 线上冒烟：`yuqing/nginx/mariadb/redis-server` 均 active，后端监听 `8084`；`/`、`/monitor`、`/admin/monitor-tasks` 返回 200，未登录监测列表接口返回 302。
+
+### 2026-05-18 监测信息自动 AI 分析与进度提示验证
+- 后端编译：`.\mvnw.cmd -DskipTests compile` 通过。
+- 后端打包：`.\mvnw.cmd -DskipTests package` 通过。
+- 后端单测：`.\mvnw.cmd "-Dtest=CampusMonitorAiContentFirstTest" "-DskipTests=false" "-Dmaven.test.skip=false" test` 通过（6 tests）。
+- 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。
+- 验收口径：新入库监测命中写入 `ai_analysis_status=pending/ai_analysis_trigger=auto`，后台调度器分批分析并流转到 `processing/done/failed`；`/monitor` 有自动分析进度条，手动多选分析有确定进度，失败行展示“AI失败”并可重试。
 
 ### 2026-05-18 监测表格列宽与 AI 摘要展示验证
 - 前端构建：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。

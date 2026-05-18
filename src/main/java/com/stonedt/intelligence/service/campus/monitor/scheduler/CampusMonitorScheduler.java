@@ -1,5 +1,6 @@
 package com.stonedt.intelligence.service.campus.monitor.scheduler;
 
+import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeResponse;
 import com.stonedt.intelligence.entity.campus.CampusMonitorTask;
 import com.stonedt.intelligence.service.campus.CampusMonitorService;
 import org.slf4j.Logger;
@@ -40,6 +41,12 @@ public class CampusMonitorScheduler {
 
     @Value("${schedule.campus-monitor.cleanup-batch-size:1000}")
     private Integer cleanupBatchSize;
+
+    @Value("${schedule.campus-monitor.ai-analysis-open:1}")
+    private String aiAnalysisOpen;
+
+    @Value("${schedule.campus-monitor.ai-analysis-batch-size:20}")
+    private Integer aiAnalysisBatchSize;
 
     public CampusMonitorScheduler(CampusMonitorService campusMonitorService) {
         this.campusMonitorService = campusMonitorService;
@@ -84,6 +91,23 @@ public class CampusMonitorScheduler {
         }
     }
 
+    @Scheduled(fixedDelayString = "${schedule.campus-monitor.ai-analysis-fixed-delay-ms:15000}")
+    public void analyzePendingMonitorResults() {
+        if (!"1".equals(aiAnalysisOpen)) {
+            return;
+        }
+        try {
+            CampusMonitorAiAnalyzeResponse response = campusMonitorService.analyzePendingAiResults(safeAiAnalysisBatchSize());
+            int total = safeCount(response.getSuccessCount()) + safeCount(response.getFailCount()) + safeCount(response.getSkipCount());
+            if (total > 0) {
+                LOGGER.info("校园监测自动AI分析完成，success={}, fail={}, skip={}",
+                        response.getSuccessCount(), response.getFailCount(), response.getSkipCount());
+            }
+        } catch (Exception ex) {
+            LOGGER.warn("校园监测自动AI分析失败", ex);
+        }
+    }
+
     private int safeBatchSize() {
         if (batchSize == null || batchSize < 1) {
             return 5;
@@ -96,6 +120,17 @@ public class CampusMonitorScheduler {
             return 10;
         }
         return Math.min(lockMinutes, 60);
+    }
+
+    private int safeAiAnalysisBatchSize() {
+        if (aiAnalysisBatchSize == null || aiAnalysisBatchSize < 1) {
+            return 20;
+        }
+        return Math.min(aiAnalysisBatchSize, 20);
+    }
+
+    private int safeCount(Integer value) {
+        return value == null ? 0 : value;
     }
 
     private String schedulerNode() {

@@ -46,6 +46,7 @@ public interface CampusMonitorResultDao {
                          @Param("aiAnalysisTime") Date aiAnalysisTime,
                          @Param("aiProviderCode") String aiProviderCode,
                          @Param("aiModelCode") String aiModelCode,
+                         @Param("aiAnalysisTrigger") String aiAnalysisTrigger,
                          @Param("riskLevel") String riskLevel,
                          @Param("riskScore") Integer riskScore,
                          @Param("schoolRelevanceScore") Integer schoolRelevanceScore,
@@ -56,6 +57,13 @@ public interface CampusMonitorResultDao {
                          @Param("topicSubCategory") String topicSubCategory,
                          @Param("topicReason") String topicReason,
                          @Param("updateUserId") Long updateUserId);
+
+    int updateAiAnalysisStatus(@Param("monitorResultId") Long monitorResultId,
+                               @Param("aiAnalysisStatus") String aiAnalysisStatus,
+                               @Param("aiAnalysisTrigger") String aiAnalysisTrigger,
+                               @Param("aiAnalysisError") String aiAnalysisError,
+                               @Param("aiLastAttemptTime") Date aiLastAttemptTime,
+                               @Param("updateUserId") Long updateUserId);
 
     int updateSnapshot(@Param("monitorResultId") Long monitorResultId,
                        @Param("record") CampusIngestRecord record,
@@ -70,6 +78,8 @@ public interface CampusMonitorResultDao {
 
     List<CampusMonitorResult> listRecentForAi(@Param("monitorTaskId") Long monitorTaskId,
                                               @Param("limit") Integer limit);
+
+    List<CampusMonitorResult> listPendingAiAnalysis(@Param("limit") Integer limit);
 
     int countAlertCleanupCandidates(@Param("includeLinkedClue") Boolean includeLinkedClue);
 

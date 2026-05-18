@@ -111,6 +111,13 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     private static final String DICT_RISK_WORD = "campus_risk_word";
     private static final String FEATURE_MONITOR_RESULT_ANALYSIS = "monitor_result_analysis";
     private static final String FEATURE_MONITOR_TASK_DIAGNOSIS = "monitor_task_diagnosis";
+    private static final String AI_STATUS_NONE = "none";
+    private static final String AI_STATUS_PENDING = "pending";
+    private static final String AI_STATUS_PROCESSING = "processing";
+    private static final String AI_STATUS_DONE = "done";
+    private static final String AI_STATUS_FAILED = "failed";
+    private static final String AI_TRIGGER_AUTO = "auto";
+    private static final String AI_TRIGGER_MANUAL = "manual";
     private static final String ALERT_CLEANUP_CONFIRM_TEXT = "确认取消预警";
     private static final int ALERT_CLEANUP_PREVIEW_MAX = 50;
     private static final int ALERT_CLEANUP_EXECUTE_MAX = 500;
@@ -609,11 +616,29 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     public CampusMonitorAiAnalyzeResponse analyzeResults(CampusMonitorAiAnalyzeRequest request,
                                                          Long operatorUserId,
                                                          String operatorName) {
+        return analyzeResolvedResults(resolveAiAnalyzeTargets(request), operatorUserId, operatorName, AI_TRIGGER_MANUAL);
+    }
+
+    @Override
+    public CampusMonitorAiAnalyzeResponse analyzePendingAiResults(Integer limit) {
+        int safeLimit = safeAiAnalyzeLimit(limit);
+        List<CampusMonitorResult> targets = campusMonitorResultDao.listPendingAiAnalysis(safeLimit);
+        return analyzeResolvedResults(targets, SYSTEM_USER_ID, "系统自动AI分析", AI_TRIGGER_AUTO);
+    }
+
+    private CampusMonitorAiAnalyzeResponse analyzeResolvedResults(List<CampusMonitorResult> targets,
+                                                                  Long operatorUserId,
+                                                                  String operatorName,
+                                                                  String trigger) {
         CampusMonitorAiAnalyzeResponse response = new CampusMonitorAiAnalyzeResponse();
-        List<CampusMonitorResult> targets = resolveAiAnalyzeTargets(request);
+        if (targets == null) {
+            return response;
+        }
         if (targets.isEmpty()) {
             return response;
         }
+        String analysisTrigger = normalizeAiAnalysisTrigger(trigger);
+        Date attemptTime = new Date();
 
         List<CampusMonitorResult> analyzable = new ArrayList<>();
         for (CampusMonitorResult target : targets) {
@@ -621,6 +646,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
                 continue;
             }
             if (isArchivedLinkedClue(target)) {
+                markAiAnalysisFailed(target, analysisTrigger, "已归档线索关联的监测命中跳过AI分析", operatorUserId);
                 response.add(aiAnalyzeItem(target.getMonitorResultId(), false, true,
                         "已归档线索关联的监测命中跳过AI分析", null));
                 continue;
@@ -630,6 +656,10 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         if (analyzable.isEmpty()) {
             return response;
         }
+        for (CampusMonitorResult target : analyzable) {
+            campusMonitorResultDao.updateAiAnalysisStatus(target.getMonitorResultId(),
+                    AI_STATUS_PROCESSING, analysisTrigger, null, attemptTime, operatorUserId);
+        }
 
         CampusAiRuntimeConfig config = resolveAiConfig(FEATURE_MONITOR_RESULT_ANALYSIS);
         String content;
@@ -638,6 +668,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         } catch (Exception ex) {
             String message = StringUtils.defaultIfBlank(ex.getMessage(), "AI分析失败");
             for (CampusMonitorResult target : analyzable) {
+                markAiAnalysisFailed(target, analysisTrigger, message, operatorUserId);
                 response.add(aiAnalyzeItem(target.getMonitorResultId(), false, false, message, null));
             }
             return response;
@@ -649,6 +680,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         } catch (Exception ex) {
             String message = StringUtils.defaultIfBlank(ex.getMessage(), "AI返回格式解析失败");
             for (CampusMonitorResult target : analyzable) {
+                markAiAnalysisFailed(target, analysisTrigger, message, operatorUserId);
                 response.add(aiAnalyzeItem(target.getMonitorResultId(), false, false, message, null));
             }
             return response;
@@ -657,6 +689,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         for (CampusMonitorResult target : analyzable) {
             JSONObject analysis = resultMap.get(String.valueOf(target.getMonitorResultId()));
             if (analysis == null) {
+                markAiAnalysisFailed(target, analysisTrigger, "AI未返回该条结果", operatorUserId);
                 response.add(aiAnalyzeItem(target.getMonitorResultId(), false, false,
                         "AI未返回该条结果", null));
                 continue;
@@ -666,9 +699,11 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
                 parsed.analysisBasis = StringUtils.defaultIfBlank(parsed.analysisBasis, inferAiAnalysisBasis(target));
                 parsed.providerCode = config == null ? null : config.getProviderCode();
                 parsed.modelCode = config == null ? null : config.getModelCode();
-                CampusMonitorResult saved = applyAiResultAnalysis(target, parsed, operatorUserId, operatorName);
+                CampusMonitorResult saved = applyAiResultAnalysis(target, parsed, operatorUserId, operatorName, analysisTrigger);
                 response.add(aiAnalyzeItem(target.getMonitorResultId(), true, false, "AI分析完成", saved));
             } catch (Exception ex) {
+                markAiAnalysisFailed(target, analysisTrigger,
+                        StringUtils.defaultIfBlank(ex.getMessage(), "AI分析写入失败"), operatorUserId);
                 response.add(aiAnalyzeItem(target.getMonitorResultId(), false, false,
                         StringUtils.defaultIfBlank(ex.getMessage(), "AI分析写入失败"), null));
             }
@@ -766,6 +801,25 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             return DEFAULT_AI_ANALYZE_LIMIT;
         }
         return Math.min(limit, MAX_AI_ANALYZE_LIMIT);
+    }
+
+    private String normalizeAiAnalysisTrigger(String trigger) {
+        return AI_TRIGGER_AUTO.equals(trigger) ? AI_TRIGGER_AUTO : AI_TRIGGER_MANUAL;
+    }
+
+    private void markAiAnalysisFailed(CampusMonitorResult result,
+                                      String trigger,
+                                      String message,
+                                      Long operatorUserId) {
+        if (result == null || result.getMonitorResultId() == null) {
+            return;
+        }
+        campusMonitorResultDao.updateAiAnalysisStatus(result.getMonitorResultId(),
+                AI_STATUS_FAILED,
+                normalizeAiAnalysisTrigger(trigger),
+                StringUtils.left(StringUtils.defaultIfBlank(message, "AI分析失败"), 512),
+                new Date(),
+                operatorUserId);
     }
 
     private boolean isArchivedLinkedClue(CampusMonitorResult result) {
@@ -1164,7 +1218,8 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     private CampusMonitorResult applyAiResultAnalysis(CampusMonitorResult result,
                                                       AiResultAnalysis analysis,
                                                       Long operatorUserId,
-                                                      String operatorName) {
+                                                      String operatorName,
+                                                      String analysisTrigger) {
         final Date now = new Date();
         final String excludedReason = "not_hit".equals(analysis.hitRecommendation)
                 ? StringUtils.left(analysis.hitReason, 512)
@@ -1201,6 +1256,7 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
                     now,
                     StringUtils.left(analysis.providerCode, 64),
                     StringUtils.left(analysis.modelCode, 64),
+                    normalizeAiAnalysisTrigger(analysisTrigger),
                     riskLevel,
                     riskScore,
                     schoolScore,
@@ -1234,6 +1290,11 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             item.setAiHitRecommendation(saved.getAiHitRecommendation());
             item.setAiHitReason(saved.getAiHitReason());
             item.setAiConfidence(saved.getAiConfidence());
+            item.setAiAnalysisTime(saved.getAiAnalysisTime());
+            item.setAiAnalysisStatus(saved.getAiAnalysisStatus());
+            item.setAiAnalysisTrigger(saved.getAiAnalysisTrigger());
+            item.setAiAnalysisError(saved.getAiAnalysisError());
+            item.setAiLastAttemptTime(saved.getAiLastAttemptTime());
             item.setRiskLevel(saved.getRiskLevel());
             item.setRiskScore(saved.getRiskScore());
             item.setSchoolRelevanceScore(saved.getSchoolRelevanceScore());
@@ -1811,6 +1872,10 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
         result.setTopicCategory(summary(topic.getTopicCategory(), 64));
         result.setTopicSubCategory(summary(topic.getTopicSubCategory(), 64));
         result.setTopicReason(summary(topic.getReason(), 1024));
+        result.setAiAnalysisStatus(AI_STATUS_PENDING);
+        result.setAiAnalysisTrigger(AI_TRIGGER_AUTO);
+        result.setAiAnalysisError(null);
+        result.setAiLastAttemptTime(null);
         result.setResultStatus(RESULT_PENDING);
         result.setLikeCount(record.getLikeCount());
         result.setCommentCount(record.getCommentCount());

@@ -78,7 +78,7 @@
           <el-radio-group v-model="query.resultStatus" size="small" @change="handleFilterChange">
             <el-radio-button value="">全部</el-radio-button>
             <el-radio-button value="pending">待处理</el-radio-button>
-            <el-radio-button value="alerted">已预警</el-radio-button>
+            <el-radio-button value="alerted">已生成预警</el-radio-button>
             <el-radio-button value="ignored">已取消预警</el-radio-button>
             <el-radio-button value="handled">已处理</el-radio-button>
             <el-radio-button value="converted">已转线索</el-radio-button>
@@ -110,7 +110,7 @@
         <div class="filter-row">
           <span class="filter-label">风险等级：</span>
           <el-select v-model="query.riskLevel" size="small" clearable placeholder="全部" style="width: 130px" @change="handleFilterChange">
-            <el-option v-for="risk in CAMPUS_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
+            <el-option v-for="risk in MONITOR_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
           </el-select>
           <span class="filter-label" style="margin-left: 16px;">线索状态：</span>
           <el-select v-model="query.clueStatus" size="small" clearable placeholder="全部" style="width: 130px" @change="handleFilterChange">
@@ -312,7 +312,7 @@
             <span v-else-if="col.key === 'negativeWords'" class="ellipsis-cell">{{ row.matchedNegativeWords || '-' }}</span>
             <span v-else-if="col.key === 'interaction'">{{ interactionLabel(row) }}</span>
             <el-tag v-else-if="col.key === 'riskLevel'" :type="clueRiskTagType(row.riskLevel)" effect="plain" size="small">
-              {{ clueRiskLabel(row.riskLevel) }}
+              {{ monitorRiskLabel(row.riskLevel) }}
             </el-tag>
             <el-tag v-else-if="col.key === 'topicCategory'" effect="plain" size="small">
               {{ topicLabel(row.topicCategory) }}
@@ -391,11 +391,11 @@
           <el-input-number v-model="resultQuery.monitorTaskId" :min="1" controls-position="right" placeholder="任务ID" />
           <el-input v-model.trim="resultQuery.platform" clearable placeholder="平台" @keyup.enter="loadMonitorResults" />
           <el-select v-model="resultQuery.riskLevel" clearable placeholder="风险">
-            <el-option v-for="risk in CAMPUS_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
+            <el-option v-for="risk in MONITOR_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
           </el-select>
           <el-select v-model="resultQuery.resultStatus" clearable placeholder="状态">
             <el-option label="待处理" value="pending" />
-            <el-option label="已预警" value="alerted" />
+            <el-option label="已生成预警" value="alerted" />
             <el-option label="已取消预警" value="ignored" />
             <el-option label="已处理" value="handled" />
             <el-option label="已转线索" value="converted" />
@@ -500,7 +500,7 @@
         </el-table-column>
         <el-table-column prop="riskLevel" label="风险" width="82">
           <template #default="{ row }">
-            <el-tag :type="clueRiskTagType(row.riskLevel)" effect="plain">{{ clueRiskLabel(row.riskLevel) }}</el-tag>
+            <el-tag :type="clueRiskTagType(row.riskLevel)" effect="plain">{{ monitorRiskLabel(row.riskLevel) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="resultStatus" label="状态" width="92">
@@ -573,7 +573,7 @@
           <div class="toolbar-left">
             <span class="filter-label">风险级别：</span>
             <el-select v-model="alertRiskFilter" size="small" clearable placeholder="全部" style="width: 140px" @change="loadAlertData">
-              <el-option v-for="risk in CAMPUS_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
+              <el-option v-for="risk in MONITOR_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
             </el-select>
           </div>
           <div class="toolbar-right">
@@ -591,7 +591,7 @@
           </el-table-column>
           <el-table-column prop="riskLevel" label="风险级别" width="100" align="center">
             <template #default="{ row }">
-              <el-tag :type="riskLevelTagType(row.riskLevel)" size="small">{{ clueRiskLabel(row.riskLevel) }}</el-tag>
+              <el-tag :type="riskLevelTagType(row.riskLevel)" size="small">{{ monitorRiskLabel(row.riskLevel) }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="alertStatus" label="状态" width="100" align="center">
@@ -641,7 +641,7 @@
         <div class="detail-tag-row">
           <el-tag size="small" effect="plain">状态：{{ monitorInformationStatusLabel(currentInformation) }}</el-tag>
           <el-tag size="small" effect="plain" :type="clueRiskTagType(currentInformation.riskLevel)">
-            风险：{{ clueRiskLabel(currentInformation.riskLevel) }}
+            风险：{{ monitorRiskLabel(currentInformation.riskLevel) }}
           </el-tag>
           <el-tag size="small" effect="plain" :type="languageTagType(currentInformation.language)">
             语言：{{ languageLabel(currentInformation.language) }}
@@ -762,7 +762,7 @@
         <el-form label-position="top">
           <el-form-item label="风险级别" required>
             <el-select v-model="batchJudgeForm.riskLevel" placeholder="请选择风险级别" style="width: 100%">
-              <el-option v-for="risk in CAMPUS_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
+              <el-option v-for="risk in MONITOR_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
             </el-select>
           </el-form-item>
           <el-form-item label="研判意见">
@@ -816,7 +816,7 @@
           </el-form-item>
           <el-form-item label="风险等级">
             <el-select v-model="clueForm.riskLevel" style="width:100%">
-              <el-option v-for="risk in CAMPUS_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
+              <el-option v-for="risk in MONITOR_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
             </el-select>
           </el-form-item>
         </div>
@@ -843,7 +843,7 @@
       <el-form label-position="top">
         <el-form-item label="风险等级">
           <el-select v-model="judgeForm.riskLevel" style="width:100%">
-            <el-option v-for="risk in CAMPUS_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
+            <el-option v-for="risk in MONITOR_RISK_OPTIONS" :key="risk.value" :label="risk.label" :value="risk.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="研判意见">
@@ -880,7 +880,7 @@ import * as echarts from 'echarts';
 import type { ECharts, EChartsOption } from 'echarts';
 import EmotionBadge from '../components/EmotionBadge.vue';
 import PlatformBadge from '../components/PlatformBadge.vue';
-import { CAMPUS_RISK_OPTIONS, campusRiskLabel, campusRiskTagType, campusTopicLabel } from '../config/campusTaxonomy';
+import { CAMPUS_RISK_OPTIONS, campusRiskTagType, campusTopicLabel, normalizeCampusRiskLevel } from '../config/campusTaxonomy';
 import {
   listMonitorInformation,
   fetchMonitorInformationPlatformCounts,
@@ -916,6 +916,17 @@ import type {
 
 const router = useRouter();
 const route = useRoute();
+
+const MONITOR_RISK_LABELS: Record<string, string> = {
+  normal: '普通关注',
+  concern: '一般风险',
+  major: '重大风险',
+  urgent: '特别重大风险'
+};
+const MONITOR_RISK_OPTIONS = CAMPUS_RISK_OPTIONS.map((item) => ({
+  ...item,
+  label: MONITOR_RISK_LABELS[item.value] || item.label
+}));
 
 // ========== 线索 CRUD 状态 ==========
 const clueFormVisible = ref(false);
@@ -1741,8 +1752,12 @@ async function handleDeleteClue(row: CampusClue) {
 }
 
 // ========== 标签映射 ==========
-function clueRiskLabel(value?: string) {
-  return campusRiskLabel(value);
+function monitorRiskLabel(value?: string | null) {
+  const normalized = normalizeCampusRiskLevel(value);
+  if (normalized) {
+    return MONITOR_RISK_LABELS[normalized] || value || '普通关注';
+  }
+  return value || '普通关注';
 }
 
 function clueRiskTagType(value?: string) {
@@ -1773,7 +1788,7 @@ function monitorResultStatusLabel(value?: string, clueId?: ApiId) {
   }
   const labels: Record<string, string> = {
     pending: '待处理',
-    alerted: '已预警',
+    alerted: '已生成预警',
     ignored: '已取消预警',
     handled: '已处理',
     converted: '已转线索'
@@ -1786,7 +1801,7 @@ function monitorResultStatusTagType(value?: string, clueId?: ApiId) {
     return 'success';
   }
   if (value === 'alerted') {
-    return 'danger';
+    return 'warning';
   }
   if (value === 'ignored') {
     return 'info';
@@ -2421,16 +2436,20 @@ function monitorInformationStatusReason(row: CampusMonitorInformation): string {
     return '已进入线索库，可用于研判、归档或加入事件。';
   }
   if (row.resultStatus === 'alerted') {
+    const reasons: string[] = [];
     if (row.matchedNegativeWords) {
-      return `命中负面/风险词：${row.matchedNegativeWords}`;
+      reasons.push(`命中负面/风险词：${row.matchedNegativeWords}`);
     }
     if (row.riskLevel && row.riskLevel !== 'normal') {
-      return `风险等级：${clueRiskLabel(row.riskLevel)}`;
+      reasons.push(`风险等级：${monitorRiskLabel(row.riskLevel)}`);
     }
     if (row.sentiment && (row.sentiment.includes('负') || row.sentiment.toLowerCase() === 'negative')) {
-      return '情感判定为负面。';
+      reasons.push('情感判定为负面');
     }
-    return '历史规则或人工操作产生的预警。';
+    if (reasons.length) {
+      return `已生成预警单，可在预警中心处理；${reasons.join('；')}。`;
+    }
+    return '已生成预警单，可在预警中心处理；当前未见明确负面词或负面情感，建议人工复核是否需要取消预警。';
   }
   if (row.resultStatus === 'pending' || !row.resultStatus) {
     return '已命中监测任务，等待人工研判。';
@@ -2826,7 +2845,7 @@ async function alertResult(row: CampusMonitorResult) {
   }
   try {
     await alertMonitorResult(row.monitorResultId);
-    ElMessage.success('已转为预警');
+    ElMessage.success('已生成预警');
     await Promise.all([loadMonitorResults(), loadData()]);
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '转预警失败');

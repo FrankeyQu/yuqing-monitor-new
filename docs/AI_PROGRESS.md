@@ -11,6 +11,15 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 监测信息预警状态文案澄清
+
+- **工作分支 / worktree**：`claude/monitor-alert-status-wording`，`D:\PRJ\yuqing-report-ai-recovery`。
+- **问题分析**：监测信息页的状态字段 `result_status=alerted` 之前显示为“已预警”，容易被理解成“内容已确认需要预警处置”；实际含义是“已经生成过预警单”。线上只读核验显示 `campus_monitor_result` 中 `alerted=473` 条且均有 `alert_id`，其中 `434` 条为 `risk_level=concern/sentiment=neutral`，主要来自历史 `新疆大学` 任务 `alert_mode=all_hits` 口径，说明数据状态本身存在历史泛化，但前端文案也确实容易误导。
+- **前端调整**：`MonitorView.vue` 将监测结果状态 `alerted` 展示为“已生成预警”，状态标签从 danger 调整为 warning；状态悬停文案改为“已生成预警单，可在预警中心处理”，并在缺少负面词/负面情感时提示人工复核是否需要取消预警；`DashboardView.vue` 的风险命中说明同步改为“已生成预警”。
+- **风险口径澄清**：仅在监测信息页内将风险等级展示为“普通关注 / 一般风险 / 重大风险 / 特别重大风险”，避免风险等级中的“预警”字样和状态列“已生成预警”混淆；后端状态机、预警中心和数据库值不变。
+- **历史数据处理**：本轮不直接清理线上历史 `alerted` 数据，避免误改已经生成的预警单；后续如需治理，应先按 `alert_mode=all_hits + neutral + 无负面词 + 无负面情感 + 无人工处理` 等条件生成候选清单，再由用户确认后批量取消预警。
+- **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 通过（仅 CRLF 提示）。本轮无后端接口、状态机、权限或数据库变更。
+
 ## 2026-05-18 校园舆情智能驾驶舱大屏改造
 
 - **工作分支 / worktree**：`claude/dashboard-smart-cockpit`，`D:\PRJ\yuqing`。

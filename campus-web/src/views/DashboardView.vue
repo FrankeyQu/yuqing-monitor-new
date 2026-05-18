@@ -612,7 +612,7 @@ const screenMetricCards = computed<MetricCard[]>(() => [
     value: monitorOverview.value.todayRiskResultCount ?? monitorOverview.value.todayResultCount ?? 0,
     icon: Siren,
     tone: 'red',
-    note: '负面词/风险等级/已预警'
+    note: '负面词/风险等级/已生成预警'
   },
   {
     label: '负面占比',

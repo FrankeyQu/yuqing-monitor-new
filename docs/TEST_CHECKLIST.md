@@ -426,6 +426,7 @@ npm run build
 
 ## 最近验证记录
 
+- 2026-05-18：监测信息预警状态文案澄清验证；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 通过（仅 CRLF 提示）；检查 `/monitor` 中处理状态筛选和状态列不再展示“已预警”，改为“已生成预警”；风险等级在监测信息页展示为“普通关注 / 一般风险 / 重大风险 / 特别重大风险”；悬停状态说明能够解释已生成预警单与风险命中的区别；本轮不执行历史数据清理。
 - 2026-05-18：校园舆情智能驾驶舱大屏改造验证；`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd -DskipTests package`、`campus-web npm run build` 通过；`CampusMonitorResultMapper.xml` XML 解析通过；`git diff --check` 通过（仅 CRLF 提示）；Playwright mock 数据打开 `/`、点击进入 `/?mode=screen`、直达 `/situation`，确认 1920x1080/2560x1440 下驾驶舱一屏展示、来源排行清晰、情感分布完整、近 7 日全量/风险/预警趋势渲染、主题风险和底部任务条无空白或遮挡；已发布到服务器，备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-035430-dashboard-smart-cockpit`，`yuqing/nginx/mariadb/redis-server` active，`/`、`/situation`、`/monitor` 返回 200，未登录 `/campus/dashboard/statistics` 返回 302；未修改旧 `large_screen`，未执行 `large_screen npm run build`。
 - 2026-05-18：舆情态势图表数据源与运行任务底栏调整验证；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；`git diff --check` 通过（仅 CRLF 提示）；Playwright 本地 mock 数据打开 `/` 与 `/?mode=screen`，确认媒体来源坐标中文化、运行任务底栏展示关键词/AI分析/调度/近次命中；已发布前端到服务器，备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-024536-dashboard-source-layout`，`nginx/yuqing` active，`/` 和 `/situation` 返回 200。
 - 2026-05-17：报告模块二次恢复与模板体验优化本地验证；使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 临时设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile` 通过，`.\mvnw.cmd test -DskipTests=false` 通过（19 个测试类，62 tests，0 failures / 0 errors / 0 skipped），`.\mvnw.cmd -DskipTests package` 通过；`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告。

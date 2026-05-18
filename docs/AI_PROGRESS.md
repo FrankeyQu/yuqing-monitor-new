@@ -35,6 +35,8 @@
 - **Git 合并**：功能提交 `990d79c feat: add monitor alert cleanup tool` 和审计提交 `b6dee05 docs: record monitor alert candidate audit` 已通过 merge commit `f4e7f84 merge: add monitor alert cleanup tool` 合并到 `main`，GitHub `origin/main` 已推送。
 - **生产部署**：已覆盖 `/opt/yuqing/app/stonedt-portal-0.5.3-SNAPSHOT.jar` 与 `/opt/yuqing/web`，发布前备份目录 `/home/ubuntu/yuqing-backups/deploy-20260518-105107-monitor-alert-cleanup`；后端包 SHA256 `18cd38d347e53fbbcb4fd56b7ec5f79c12d3250ebe865acb1cca2712e83de425`，前端包 SHA256 `3176ba12d3fa8447d6b5041acc7fdc194e1cddd65e8a45c1090a34395e8b1c9d`。本轮无数据库结构迁移，且未执行线上候选取消操作。
 - **线上验收**：`yuqing/nginx/mariadb/redis-server` 均 active，`yuqing` 当前 `NRestarts=0`；`https://yuqing.zhuoran.cc/`、`/monitor`、`/situation` 返回 200，未登录 `/campus/monitor/result/alert-cleanup/preview?limit=1` 返回 302；线上 jar 已包含 `CampusMonitorAlertCleanup*` DTO 与更新后的 `CampusMonitorResultMapper.xml`，线上静态资源 `index-DsvIDQii.js` 已包含“误预警治理”、`alert-cleanup/preview`、`alert-cleanup/execute`。
+- **生产候选取消执行**：用户确认后执行一次生产治理测试。执行前候选仍为未关联线索可处理 `451` 条、总候选 `453` 条、负面证据保留预警 `20` 条；执行前备份目录 `/home/ubuntu/yuqing-backups/20260518-1100-monitor-alert-cleanup-execute`，包含 `candidate_ids.tsv`、`campus_monitor_result_before.sql`、`campus_alert_before.sql` 和 `SHA256SUMS`。
+- **生产候选取消结果**：事务内更新 `campus_alert` 451 行为 `ignored`，处理意见为“疑似误预警批量取消（生产治理）”；同步更新 `campus_monitor_result` 451 行为 `result_status=ignored`、`alert_id=NULL`、`risk_level=normal/risk_score=0`。复核后未关联线索可处理候选为 `0`，已关联线索候选保留 `2` 条，负面证据预警保留 `20` 条；当前监测结果状态为 `ignored=452/pending=112/alerted=22`，监测来源预警状态为 `ignored=451/pending=81`。本轮未删除原始监测信息，服务健康检查和 `/`、`/monitor`、`/situation` 冒烟均正常。
 
 ## 2026-05-18 监测信息预警状态文案澄清
 

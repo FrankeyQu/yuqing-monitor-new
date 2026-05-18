@@ -10,6 +10,9 @@ import com.stonedt.intelligence.entity.campus.CampusMonitorTask;
 import com.stonedt.intelligence.entity.campus.CampusMonitorWatchTarget;
 import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeRequest;
 import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeResponse;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupPreview;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupRequest;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupResponse;
 import com.stonedt.intelligence.dto.campus.CampusMonitorTaskAiDiagnosis;
 
 import java.util.List;
@@ -128,6 +131,11 @@ public interface CampusMonitorService {
     CampusMonitorAiAnalyzeResponse analyzeResults(CampusMonitorAiAnalyzeRequest request,
                                                   Long operatorUserId,
                                                   String operatorName);
+
+    CampusMonitorAlertCleanupPreview previewAlertCleanupCandidates(Integer limit);
+
+    CampusMonitorAlertCleanupResponse cleanupAlertCandidates(CampusMonitorAlertCleanupRequest request,
+                                                            Long operatorUserId);
 
     CampusClue convertResultToClue(Long monitorResultId, Long operatorUserId, String operatorName);
 

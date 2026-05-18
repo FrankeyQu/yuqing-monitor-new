@@ -11,6 +11,29 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 监测误预警候选只读审计
+
+- **工作分支 / worktree**：`claude/monitor-alert-candidate-audit`，`D:\PRJ\yuqing-report-ai-recovery`。
+- **审计目标**：按用户确认的后续治理路径，先生成“疑似误预警候选清单”口径，仅做线上只读统计和抽样，不直接修改生产数据库。
+- **线上只读结果**：`campus_monitor_result` 当前 `result_status=alerted` 且关联 `alert_id` 的监测命中共 `473` 条，全部来自 `新疆大学` 任务的 `alert_mode=all_hits` 历史口径，且对应预警单均为 `pending`。
+- **候选口径**：待处理预警、任务为 `all_hits`、无 `matched_negative_words`、监测情感为 `neutral/positive/none`、监测风险为 `normal/concern`、原始接入风险为 `normal` 或空、原始情感不是负面。按该口径命中 `453` 条疑似“普通关键词命中被生成预警”的候选。
+- **候选拆分**：`451` 条未关联线索，适合进入后续“批量取消预警”候选池；`2` 条已关联线索，需单独复核，避免影响已经进入线索链路的数据。另有 `20` 条因存在负面词、负面情感或更高风险等级，被排除在候选之外，应继续保留为待处理预警。
+- **抽样判断**：样本标题包括“新疆大学了解/报考参考”“新大研一布置小窝”“新疆大学博达校区7号楼”“新大夜景”“新疆大学博士宿舍”等，主要是学校普通提及、校园生活、招生报考、房产/周边内容；当前看更像普通监测命中，不应直接作为预警处置。
+- **后续建议**：先开发受控批量取消工具，默认只处理未关联线索的 `451` 条候选；工具必须二次确认、记录审计日志、同步将关联预警置为 `ignored` 并清空监测结果 `alert_id`，已关联线索的 `2` 条默认跳过或进入人工复核列表。
+- **验证状态**：本轮仅执行生产只读 SQL 查询和文档记录，未执行 `UPDATE/DELETE`，未部署。
+
+## 2026-05-18 监测疑似误预警治理工具
+
+- **工作分支 / worktree**：`claude/monitor-alert-batch-cleanup`，`D:\PRJ\yuqing-report-ai-recovery`。
+- **后端调整**：新增 `GET /campus/monitor/result/alert-cleanup/preview` 和 `POST /campus/monitor/result/alert-cleanup/execute`；预览接口只读返回候选总数、未关联线索可处理数、已关联线索候选数、保留预警数和样本；执行接口要求 `confirmText=确认取消预警`，并在后端重新按候选口径筛选，不接受前端直接提交 ID 列表。
+- **候选保护**：候选必须满足历史 `all_hits`、待处理预警、无负面词、非负面情感、监测风险 `normal/concern`、原始接入风险普通或空、原始情感非负面；默认 `includeLinkedClue=false`，已关联线索不进入批量取消，避免影响已进入线索链路的数据。
+- **状态处理**：批量执行等同受控逐条取消预警，把 `campus_alert.alert_status` 置为 `ignored`，把 `campus_monitor_result.result_status` 置为 `ignored`、清空 `alert_id`、恢复 `risk_level=normal/risk_score=0`；不删除原始监测信息，不改变事件或线索流程。
+- **前端调整**：`/monitor` 工具栏新增“误预警治理”入口；弹窗展示四类统计和候选样本，执行前二次确认，成功后刷新监测信息列表、监测结果列表、预警表和候选统计；无 `campus:monitor:operate` 权限时入口禁用。
+- **文档同步**：更新 `docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/PERMISSION_RULES.md`、`docs/TEST_CHECKLIST.md` 和 `docs/modules/campus_monitor/manifest.md`。
+- **本地验证**：`campus-web npm run build` 通过，仅保留既有 Rollup PURE 注释和 chunk 体积警告；使用 `D:\PRJ\yuqing\.codex-tools\jdk8\jdk8u482-b08` 设置 `JAVA_HOME` 后，`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd -DskipTests package` 通过；`git diff --check` 通过（仅 CRLF 提示）。
+- **线上只读复核**：按最终 Mapper 候选 SQL 只读核验，未关联线索可处理候选 `451` 条、总候选 `453` 条、负面证据保留预警 `20` 条；本轮未执行线上取消操作。
+- **部署状态**：本轮仅完成代码和文档实现，尚未执行生产候选取消，也尚未部署。
+
 ## 2026-05-18 监测信息预警状态文案澄清
 
 - **工作分支 / worktree**：`claude/monitor-alert-status-wording`，`D:\PRJ\yuqing-report-ai-recovery`。

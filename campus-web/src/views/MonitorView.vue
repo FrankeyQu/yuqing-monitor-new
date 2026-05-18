@@ -192,6 +192,16 @@
           >
             <Sparkles :size="14" /> AI分析
           </el-button>
+          <el-button
+            size="small"
+            type="warning"
+            plain
+            :loading="alertCleanupLoading"
+            :disabled="!canMonitorOperate"
+            @click="openAlertCleanup"
+          >
+            <ShieldCheck :size="14" /> 误预警治理
+          </el-button>
           <el-button size="small" @click="refreshInfoList">
             <RefreshCw :size="14" /> 刷新
           </el-button>
@@ -785,6 +795,78 @@
       </template>
     </el-dialog>
 
+    <!-- ====== 误预警治理 Dialog ====== -->
+    <el-dialog v-model="alertCleanupVisible" title="疑似误预警治理" width="860px" destroy-on-close>
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        title="只处理待处理预警中无负面词、无负面情感、原始风险正常的 all_hits 历史命中；已关联线索默认跳过。"
+      />
+      <div class="cleanup-stat-row">
+        <div class="cleanup-stat">
+          <span>疑似误预警</span>
+          <strong>{{ alertCleanupPreview?.totalCandidateCount || 0 }}</strong>
+        </div>
+        <div class="cleanup-stat">
+          <span>可直接取消</span>
+          <strong>{{ alertCleanupActionableCount }}</strong>
+        </div>
+        <div class="cleanup-stat">
+          <span>已关联线索</span>
+          <strong>{{ alertCleanupPreview?.linkedClueCandidateCount || 0 }}</strong>
+        </div>
+        <div class="cleanup-stat">
+          <span>保留预警</span>
+          <strong>{{ alertCleanupPreview?.negativeEvidenceAlertCount || 0 }}</strong>
+        </div>
+      </div>
+      <el-table
+        :data="alertCleanupPreviewItems"
+        v-loading="alertCleanupLoading"
+        size="small"
+        border
+        height="320"
+        empty-text="暂无疑似误预警候选"
+      >
+        <el-table-column prop="title" label="标题" min-width="240" show-overflow-tooltip />
+        <el-table-column prop="platform" label="来源" width="96" align="center">
+          <template #default="{ row }">
+            <PlatformBadge :platform="row.platform" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="riskLevel" label="风险" width="96" align="center">
+          <template #default="{ row }">
+            <el-tag :type="campusRiskTagType(row.riskLevel)" effect="plain" size="small">{{ monitorRiskLabel(row.riskLevel) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sentiment" label="情感" width="82" align="center">
+          <template #default="{ row }">
+            <EmotionBadge :emotion="row.sentiment || ''" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="matchedKeywords" label="命中词" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="publishTime" label="发布时间" width="150" align="center">
+          <template #default="{ row }">{{ formatTime(row.publishTime) }}</template>
+        </el-table-column>
+      </el-table>
+      <p class="cleanup-tip">
+        执行后会把这些监测结果置为“已取消预警”，并把对应预警单置为“已取消预警”；不会删除原始监测信息，也不会处理已关联线索的候选。
+      </p>
+      <template #footer>
+        <el-button :loading="alertCleanupLoading" @click="loadAlertCleanupPreview">刷新候选</el-button>
+        <el-button @click="alertCleanupVisible = false">取消</el-button>
+        <el-button
+          type="warning"
+          :loading="alertCleanupExecuting"
+          :disabled="alertCleanupExecutableCount === 0 || !canMonitorOperate"
+          @click="executeAlertCleanup"
+        >
+          确认取消 {{ alertCleanupExecutableCount }} 条
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- ====== 新增/编辑线索 Dialog ====== -->
     <el-dialog v-model="clueFormVisible" :title="clueForm.clueId ? '编辑线索' : '新增人工线索'" width="720px" destroy-on-close>
       <el-form label-position="top">
@@ -875,7 +957,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { ArrowDown, Plus, RefreshCw, Settings2, Sparkles } from 'lucide-vue-next';
+import { ArrowDown, Plus, RefreshCw, Settings2, ShieldCheck, Sparkles } from 'lucide-vue-next';
 import * as echarts from 'echarts';
 import type { ECharts, EChartsOption } from 'echarts';
 import EmotionBadge from '../components/EmotionBadge.vue';
@@ -891,6 +973,8 @@ import {
   ignoreMonitorResult,
   updateMonitorResultSentiment,
   analyzeMonitorResults,
+  previewMonitorAlertCleanup,
+  executeMonitorAlertCleanup,
   convertMonitorResultToClue,
   createMonitorWatchTargetFromResult,
   listMonitorWatchTargets,
@@ -908,6 +992,7 @@ import type {
   CampusEvent,
   CampusIngestSource,
   CampusIngestTask,
+  CampusMonitorAlertCleanupPreview,
   ClueAdvancedQuery,
   CampusMonitorInformation,
   CampusMonitorResult,
@@ -1239,6 +1324,14 @@ const alertQuery = reactive({
   pageNum: 1,
   pageSize: 20
 });
+const alertCleanupVisible = ref(false);
+const alertCleanupLoading = ref(false);
+const alertCleanupExecuting = ref(false);
+const alertCleanupPreview = ref<CampusMonitorAlertCleanupPreview | null>(null);
+
+const alertCleanupPreviewItems = computed(() => alertCleanupPreview.value?.items || []);
+const alertCleanupActionableCount = computed(() => alertCleanupPreview.value?.actionableCandidateCount || 0);
+const alertCleanupExecutableCount = computed(() => Math.min(alertCleanupActionableCount.value, 500));
 
 function riskLevelTagType(level?: string) {
   return campusRiskTagType(level);
@@ -1288,6 +1381,66 @@ function viewAlertDetail(row: CampusAlert) {
 
 function handleAlertItem(row: CampusAlert) {
   ElMessage.info(`处理预警: ${row.alertTitle}`);
+}
+
+async function openAlertCleanup() {
+  if (!canMonitorOperate.value) {
+    ElMessage.warning('当前账号没有监测操作权限');
+    return;
+  }
+  alertCleanupVisible.value = true;
+  await loadAlertCleanupPreview();
+}
+
+async function loadAlertCleanupPreview() {
+  alertCleanupLoading.value = true;
+  try {
+    alertCleanupPreview.value = await previewMonitorAlertCleanup(20);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '误预警候选加载失败');
+    alertCleanupPreview.value = null;
+  } finally {
+    alertCleanupLoading.value = false;
+  }
+}
+
+async function executeAlertCleanup() {
+  if (!canMonitorOperate.value) {
+    ElMessage.warning('当前账号没有监测操作权限');
+    return;
+  }
+  const count = alertCleanupExecutableCount.value;
+  if (count <= 0) {
+    ElMessage.info('当前没有可取消的疑似误预警');
+    return;
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确认取消 ${count} 条未关联线索的疑似误预警？已关联线索的候选会继续跳过。`,
+      '确认批量取消预警',
+      {
+        confirmButtonText: '确认取消预警',
+        cancelButtonText: '再看看',
+        type: 'warning'
+      }
+    );
+  } catch {
+    return;
+  }
+  alertCleanupExecuting.value = true;
+  try {
+    const result = await executeMonitorAlertCleanup({
+      maxCount: count,
+      includeLinkedClue: false,
+      confirmText: '确认取消预警'
+    });
+    ElMessage.success(`已取消 ${result.successCount || 0} 条疑似误预警`);
+    await Promise.all([loadAlertCleanupPreview(), refreshInfoList(), loadMonitorResults(), loadAlertData()]);
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '批量取消疑似误预警失败');
+  } finally {
+    alertCleanupExecuting.value = false;
+  }
 }
 
 // ========== 批量操作 ==========
@@ -3382,6 +3535,41 @@ function resizeTopicCharts() {
   gap: 4px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.cleanup-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.cleanup-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+
+.cleanup-stat span {
+  color: #606266;
+  font-size: 12px;
+}
+
+.cleanup-stat strong {
+  color: #303133;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.cleanup-tip {
+  margin: 12px 0 0;
+  color: #606266;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .column-settings {

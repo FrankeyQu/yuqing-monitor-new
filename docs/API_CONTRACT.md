@@ -497,7 +497,7 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | 监测任务 | `GET /campus/monitor/overview` | 监测概览 |
 | 监测任务 | `/campus/monitor/task/list/save/update-status/update-display/delete/run/ai-diagnose` | 监测任务 CRUD、启停、前台展示、手动运行、AI体检；自动维护接入任务 |
 | 监测信息 | `/campus/monitor/information/list/count-by-platform` | 只展示已命中监测任务的 `campus_monitor_result` 数据，默认排除暂停、禁用、已隐藏或已删除任务数据 |
-| 监测结果 | `/campus/monitor/result/list/alert/ignore/convert-clue` | 监测结果查询、转预警、取消预警、转线索 |
+| 监测结果 | `/campus/monitor/result/list/alert/ignore/convert-clue/alert-cleanup/*` | 监测结果查询、转预警、取消预警、转线索、疑似误预警治理 |
 | 任务内重点目标 | `/campus/monitor/watch-target/list/save/create-from-result/delete` | 本任务重点账号/指定链接维护 |
 | 监测告警 | `/campus/monitor/alert/list/handle` | 监测来源预警查询和处理 |
 | 监测日志 | `GET /campus/monitor/task/run-log/list` | 监测运行日志 |
@@ -526,6 +526,8 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 | POST | `/campus/monitor/result/convert-clue` | `monitorResultId` | `ResultVO<CampusClue>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/result/sentiment` | `monitorResultId,sentiment(positive/neutral/negative/none)` | `ResultVO<CampusMonitorResult>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/result/ai-analyze` | JSON：`monitorResultIds?`, `monitorTaskId?`, `limit?(默认20,最大20)` | `ResultVO<CampusMonitorAiAnalyzeResponse>` | `campus:monitor:operate` |
+| GET | `/campus/monitor/result/alert-cleanup/preview` | `limit?(默认20,最大50)` | `ResultVO<CampusMonitorAlertCleanupPreview>` | `campus:monitor:read` |
+| POST | `/campus/monitor/result/alert-cleanup/execute` | JSON：`maxCount?(默认100,最大500)`,`includeLinkedClue?(默认false)`,`confirmText=确认取消预警` | `ResultVO<CampusMonitorAlertCleanupResponse>` | `campus:monitor:operate` |
 | GET | `/campus/monitor/watch-target/list` | `pageNum,pageSize,monitorTaskId?,targetType?,platform?,keyword?,targetStatus?` | `ResultVO<PageInfo<CampusMonitorWatchTarget>>` | `campus:monitor:read` |
 | POST | `/campus/monitor/watch-target/save` | `CampusMonitorWatchTarget` JSON | `ResultVO<CampusMonitorWatchTarget>` | `campus:monitor:operate` |
 | POST | `/campus/monitor/watch-target/create-from-result` | `monitorResultId,monitorTaskId,targetType(account/link)` | `ResultVO<CampusMonitorWatchTarget>` | `campus:monitor:operate` |
@@ -536,6 +538,8 @@ pending_judge → [自动研判] → judged → [人工确认] → archived
 监测信息页允许通过 `/campus/monitor/result/sentiment` 人工校正单条监测命中的情感。后端只写入 `positive/neutral/negative/none`；若该监测命中已关联线索，同步更新 `campus_clue.sentiment` 并记录线索操作日志；若关联线索已归档，接口返回失败，不修改监测结果或线索。修改情感不会自动转预警、不会加入事件、不会改变 `riskMarked/resultStatus/clueStatus`。
 
 监测命中的 `/campus/monitor/result/ignore` 路径为历史兼容命名，当前业务语义统一为“取消预警”：接口会把 `campus_monitor_result.result_status` 置为 `ignored`，同步把 `risk_level` 恢复为 `normal`、`risk_score` 置 `0`、清空结果侧 `alert_id`；若原结果已关联 `campus_alert`，同步把该预警置为 `ignored` 并记录处理意见“监测信息取消预警”。前端展示文案为“取消预警/已取消预警”。
+
+疑似误预警治理接口只服务历史 `all_hits` 泛化数据清理。`preview` 只读返回候选数量和样本；候选条件为：待处理预警、任务 `alertMode=all_hits`、无 `matchedNegativeWords`、监测情感不是负面、监测风险为 `normal/concern`、原始接入风险为普通或空、原始接入情感不是负面。`execute` 后端会重新按同一候选条件查询，不接受前端直接提交 ID 列表；默认只处理未关联线索的候选，已关联线索必须人工复核或显式 `includeLinkedClue=true` 才会进入处理。执行成功后等同逐条调用取消预警：监测结果置为 `ignored`、风险回落普通关注、清空 `alertId`，对应预警单置为 `ignored`，不删除原始监测信息。
 
 监测任务 AI 体检通过 `/campus/monitor/task/ai-diagnose` 手动触发，只读取任务配置和近期聚合统计，返回 `summary/keywordSuggestions/negativeWordSuggestions/excludeWordSuggestions/platformSuggestions/frequencySuggestion/alertModeSuggestion/risks/suggestions`，不写回任务配置，也不展示具体采集内容。
 

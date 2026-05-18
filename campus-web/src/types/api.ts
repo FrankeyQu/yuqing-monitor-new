@@ -319,6 +319,47 @@ export interface CampusMonitorAiAnalyzeResponse {
   items?: CampusMonitorAiAnalyzeItem[];
 }
 
+export interface CampusMonitorAlertCleanupCandidate {
+  monitorResultId?: ApiId;
+  alertId?: ApiId;
+  clueId?: ApiId;
+  taskName?: string;
+  alertMode?: string;
+  platform?: string;
+  riskLevel?: string;
+  riskScore?: number;
+  sentiment?: string;
+  matchedKeywords?: string;
+  matchedNegativeWords?: string;
+  title?: string;
+  publishTime?: string | Date;
+  createTime?: string | Date;
+}
+
+export interface CampusMonitorAlertCleanupPreview {
+  totalCandidateCount?: number;
+  actionableCandidateCount?: number;
+  linkedClueCandidateCount?: number;
+  negativeEvidenceAlertCount?: number;
+  previewLimit?: number;
+  items?: CampusMonitorAlertCleanupCandidate[];
+}
+
+export interface CampusMonitorAlertCleanupRequest {
+  maxCount?: number;
+  includeLinkedClue?: boolean;
+  confirmText?: string;
+}
+
+export interface CampusMonitorAlertCleanupResponse {
+  successCount?: number;
+  skipCount?: number;
+  failCount?: number;
+  requestedCount?: number;
+  includeLinkedClue?: boolean;
+  items?: CampusMonitorAlertCleanupCandidate[];
+}
+
 export interface CampusMonitorTaskAiDiagnosis {
   monitorTaskId?: ApiId;
   taskName?: string;

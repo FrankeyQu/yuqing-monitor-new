@@ -3,6 +3,7 @@ package com.stonedt.intelligence.dao.campus;
 import com.stonedt.intelligence.entity.campus.CampusIngestRecord;
 import com.stonedt.intelligence.entity.campus.CampusMonitorResult;
 import com.stonedt.intelligence.entity.campus.CampusMonitorInformation;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupCandidate;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -69,6 +70,13 @@ public interface CampusMonitorResultDao {
 
     List<CampusMonitorResult> listRecentForAi(@Param("monitorTaskId") Long monitorTaskId,
                                               @Param("limit") Integer limit);
+
+    int countAlertCleanupCandidates(@Param("includeLinkedClue") Boolean includeLinkedClue);
+
+    int countAlertCleanupNegativeEvidence();
+
+    List<CampusMonitorAlertCleanupCandidate> listAlertCleanupCandidates(@Param("limit") Integer limit,
+                                                                        @Param("includeLinkedClue") Boolean includeLinkedClue);
 
     List<CampusMonitorResult> list(@Param("monitorTaskId") Long monitorTaskId,
                                    @Param("keyword") String keyword,

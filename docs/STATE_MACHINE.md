@@ -194,7 +194,7 @@ pending_judge / judged / converted → archived
 | 字段/状态 | 含义 | 说明 |
 |-----------|------|------|
 | `result_status=pending` | 待处理 | 关键词命中后的默认处理状态 |
-| `result_status=alerted` | 已转预警 | 人工或规则转入 `campus_alert` |
+| `result_status=alerted` | 已生成预警 | 人工或规则生成过 `campus_alert` 预警单 |
 | `result_status=ignored` | 已取消预警 | 人工确认取消预警；风险等级恢复 `normal`，风险分归 `0` |
 | `result_status=converted` | 已转线索 | 已沉淀到 `campus_clue` |
 | `riskMarked=true` | 风险标记 | 由负面词、非普通风险等级、已预警等条件推导，不是独立状态 |
@@ -203,7 +203,7 @@ pending_judge / judged / converted → archived
 ```
 关键词命中 → pending
 pending → alerted / ignored / converted
-alerted → converted
+alerted → ignored / converted
 ```
 
 **统一口径**：
@@ -212,6 +212,7 @@ alerted → converted
 - `hitScope=all` 展示全部关键词命中；`hitScope=risk` 只展示 `riskMarked=true`。
 - 情感值统一为 `positive/neutral/negative/none`；“疑似/确认”由研判状态表达，不再作为情感状态。
 - UI 噪声和历史错误接入记录采用 `deleted=1` 软隐藏，不做物理删除。
+- 疑似误预警治理只允许把仍为待处理预警、无负面词/负面情感、原始风险普通、来源于历史 `all_hits` 口径的监测结果从 `alerted` 批量转为 `ignored`；默认跳过已关联线索的记录，不删除原始监测信息。
 
 ## 校园事件状态（campus_event.event_status）
 
@@ -298,13 +299,14 @@ pending → handled
 pending → ignored
 ```
 
-**监测信息取消预警口径**：`POST /campus/monitor/result/ignore` 保留历史路径名，但业务含义为“取消预警”。该操作将监测结果置为 `result_status=ignored`、清空结果侧 `alert_id`、恢复 `risk_level=normal/risk_score=0`；若存在关联预警，则同步把 `campus_alert.alert_status` 置为 `ignored`。
+**监测信息取消预警口径**：`POST /campus/monitor/result/ignore` 保留历史路径名，但业务含义为“取消预警”。该操作将监测结果置为 `result_status=ignored`、清空结果侧 `alert_id`、恢复 `risk_level=normal/risk_score=0`；若存在关联预警，则同步把 `campus_alert.alert_status` 置为 `ignored`。`POST /campus/monitor/result/alert-cleanup/execute` 是受控批量治理入口，后端重新按候选条件筛选，不接受前端直接提交 ID 列表。
 
 **触发 API / Service**：
 - `POST /campus/alert/create`
 - `POST /campus/alert/evaluate-clue`
 - `POST /campus/alert/evaluate-account-content`
 - `POST /campus/monitor/result/alert`
+- `POST /campus/monitor/result/alert-cleanup/execute`
 - `POST /campus/detection/hit/alert`
 - `POST /campus/alert/handle`、`POST /campus/monitor/alert/handle`
 

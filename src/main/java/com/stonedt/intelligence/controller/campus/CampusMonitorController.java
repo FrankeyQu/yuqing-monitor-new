@@ -4,6 +4,9 @@ import com.alibaba.fastjson.JSON;
 import com.github.pagehelper.PageInfo;
 import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeRequest;
 import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeResponse;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupPreview;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupRequest;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupResponse;
 import com.stonedt.intelligence.dto.campus.CampusMonitorTaskAiDiagnosis;
 import com.stonedt.intelligence.entity.User;
 import com.stonedt.intelligence.entity.campus.CampusAlert;
@@ -329,6 +332,30 @@ public class CampusMonitorController {
             return ResultVO.success(result);
         } catch (Exception e) {
             campusAuditLogService.record(request, "监测任务", "AI分析监测命中", "campus_monitor_result",
+                    null, params, false, e.getMessage());
+            return ResultVO.error(400, e.getMessage());
+        }
+    }
+
+    @GetMapping("/result/alert-cleanup/preview")
+    public ResultVO<CampusMonitorAlertCleanupPreview> previewAlertCleanupCandidates(
+            @RequestParam(defaultValue = "20") Integer limit) {
+        return ResultVO.success(campusMonitorService.previewAlertCleanupCandidates(limit));
+    }
+
+    @PostMapping("/result/alert-cleanup/execute")
+    public ResultVO<CampusMonitorAlertCleanupResponse> cleanupAlertCandidates(
+            @RequestBody CampusMonitorAlertCleanupRequest cleanupRequest,
+            HttpServletRequest request) {
+        String params = JSON.toJSONString(cleanupRequest);
+        try {
+            User user = userUtil.getuser(request);
+            CampusMonitorAlertCleanupResponse result = campusMonitorService.cleanupAlertCandidates(cleanupRequest, user.getUser_id());
+            campusAuditLogService.record(request, "监测任务", "批量取消疑似误预警", "campus_monitor_result",
+                    null, params, true, null);
+            return ResultVO.success(result);
+        } catch (Exception e) {
+            campusAuditLogService.record(request, "监测任务", "批量取消疑似误预警", "campus_monitor_result",
                     null, params, false, e.getMessage());
             return ResultVO.error(400, e.getMessage());
         }

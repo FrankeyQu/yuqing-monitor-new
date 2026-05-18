@@ -5,6 +5,9 @@ import type {
   CampusClue,
   CampusMonitorAiAnalyzeRequest,
   CampusMonitorAiAnalyzeResponse,
+  CampusMonitorAlertCleanupPreview,
+  CampusMonitorAlertCleanupRequest,
+  CampusMonitorAlertCleanupResponse,
   CampusMonitorInformation,
   CampusMonitorOverview,
   CampusMonitorResult,
@@ -142,6 +145,14 @@ export function updateMonitorResultSentiment(monitorResultId: ApiId, sentiment: 
 
 export function analyzeMonitorResults(data: CampusMonitorAiAnalyzeRequest) {
   return apiPost<CampusMonitorAiAnalyzeResponse>('/campus/monitor/result/ai-analyze', data);
+}
+
+export function previewMonitorAlertCleanup(limit = 20) {
+  return apiGet<CampusMonitorAlertCleanupPreview>('/campus/monitor/result/alert-cleanup/preview', { limit });
+}
+
+export function executeMonitorAlertCleanup(data: CampusMonitorAlertCleanupRequest) {
+  return apiPost<CampusMonitorAlertCleanupResponse>('/campus/monitor/result/alert-cleanup/execute', data);
 }
 
 export function convertMonitorResultToClue(monitorResultId: ApiId) {

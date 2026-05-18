@@ -120,6 +120,8 @@ JWT payload 包含：
 | 监测任务管理 | `/admin/monitor-tasks` | `campus:monitor:view` | 后台监测任务配置维护入口，复用监测任务菜单权限 |
 | 监测结果 | `/campus/monitor/result/list` | `campus:monitor:read` | 支持语言、平台、转线索状态筛选 |
 | 监测结果 | `/campus/monitor/result/convert-clue` | `campus:monitor:operate` | 监测命中转入线索库 |
+| 监测结果 | `/campus/monitor/result/alert-cleanup/preview` | `campus:monitor:read` | 疑似误预警候选预览，复用 `/campus/monitor/**` 只读通配权限 |
+| 监测结果 | `/campus/monitor/result/alert-cleanup/execute` | `campus:monitor:operate` | 疑似误预警批量取消，复用 `/campus/monitor/**` 写操作通配权限 |
 | 任务内重点目标 | `/campus/monitor/watch-target/**` | `campus:monitor:read` / `campus:monitor:operate` | 重点账号、指定链接、从结果一键加入 |
 | 事件处置 | `GET /campus/event/clue/suggest` | `campus:event:read` | 相似线索推荐，复用 `GET /campus/event/**` 只读权限 |
 | 事件处置 | `POST /campus/event/**` | `campus:event:operate` | 定级、分派、反馈、退回、复核、归档均由后端状态前置校验保护 |
@@ -165,7 +167,7 @@ JWT payload 包含：
 - 后台监测任务管理页使用 `campus:monitor:operate` 控制新增、编辑、启停、前台展示开关、删除、手动运行和重点目标维护按钮；不展示具体监测内容、命中结果或运行日志
 - 监测任务普通表单不再授权人工选择接入任务；自动接入由 `campus_monitor` 通过 `campus_ingest` Service 编排，页面只展示自动绑定任务和最近错误作为高级诊断信息
 - AI 能力管理页使用 `campus:ai:view` 控制后台入口；供应商/模型/提示词等保存接口最终以后端 `campus:ai:operate` 为准，不在前端保存真实 API Key；如果 `/campus/ai/**` 查询失败，页面应保留壳层并展示加载失败原因
-- 监测结果页会用 `campus:monitor:operate` 控制转线索、转预警、取消预警、重点账号/链接维护按钮
+- 监测结果页会用 `campus:monitor:operate` 控制转线索、转预警、取消预警、疑似误预警治理、重点账号/链接维护按钮
 - 报告模板前台独立菜单 `/report-templates` 仍使用 `campus:report:view`；模板新增、编辑、删除继续复用 `/campus/report/template/**`，最终以后端 `campus:report:operate` 为准
 - 前台不再展示独立“线索库”菜单；历史 `/clues` 入口仅保留兼容重定向到 `/monitor`。`campus:clue:read` / `campus:clue:operate` 仍用于线索 API，不因此放宽或移除。
 - 教育专题页会用 `campus:education:operate` 控制学校新增/编辑/删除/导入和百度任务创建/立即运行按钮

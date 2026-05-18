@@ -17,6 +17,10 @@ import com.stonedt.intelligence.dao.campus.CampusMonitorTaskDao;
 import com.stonedt.intelligence.dao.campus.CampusMonitorWatchTargetDao;
 import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeRequest;
 import com.stonedt.intelligence.dto.campus.CampusMonitorAiAnalyzeResponse;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupCandidate;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupPreview;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupRequest;
+import com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupResponse;
 import com.stonedt.intelligence.dto.campus.CampusMonitorTaskAiDiagnosis;
 import com.stonedt.intelligence.entity.campus.CampusAiPromptTemplate;
 import com.stonedt.intelligence.entity.campus.CampusAlert;
@@ -107,6 +111,9 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
     private static final String DICT_RISK_WORD = "campus_risk_word";
     private static final String FEATURE_MONITOR_RESULT_ANALYSIS = "monitor_result_analysis";
     private static final String FEATURE_MONITOR_TASK_DIAGNOSIS = "monitor_task_diagnosis";
+    private static final String ALERT_CLEANUP_CONFIRM_TEXT = "确认取消预警";
+    private static final int ALERT_CLEANUP_PREVIEW_MAX = 50;
+    private static final int ALERT_CLEANUP_EXECUTE_MAX = 500;
     private static final Long SYSTEM_USER_ID = 0L;
     private static final int DEFAULT_LOCK_MINUTES = 10;
     private static final int DEFAULT_SCAN_FREQUENCY_MINUTES = 60;
@@ -667,6 +674,64 @@ public class CampusMonitorServiceImpl implements CampusMonitorService {
             }
         }
         return response;
+    }
+
+    @Override
+    public CampusMonitorAlertCleanupPreview previewAlertCleanupCandidates(Integer limit) {
+        int safeLimit = clampLimit(limit, 20, ALERT_CLEANUP_PREVIEW_MAX);
+        CampusMonitorAlertCleanupPreview preview = new CampusMonitorAlertCleanupPreview();
+        int actionableCount = campusMonitorResultDao.countAlertCleanupCandidates(false);
+        int totalCount = campusMonitorResultDao.countAlertCleanupCandidates(true);
+        preview.setActionableCandidateCount(actionableCount);
+        preview.setTotalCandidateCount(totalCount);
+        preview.setLinkedClueCandidateCount(Math.max(totalCount - actionableCount, 0));
+        preview.setNegativeEvidenceAlertCount(campusMonitorResultDao.countAlertCleanupNegativeEvidence());
+        preview.setPreviewLimit(safeLimit);
+        preview.setItems(campusMonitorResultDao.listAlertCleanupCandidates(safeLimit, false));
+        return preview;
+    }
+
+    @Override
+    @Transactional
+    public CampusMonitorAlertCleanupResponse cleanupAlertCandidates(CampusMonitorAlertCleanupRequest request,
+                                                                    Long operatorUserId) {
+        if (request == null || !ALERT_CLEANUP_CONFIRM_TEXT.equals(StringUtils.trimToEmpty(request.getConfirmText()))) {
+            throw new IllegalArgumentException("请先确认取消疑似误预警");
+        }
+        boolean includeLinkedClue = Boolean.TRUE.equals(request.getIncludeLinkedClue());
+        int maxCount = clampLimit(request.getMaxCount(), 100, ALERT_CLEANUP_EXECUTE_MAX);
+        List<CampusMonitorAlertCleanupCandidate> candidates =
+                campusMonitorResultDao.listAlertCleanupCandidates(maxCount, includeLinkedClue);
+        CampusMonitorAlertCleanupResponse response = new CampusMonitorAlertCleanupResponse();
+        response.setRequestedCount(maxCount);
+        response.setIncludeLinkedClue(includeLinkedClue);
+        response.setItems(candidates);
+        if (candidates.isEmpty()) {
+            return response;
+        }
+        for (CampusMonitorAlertCleanupCandidate candidate : candidates) {
+            if (!includeLinkedClue && candidate.getClueId() != null) {
+                response.setSkipCount(response.getSkipCount() + 1);
+                continue;
+            }
+            int alertUpdated = campusAlertDao.handle(candidate.getAlertId(), RESULT_IGNORED,
+                    "疑似误预警批量取消", operatorUserId, operatorUserId);
+            int resultUpdated = campusMonitorResultDao.updateStatusAndRisk(candidate.getMonitorResultId(),
+                    RESULT_IGNORED, null, RISK_NORMAL, 0, operatorUserId);
+            if (alertUpdated != 1 || resultUpdated != 1) {
+                throw new IllegalStateException("取消预警失败，监测结果ID：" + candidate.getMonitorResultId());
+            }
+            response.setSuccessCount(response.getSuccessCount() + 1);
+        }
+        return response;
+    }
+
+    private int clampLimit(Integer value, int defaultValue, int maxValue) {
+        int result = value == null ? defaultValue : value;
+        if (result < 1) {
+            return defaultValue;
+        }
+        return Math.min(result, maxValue);
     }
 
     private List<CampusMonitorResult> resolveAiAnalyzeTargets(CampusMonitorAiAnalyzeRequest request) {

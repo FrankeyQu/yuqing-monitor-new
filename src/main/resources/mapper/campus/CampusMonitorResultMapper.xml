@@ -466,6 +466,35 @@
         <include refid="InformationSimilarDedupFilter"/>
     </sql>
 
+    <sql id="AlertCleanupCandidateFilters">
+        mr.deleted = 0
+          AND mr.result_status = 'alerted'
+          AND mr.alert_id IS NOT NULL
+          AND a.deleted = 0
+          AND a.alert_status = 'pending'
+          AND IFNULL(mt.alert_mode, 'negative_only') = 'all_hits'
+          AND IFNULL(mr.matched_negative_words, '') = ''
+          AND IFNULL(mr.risk_level, 'normal') IN ('normal', 'concern')
+          AND (
+              LOWER(IFNULL(mr.sentiment, '')) IN ('neutral', 'none', 'positive')
+              OR mr.sentiment LIKE '%中%'
+              OR mr.sentiment LIKE '%正%'
+          )
+          AND (
+              ir.risk_level IS NULL
+              OR ir.risk_level = ''
+              OR LOWER(ir.risk_level) = 'normal'
+              OR ir.risk_level IN ('普通', '正常')
+          )
+          AND NOT (
+              LOWER(IFNULL(ir.sentiment, '')) = 'negative'
+              OR IFNULL(ir.sentiment, '') LIKE '%负%'
+          )
+        <if test="includeLinkedClue == null or includeLinkedClue == false">
+          AND mr.clue_id IS NULL
+        </if>
+    </sql>
+
     <insert id="insert" parameterType="com.stonedt.intelligence.entity.campus.CampusMonitorResult">
         INSERT INTO campus_monitor_result (
             monitor_result_id, monitor_task_id, ingest_record_id, title,
@@ -642,6 +671,80 @@
             AND monitor_task_id = #{monitorTaskId}
         </if>
         ORDER BY create_time DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="countAlertCleanupCandidates" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_monitor_result mr
+        JOIN campus_monitor_task mt
+          ON mt.monitor_task_id = mr.monitor_task_id
+         AND mt.deleted = 0
+        LEFT JOIN campus_ingest_record ir
+          ON ir.record_id = mr.ingest_record_id
+        JOIN campus_alert a
+          ON a.alert_id = mr.alert_id
+        WHERE <include refid="AlertCleanupCandidateFilters"/>
+    </select>
+
+    <select id="countAlertCleanupNegativeEvidence" resultType="int">
+        SELECT COUNT(1)
+        FROM campus_monitor_result mr
+        JOIN campus_monitor_task mt
+          ON mt.monitor_task_id = mr.monitor_task_id
+         AND mt.deleted = 0
+        LEFT JOIN campus_ingest_record ir
+          ON ir.record_id = mr.ingest_record_id
+        JOIN campus_alert a
+          ON a.alert_id = mr.alert_id
+         AND a.deleted = 0
+        WHERE mr.deleted = 0
+          AND mr.result_status = 'alerted'
+          AND mr.alert_id IS NOT NULL
+          AND a.alert_status = 'pending'
+          AND IFNULL(mt.alert_mode, 'negative_only') = 'all_hits'
+          AND (
+              IFNULL(mr.matched_negative_words, '') != ''
+              OR LOWER(IFNULL(mr.sentiment, '')) = 'negative'
+              OR mr.sentiment LIKE '%负%'
+              OR IFNULL(mr.risk_level, 'normal') IN ('major', 'urgent')
+              OR LOWER(IFNULL(ir.sentiment, '')) = 'negative'
+              OR IFNULL(ir.sentiment, '') LIKE '%负%'
+              OR (
+                  ir.risk_level IS NOT NULL
+                  AND ir.risk_level != ''
+                  AND LOWER(ir.risk_level) != 'normal'
+                  AND ir.risk_level NOT IN ('普通', '正常')
+              )
+          )
+    </select>
+
+    <select id="listAlertCleanupCandidates" resultType="com.stonedt.intelligence.dto.campus.CampusMonitorAlertCleanupCandidate">
+        SELECT
+            mr.monitor_result_id AS monitorResultId,
+            mr.alert_id AS alertId,
+            mr.clue_id AS clueId,
+            mt.task_name AS taskName,
+            IFNULL(mt.alert_mode, 'negative_only') AS alertMode,
+            COALESCE(NULLIF(mr.platform, ''), ir.platform) AS platform,
+            mr.risk_level AS riskLevel,
+            mr.risk_score AS riskScore,
+            mr.sentiment AS sentiment,
+            mr.matched_keywords AS matchedKeywords,
+            mr.matched_negative_words AS matchedNegativeWords,
+            LEFT(REPLACE(REPLACE(COALESCE(NULLIF(mr.title, ''), ir.title, ''), '\n', ' '), '\r', ' '), 120) AS title,
+            COALESCE(mr.publish_time, ir.publish_time) AS publishTime,
+            mr.create_time AS createTime
+        FROM campus_monitor_result mr
+        JOIN campus_monitor_task mt
+          ON mt.monitor_task_id = mr.monitor_task_id
+         AND mt.deleted = 0
+        LEFT JOIN campus_ingest_record ir
+          ON ir.record_id = mr.ingest_record_id
+        JOIN campus_alert a
+          ON a.alert_id = mr.alert_id
+        WHERE <include refid="AlertCleanupCandidateFilters"/>
+        ORDER BY mr.id DESC
         LIMIT #{limit}
     </select>
 

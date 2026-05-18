@@ -187,8 +187,8 @@
             type="primary"
             plain
             :loading="manualAiAnalyzing"
-            :disabled="!canMonitorOperate || manualAiAnalyzeTargetRows.length === 0"
-            @click="analyzeCurrentPage"
+            :disabled="!canMonitorOperate || selectedMonitorResultCount === 0"
+            @click="analyzeSelectedRows"
           >
             <Sparkles :size="14" /> {{ aiAnalyzeButtonText }}
           </el-button>
@@ -1724,15 +1724,11 @@ const manualAiProgressDone = ref(0);
 const manualAiProgressTotal = ref(0);
 const aiStatusRefreshing = ref(false);
 let aiStatusRefreshTimer: number | undefined;
-const manualAiAnalyzeTargetRows = computed(() => {
-  const selectedTargets = selectedInfos.value.filter((row) => row.monitorResultId);
-  return selectedTargets.length > 0 ? selectedTargets : monitorInfos.value.filter((row) => row.monitorResultId);
-});
 const aiAnalyzeButtonText = computed(() => {
   if (selectedMonitorResultCount.value > 0) {
-    return `AI分析(${selectedMonitorResultCount.value})`;
+    return `AI分析选中(${selectedMonitorResultCount.value})`;
   }
-  return 'AI分析';
+  return 'AI分析选中';
 });
 const autoAiPendingCount = computed(() => monitorInfos.value.filter((row) => normalizeAiAnalysisStatus(row.aiAnalysisStatus) === 'pending').length);
 const autoAiProcessingCount = computed(() => monitorInfos.value.filter((row) => normalizeAiAnalysisStatus(row.aiAnalysisStatus) === 'processing').length);
@@ -3095,6 +3091,7 @@ async function analyzeMonitorRows(rows: CampusMonitorInformation[]) {
   manualAiAnalyzing.value = true;
   manualAiProgressDone.value = 0;
   manualAiProgressTotal.value = ids.length;
+  await nextTick();
   try {
     let success = 0;
     let failed = 0;
@@ -3131,8 +3128,13 @@ async function analyzeSingleMonitorInformation(row: CampusMonitorInformation) {
   await analyzeMonitorRows([row]);
 }
 
-async function analyzeCurrentPage() {
-  await analyzeMonitorRows(manualAiAnalyzeTargetRows.value);
+async function analyzeSelectedRows() {
+  const targets = selectedInfos.value.filter((row) => row.monitorResultId);
+  if (targets.length === 0) {
+    ElMessage.warning('请先勾选要AI分析的监测信息');
+    return;
+  }
+  await analyzeMonitorRows(targets);
 }
 
 async function alertResult(row: CampusMonitorResult) {

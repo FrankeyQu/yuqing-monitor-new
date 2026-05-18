@@ -29,7 +29,7 @@
 
 `campus_monitor_result` 记录学校相关性和主题分类字段：`school_relevance_score/school_relevance_reason/matched_school_terms/excluded_reason/topic_category/topic_sub_category/topic_reason`。这些字段用于解释为什么一条公开内容与学校相关、归入哪个校园事件主题，并在转线索、转预警和报表治理指标中继续传递。
 
-`campus_monitor_result` AI 辅助字段：`ai_summary/ai_hit_recommendation/ai_hit_reason/ai_confidence/ai_analysis_time/ai_provider_code/ai_model_code`。这些字段只记录人工触发 AI 分析后的辅助结论；`ai_hit_recommendation=not_hit` 不等于自动忽略，仍需人工操作结果状态。
+`campus_monitor_result` AI 辅助字段：`ai_summary/ai_hit_recommendation/ai_hit_reason/ai_confidence/ai_analysis_time/ai_provider_code/ai_model_code/ai_analysis_status/ai_analysis_trigger/ai_analysis_error/ai_last_attempt_time`。新监测命中默认进入自动 AI 分析队列；人工单条、选中批量和当前页 AI 分析可重新分析并覆盖 AI 辅助结论；`ai_hit_recommendation=not_hit` 不等于自动忽略，仍需人工操作结果状态。
 
 `campus_monitor_task` 新增治理字段：`display_enabled` 控制 active 任务数据是否进入前台监测信息；`auto_ingest_enabled` 控制是否自动维护接入任务；`last_collect_time/last_match_count/display_result_count/last_error_message/ingest_capability_status` 用于后台任务列表可观测。`task_status=paused/disabled` 的任务不再进入前台监测信息和平台统计。
 
@@ -66,7 +66,8 @@
 - 监测信息情感值统一为 `positive/neutral/negative/none`，前后端兼容历史“疑似/确认”中文值但不得继续写入。
 - 监测信息页支持人工修改单条或批量监测命中情感；写入必须走 `/campus/monitor/result/sentiment`，已转线索时同步 `campus_clue.sentiment`，已归档线索关联的监测命中不得修改情感。
 - 后台 `/admin/monitor-tasks` 支持手动 AI 体检，接口 `/campus/monitor/task/ai-diagnose` 只返回任务配置建议，不写回任务、不展示具体采集内容。
-- 监测信息页支持单条、选中批量和当前页 AI 分析，接口 `/campus/monitor/result/ai-analyze` 最多一次处理 20 条；AI 可更新情感、一句话摘要、学校相关性、主题分类和辅助风险等级，但不得自动转预警、自动忽略、自动删除或改变结果状态机。
+- 新生成的监测命中默认写入 `ai_analysis_status=pending/ai_analysis_trigger=auto`，后台调度分批执行 AI 分析；页面先展示条目和进度提示，完成后刷新 AI 摘要、情感、主题、相关性和 AI 建议，失败只记录原因并允许人工重试。
+- 监测信息页支持单条、选中批量和当前页 AI 分析，接口 `/campus/monitor/result/ai-analyze` 最多一次处理 20 条；前端多选超过 20 条时必须自动分批调用并展示进度。AI 可更新情感、一句话摘要、学校相关性、主题分类和辅助风险等级，但不得自动转预警、自动忽略、自动删除或改变结果状态机。
 - 风险等级口径：普通关键词只判断监测命中归属，不直接推高 `risk_level`；只有负面词/风险词、原始非普通风险、负面情感，或 AI 分析明确确认 `riskLevel=concern` 时，监测结果才进入“一般预警”风险等级。
 - AI 判断“不建议命中”必须只作为 `ai_hit_recommendation` 和理由展示，后续是否忽略由学校线下/人工判断后手动操作。
 - 监测信息页支持“疑似误预警治理”预览和受控批量取消；后端必须按历史 `all_hits + 待处理预警 + 无负面证据 + 原始风险普通` 重新筛选候选，不接受前端直接提交 ID 列表，默认跳过已关联线索的候选。

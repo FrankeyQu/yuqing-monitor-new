@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Data
@@ -41,6 +42,11 @@ public class CampusMonitorAiAnalyzeResponse {
         private String aiHitRecommendation;
         private String aiHitReason;
         private Integer aiConfidence;
+        private Date aiAnalysisTime;
+        private String aiAnalysisStatus;
+        private String aiAnalysisTrigger;
+        private String aiAnalysisError;
+        private Date aiLastAttemptTime;
         private String riskLevel;
         private Integer riskScore;
         private Integer schoolRelevanceScore;

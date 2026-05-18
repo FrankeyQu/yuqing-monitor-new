@@ -26,6 +26,10 @@
         <result column="ai_analysis_time" property="aiAnalysisTime"/>
         <result column="ai_provider_code" property="aiProviderCode"/>
         <result column="ai_model_code" property="aiModelCode"/>
+        <result column="ai_analysis_status" property="aiAnalysisStatus"/>
+        <result column="ai_analysis_trigger" property="aiAnalysisTrigger"/>
+        <result column="ai_analysis_error" property="aiAnalysisError"/>
+        <result column="ai_last_attempt_time" property="aiLastAttemptTime"/>
         <result column="risk_level" property="riskLevel"/>
         <result column="risk_score" property="riskScore"/>
         <result column="school_relevance_score" property="schoolRelevanceScore"/>
@@ -87,6 +91,10 @@
         <result column="ai_analysis_time" property="aiAnalysisTime"/>
         <result column="ai_provider_code" property="aiProviderCode"/>
         <result column="ai_model_code" property="aiModelCode"/>
+        <result column="ai_analysis_status" property="aiAnalysisStatus"/>
+        <result column="ai_analysis_trigger" property="aiAnalysisTrigger"/>
+        <result column="ai_analysis_error" property="aiAnalysisError"/>
+        <result column="ai_last_attempt_time" property="aiLastAttemptTime"/>
         <result column="risk_level" property="riskLevel"/>
         <result column="risk_score" property="riskScore"/>
         <result column="school_relevance_score" property="schoolRelevanceScore"/>
@@ -113,6 +121,7 @@
         matched_subjects, matched_keywords, matched_negative_words,
         sentiment, ai_summary, ai_hit_recommendation, ai_hit_reason, ai_confidence,
         ai_analysis_time, ai_provider_code, ai_model_code,
+        ai_analysis_status, ai_analysis_trigger, ai_analysis_error, ai_last_attempt_time,
         risk_level, risk_score, school_relevance_score, school_relevance_reason,
         matched_school_terms, excluded_reason, topic_category, topic_sub_category, topic_reason,
         result_status, alert_id, clue_id,
@@ -250,6 +259,10 @@
             mr.ai_analysis_time,
             mr.ai_provider_code,
             mr.ai_model_code,
+            mr.ai_analysis_status,
+            mr.ai_analysis_trigger,
+            mr.ai_analysis_error,
+            mr.ai_last_attempt_time,
             mr.risk_level,
             mr.risk_score,
             mr.school_relevance_score,
@@ -503,6 +516,7 @@
             sentiment, risk_level, risk_score, school_relevance_score, school_relevance_reason,
             matched_school_terms, excluded_reason, topic_category, topic_sub_category, topic_reason,
             result_status, alert_id, clue_id,
+            ai_analysis_status, ai_analysis_trigger, ai_analysis_error, ai_last_attempt_time,
             language, like_count, comment_count, share_count, collect_count, view_count,
             deleted, create_user_id, update_user_id
         ) VALUES (
@@ -512,6 +526,7 @@
             #{sentiment}, #{riskLevel}, #{riskScore}, #{schoolRelevanceScore}, #{schoolRelevanceReason},
             #{matchedSchoolTerms}, #{excludedReason}, #{topicCategory}, #{topicSubCategory}, #{topicReason},
             #{resultStatus}, #{alertId}, #{clueId},
+            #{aiAnalysisStatus}, #{aiAnalysisTrigger}, #{aiAnalysisError}, #{aiLastAttemptTime},
             #{language}, #{likeCount}, #{commentCount}, #{shareCount}, #{collectCount}, #{viewCount},
             #{deleted}, #{createUserId}, #{updateUserId}
         )
@@ -564,6 +579,10 @@
             ai_analysis_time = #{aiAnalysisTime},
             ai_provider_code = #{aiProviderCode},
             ai_model_code = #{aiModelCode},
+            ai_analysis_status = 'done',
+            ai_analysis_trigger = #{aiAnalysisTrigger},
+            ai_analysis_error = NULL,
+            ai_last_attempt_time = #{aiAnalysisTime},
             risk_level = #{riskLevel},
             risk_score = #{riskScore},
             school_relevance_score = #{schoolRelevanceScore},
@@ -575,6 +594,17 @@
             topic_category = #{topicCategory},
             topic_sub_category = #{topicSubCategory},
             topic_reason = #{topicReason},
+            update_user_id = #{updateUserId}
+        WHERE monitor_result_id = #{monitorResultId}
+          AND deleted = 0
+    </update>
+
+    <update id="updateAiAnalysisStatus">
+        UPDATE campus_monitor_result
+        SET ai_analysis_status = #{aiAnalysisStatus},
+            ai_analysis_trigger = #{aiAnalysisTrigger},
+            ai_analysis_error = #{aiAnalysisError},
+            ai_last_attempt_time = #{aiLastAttemptTime},
             update_user_id = #{updateUserId}
         WHERE monitor_result_id = #{monitorResultId}
           AND deleted = 0
@@ -671,6 +701,21 @@
             AND monitor_task_id = #{monitorTaskId}
         </if>
         ORDER BY create_time DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listPendingAiAnalysis" resultMap="CampusMonitorResultResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM campus_monitor_result
+        WHERE deleted = 0
+          AND (
+              ai_analysis_status = 'pending'
+              OR (
+                  ai_analysis_status = 'processing'
+                  AND (ai_last_attempt_time IS NULL OR ai_last_attempt_time &lt; DATE_SUB(NOW(), INTERVAL 10 MINUTE))
+              )
+          )
+        ORDER BY create_time ASC, id ASC
         LIMIT #{limit}
     </select>
 

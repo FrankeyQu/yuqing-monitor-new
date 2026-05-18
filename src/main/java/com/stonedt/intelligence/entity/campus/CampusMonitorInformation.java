@@ -50,6 +50,10 @@ public class CampusMonitorInformation {
     private Date aiAnalysisTime;
     private String aiProviderCode;
     private String aiModelCode;
+    private String aiAnalysisStatus;
+    private String aiAnalysisTrigger;
+    private String aiAnalysisError;
+    private Date aiLastAttemptTime;
     private String riskLevel;
     private Integer riskScore;
     private Integer schoolRelevanceScore;

@@ -453,6 +453,8 @@ alerted → converted
 
 **结构化字段**：Batch41 起监测结果和线索保存 `schoolRelevanceScore/schoolRelevanceReason/matchedSchoolTerms/topicCategory/topicSubCategory/topicReason`，用于学校相关性解释、主题归类、预警依据和报表治理统计。
 
+**AI 分析状态**：`campus_monitor_result.ai_analysis_status` 独立于 `result_status`，只表示 AI 辅助分析进度。新命中默认 `pending`，调度器或人工触发进入 `processing`，成功后为 `done`，调用失败、解析失败、已归档线索跳过写入时为 `failed` 并记录 `ai_analysis_error`。AI 状态变化不得自动改变 `result_status/alert_id`，也不得自动忽略、删除、转预警或加入事件。
+
 **自动预警规则**：`alert_mode=negative_only` 仅负面/风险命中自动预警；`alert_mode=all_hits` 保留旧字段名，但当前业务语义为“风险命中告警”，普通主题词命中先进入 `pending`，只有命中负面词/风险词、风险等级非 `normal` 或风险分达到阈值时才进入 `alerted`；`alert_mode=manual` 不自动预警。
 
 **禁止流转**：

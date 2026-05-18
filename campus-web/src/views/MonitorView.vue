@@ -186,11 +186,11 @@
             size="small"
             type="primary"
             plain
-            :loading="aiAnalyzingPage"
-            :disabled="!canMonitorOperate || currentPageMonitorResultIds.length === 0"
+            :loading="manualAiAnalyzing"
+            :disabled="!canMonitorOperate || manualAiAnalyzeTargetRows.length === 0"
             @click="analyzeCurrentPage"
           >
-            <Sparkles :size="14" /> AI分析
+            <Sparkles :size="14" /> {{ aiAnalyzeButtonText }}
           </el-button>
           <el-button
             size="small"
@@ -234,6 +234,22 @@
           <el-button size="small" @click="handleExport">导出</el-button>
           <el-button size="small" @click="handleBatchOp">批量操作</el-button>
         </div>
+      </div>
+
+      <div v-if="showAiProgressPanel" class="ai-progress-panel" :class="{ 'is-manual': manualAiAnalyzing }">
+        <div class="ai-progress-header">
+          <span class="ai-progress-title">
+            <Sparkles :size="14" />
+            {{ aiProgressTitle }}
+          </span>
+          <span class="ai-progress-meta">{{ aiProgressMeta }}</span>
+        </div>
+        <el-progress
+          :percentage="aiProgressPercentage"
+          :stroke-width="6"
+          :show-text="false"
+          :indeterminate="!manualAiAnalyzing"
+        />
       </div>
 
       <!-- 数据表格 -->
@@ -331,10 +347,10 @@
             <el-tooltip
               v-else-if="col.key === 'aiHitRecommendation'"
               placement="top"
-              :content="aiHitReasonLabel(row)"
+              :content="aiStatusReasonLabel(row)"
             >
-              <el-tag :type="aiHitTagType(row.aiHitRecommendation)" effect="plain" size="small" class="ai-suggestion-tag">
-                {{ aiHitLabel(row.aiHitRecommendation) }}
+              <el-tag :type="aiStatusTagType(row)" effect="plain" size="small" class="ai-suggestion-tag">
+                {{ aiStatusLabel(row) }}
               </el-tag>
             </el-tooltip>
             <el-tag v-else-if="col.key === 'language'" :type="languageTagType(row.language)" effect="plain" size="small">
@@ -1703,11 +1719,65 @@ const sentimentEditOptions = [
 ];
 const sentimentUpdatingIds = ref<Set<string>>(new Set());
 const aiAnalyzingIds = ref<Set<string>>(new Set());
-const aiAnalyzingPage = ref(false);
-const currentPageMonitorResultIds = computed(() => monitorInfos.value
-  .map((row) => row.monitorResultId)
-  .filter((id): id is ApiId => Boolean(id))
-  .slice(0, 20));
+const manualAiAnalyzing = ref(false);
+const manualAiProgressDone = ref(0);
+const manualAiProgressTotal = ref(0);
+const aiStatusRefreshing = ref(false);
+let aiStatusRefreshTimer: number | undefined;
+const manualAiAnalyzeTargetRows = computed(() => {
+  const selectedTargets = selectedInfos.value.filter((row) => row.monitorResultId);
+  return selectedTargets.length > 0 ? selectedTargets : monitorInfos.value.filter((row) => row.monitorResultId);
+});
+const aiAnalyzeButtonText = computed(() => {
+  if (selectedMonitorResultCount.value > 0) {
+    return `AI分析(${selectedMonitorResultCount.value})`;
+  }
+  return 'AI分析';
+});
+const autoAiPendingCount = computed(() => monitorInfos.value.filter((row) => normalizeAiAnalysisStatus(row.aiAnalysisStatus) === 'pending').length);
+const autoAiProcessingCount = computed(() => monitorInfos.value.filter((row) => normalizeAiAnalysisStatus(row.aiAnalysisStatus) === 'processing').length);
+const autoAiFailedCount = computed(() => monitorInfos.value.filter((row) => normalizeAiAnalysisStatus(row.aiAnalysisStatus) === 'failed').length);
+const autoAiActiveCount = computed(() => autoAiPendingCount.value + autoAiProcessingCount.value);
+const showAiProgressPanel = computed(() => manualAiAnalyzing.value || autoAiActiveCount.value > 0);
+const aiProgressPercentage = computed(() => {
+  if (manualAiAnalyzing.value) {
+    if (manualAiProgressTotal.value <= 0) return 0;
+    return Math.min(100, Math.round((manualAiProgressDone.value / manualAiProgressTotal.value) * 100));
+  }
+  return autoAiActiveCount.value > 0 ? 68 : 100;
+});
+const aiProgressTitle = computed(() => {
+  if (manualAiAnalyzing.value) {
+    return 'AI正在分析选中的监测信息';
+  }
+  if (autoAiActiveCount.value > 0) {
+    return 'AI正在分析新监测信息';
+  }
+  return '部分监测信息AI分析失败';
+});
+const aiProgressMeta = computed(() => {
+  if (manualAiAnalyzing.value) {
+    return `正在分析 ${manualAiProgressDone.value}/${manualAiProgressTotal.value} 条`;
+  }
+  const parts: string[] = [];
+  if (autoAiProcessingCount.value > 0) parts.push(`分析中 ${autoAiProcessingCount.value}`);
+  if (autoAiPendingCount.value > 0) parts.push(`等待 ${autoAiPendingCount.value}`);
+  if (autoAiFailedCount.value > 0) parts.push(`失败 ${autoAiFailedCount.value}`);
+  return parts.join('，') || 'AI分析状态正常';
+});
+
+function normalizeAiAnalysisStatus(value?: string | null): string {
+  const raw = String(value || '').trim().toLowerCase();
+  if (['pending', 'processing', 'done', 'failed', 'none'].includes(raw)) {
+    return raw;
+  }
+  return 'none';
+}
+
+function isAiAutoActive(row: CampusMonitorInformation): boolean {
+  const status = normalizeAiAnalysisStatus(row.aiAnalysisStatus);
+  return status === 'pending' || status === 'processing';
+}
 
 function normalizeSentimentValue(value?: string | null): string {
   const raw = String(value || '').trim();
@@ -1759,7 +1829,7 @@ function onMonitorSentimentCommand(row: CampusMonitorInformation, value: string 
 }
 
 function isAiAnalyzing(row: CampusMonitorInformation): boolean {
-  return row.monitorResultId ? aiAnalyzingIds.value.has(String(row.monitorResultId)) : false;
+  return row.monitorResultId ? aiAnalyzingIds.value.has(String(row.monitorResultId)) || isAiAutoActive(row) : false;
 }
 
 function setAiAnalyzing(ids: ApiId[], analyzing: boolean) {
@@ -1792,6 +1862,29 @@ function aiHitTagType(value?: string) {
 function aiHitReasonLabel(row: CampusMonitorInformation): string {
   const confidence = row.aiConfidence === undefined || row.aiConfidence === null ? '' : `｜置信度 ${row.aiConfidence}`;
   return `${aiHitLabel(row.aiHitRecommendation)}${confidence}${row.aiHitReason ? `｜${row.aiHitReason}` : ''}`;
+}
+
+function aiStatusLabel(row: CampusMonitorInformation): string {
+  const status = normalizeAiAnalysisStatus(row.aiAnalysisStatus);
+  if (status === 'pending') return '待分析';
+  if (status === 'processing') return '分析中';
+  if (status === 'failed') return 'AI失败';
+  return aiHitLabel(row.aiHitRecommendation);
+}
+
+function aiStatusTagType(row: CampusMonitorInformation) {
+  const status = normalizeAiAnalysisStatus(row.aiAnalysisStatus);
+  if (status === 'processing' || status === 'pending') return 'primary';
+  if (status === 'failed') return 'danger';
+  return aiHitTagType(row.aiHitRecommendation);
+}
+
+function aiStatusReasonLabel(row: CampusMonitorInformation): string {
+  const status = normalizeAiAnalysisStatus(row.aiAnalysisStatus);
+  if (status === 'pending') return '新监测信息已进入AI分析队列';
+  if (status === 'processing') return 'AI正在分析这条监测信息';
+  if (status === 'failed') return row.aiAnalysisError || 'AI分析失败，可勾选后重新分析';
+  return aiHitReasonLabel(row);
 }
 
 // ========== 线索 CRUD 函数 ==========
@@ -2860,8 +2953,10 @@ async function refreshInfoList() {
   await Promise.all(tasks);
 }
 
-async function loadData() {
-  loading.value = true;
+async function loadData(showLoading = true) {
+  if (showLoading) {
+    loading.value = true;
+  }
   try {
     const page = await listMonitorInformation(cleanQuery(query));
     monitorInfos.value = page.list || [];
@@ -2871,7 +2966,38 @@ async function loadData() {
     monitorInfos.value = [];
     infoTotal.value = 0;
   } finally {
-    loading.value = false;
+    if (showLoading) {
+      loading.value = false;
+    }
+  }
+}
+
+function startAiStatusPolling() {
+  if (aiStatusRefreshTimer !== undefined) {
+    return;
+  }
+  aiStatusRefreshTimer = window.setInterval(() => {
+    refreshAiStatusSilently();
+  }, 5000);
+}
+
+function stopAiStatusPolling() {
+  if (aiStatusRefreshTimer === undefined) {
+    return;
+  }
+  window.clearInterval(aiStatusRefreshTimer);
+  aiStatusRefreshTimer = undefined;
+}
+
+async function refreshAiStatusSilently() {
+  if (aiStatusRefreshing.value || loading.value) {
+    return;
+  }
+  aiStatusRefreshing.value = true;
+  try {
+    await loadData(false);
+  } finally {
+    aiStatusRefreshing.value = false;
   }
 }
 
@@ -2955,26 +3081,49 @@ async function analyzeMonitorRows(rows: CampusMonitorInformation[]) {
     ElMessage.warning('当前账号没有监测操作权限');
     return;
   }
-  const ids = rows
-    .map((row) => row.monitorResultId)
-    .filter((id): id is ApiId => Boolean(id))
-    .slice(0, 20);
+  const ids: ApiId[] = [];
+  for (const row of rows) {
+    if (row.monitorResultId && !ids.some((id) => String(id) === String(row.monitorResultId))) {
+      ids.push(row.monitorResultId);
+    }
+  }
   if (ids.length === 0) {
     ElMessage.warning('当前没有可分析的监测信息');
     return;
   }
   setAiAnalyzing(ids, true);
+  manualAiAnalyzing.value = true;
+  manualAiProgressDone.value = 0;
+  manualAiProgressTotal.value = ids.length;
   try {
-    const result = await analyzeMonitorResults({ monitorResultIds: ids, limit: ids.length });
-    const success = result.successCount || 0;
-    const failed = result.failCount || 0;
-    const skipped = result.skipCount || 0;
+    let success = 0;
+    let failed = 0;
+    let skipped = 0;
+    for (let start = 0; start < ids.length; start += 20) {
+      const chunk = ids.slice(start, start + 20);
+      try {
+        const result = await analyzeMonitorResults({ monitorResultIds: chunk, limit: chunk.length });
+        success += result.successCount || 0;
+        failed += result.failCount || 0;
+        skipped += result.skipCount || 0;
+      } catch {
+        failed += chunk.length;
+      } finally {
+        manualAiProgressDone.value = Math.min(ids.length, start + chunk.length);
+      }
+    }
     showBatchResult('AI分析完成', success, failed, skipped);
     await Promise.all([loadMonitorResults(), refreshInfoList()]);
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : 'AI分析失败');
   } finally {
     setAiAnalyzing(ids, false);
+    manualAiAnalyzing.value = false;
+    manualAiProgressDone.value = 0;
+    manualAiProgressTotal.value = 0;
+    if (autoAiActiveCount.value <= 0) {
+      stopAiStatusPolling();
+    }
   }
 }
 
@@ -2983,12 +3132,7 @@ async function analyzeSingleMonitorInformation(row: CampusMonitorInformation) {
 }
 
 async function analyzeCurrentPage() {
-  aiAnalyzingPage.value = true;
-  try {
-    await analyzeMonitorRows(monitorInfos.value);
-  } finally {
-    aiAnalyzingPage.value = false;
-  }
+  await analyzeMonitorRows(manualAiAnalyzeTargetRows.value);
 }
 
 async function alertResult(row: CampusMonitorResult) {
@@ -3250,6 +3394,14 @@ watch(monitorInfos, () => {
   }
 });
 
+watch(autoAiActiveCount, (count) => {
+  if (count > 0) {
+    startAiStatusPolling();
+  } else if (!manualAiAnalyzing.value) {
+    stopAiStatusPolling();
+  }
+}, { immediate: true });
+
 watch(
   () => resultQuery.monitorTaskId,
   (monitorTaskId) => {
@@ -3264,6 +3416,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  stopAiStatusPolling();
   disposeTopicAnalysisCharts();
   window.removeEventListener('resize', resizeTopicCharts);
 });
@@ -3535,6 +3688,41 @@ function resizeTopicCharts() {
   gap: 4px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.ai-progress-panel {
+  margin: 10px 20px 12px;
+  padding: 10px 12px;
+  border: 1px solid #d9ecff;
+  border-radius: 6px;
+  background: #f5faff;
+}
+
+.ai-progress-panel.is-manual {
+  border-color: #c6e2ff;
+  background: #f0f7ff;
+}
+
+.ai-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.ai-progress-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #1d4ed8;
+}
+
+.ai-progress-meta {
+  color: #606266;
+  white-space: nowrap;
 }
 
 .cleanup-stat-row {

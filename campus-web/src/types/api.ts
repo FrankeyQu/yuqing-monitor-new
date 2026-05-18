@@ -192,6 +192,10 @@ export interface CampusMonitorResult {
   aiAnalysisTime?: string;
   aiProviderCode?: string;
   aiModelCode?: string;
+  aiAnalysisStatus?: 'none' | 'pending' | 'processing' | 'done' | 'failed' | string;
+  aiAnalysisTrigger?: 'auto' | 'manual' | string;
+  aiAnalysisError?: string;
+  aiLastAttemptTime?: string;
   riskLevel?: string;
   riskScore?: number;
   schoolRelevanceScore?: number;
@@ -249,6 +253,10 @@ export interface CampusMonitorInformation {
   aiAnalysisTime?: string | Date;
   aiProviderCode?: string;
   aiModelCode?: string;
+  aiAnalysisStatus?: 'none' | 'pending' | 'processing' | 'done' | 'failed' | string;
+  aiAnalysisTrigger?: 'auto' | 'manual' | string;
+  aiAnalysisError?: string;
+  aiLastAttemptTime?: string | Date;
   riskLevel?: string;
   riskScore?: number;
   schoolRelevanceScore?: number;
@@ -305,6 +313,11 @@ export interface CampusMonitorAiAnalyzeItem {
   aiHitRecommendation?: string;
   aiHitReason?: string;
   aiConfidence?: number;
+  aiAnalysisTime?: string;
+  aiAnalysisStatus?: string;
+  aiAnalysisTrigger?: string;
+  aiAnalysisError?: string;
+  aiLastAttemptTime?: string;
   riskLevel?: string;
   riskScore?: number;
   schoolRelevanceScore?: number;

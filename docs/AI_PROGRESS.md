@@ -11,6 +11,26 @@
 - **当前版本**：0.5.3-SNAPSHOT
 - **主线确认时间**：2026-05-14，用户先确认以本地 `master` 作为正式主线；同日已将本地主线改名为 `main`
 
+## 2026-05-18 监测信息自动 AI 分析与进度提示
+
+- **工作分支**：`claude/monitor-auto-ai-analysis`。
+- **任务目标**：新监测到的 `campus_monitor_result` 默认自动进入 AI 分析，监测信息页先展示条目和进度提示；用户可勾选不满意的条目后再次手动 AI 分析，多选超过 20 条时前端自动分批。
+- **后端调整**：新增 Flyway `V1.47__CampusMonitorAutoAiAnalysis.sql`，为 `campus_monitor_result` 增加 `ai_analysis_status/ai_analysis_trigger/ai_analysis_error/ai_last_attempt_time`；新命中入库写入 `pending/auto`；`CampusMonitorScheduler` 新增自动 AI 分析调度，默认每 15 秒取最多 20 条 pending 或超时 processing 记录，复用现有监测命中 AI 分析逻辑，状态流转为 `pending → processing → done/failed`。
+- **前端调整**：`/monitor` 增加 AI 进度条，自动分析显示“AI正在分析新监测信息”，手动多选分析显示 `正在分析 x/y 条`；AI 建议列支持展示待分析、分析中、AI失败和原因；顶部 AI 分析按钮优先分析已勾选条目，否则分析当前页。
+- **业务保护**：AI 分析仍只更新情感、摘要、AI建议、风险辅助字段、学校相关性和主题字段；不自动忽略、不删除、不自动转预警、不改变 `resultStatus/alertId`；已归档线索关联记录继续跳过写入。
+- **文档同步**：已更新 `docs/API_CONTRACT.md`、`docs/STATE_MACHINE.md`、`docs/TEST_CHECKLIST.md` 和 `docs/modules/campus_monitor/manifest.md`。
+- **本地验证**：`.\mvnw.cmd -DskipTests compile`、`.\mvnw.cmd -DskipTests package`、`.\mvnw.cmd "-Dtest=CampusMonitorAiContentFirstTest" "-DskipTests=false" "-Dmaven.test.skip=false" test`、`campus-web npm run build` 均通过；`git diff --check` 仅保留既有 CRLF 提示。
+- **发布状态**：待合并 `main`、推送 GitHub 并部署服务器后回填备份目录和线上验收结果。
+
+## 2026-05-18 客户向产品介绍 PPT 初版
+
+- **任务目标**：根据用户给定的产品介绍结构、PPT 模板和卓然科技 LOGO，生成客户向《卓然舆情监测与研判平台产品介绍》PPT 初版。
+- **素材来源**：模板 `C:\Users\qjw\Desktop\产品手册\卓然科技\蓝色简约风年中总结通用PPT模板.pptx`；LOGO `L:\资料\卓然\商标VI\卓然科技_origin (1).png`。LOGO 仅做黑底转透明与裁切空白，不重绘、不修改标识形态。
+- **内容范围**：15 页，覆盖客户痛点、产品定位、平台能力全景、多社交媒体监测、多语言监测、任务化监测、AI 辅助研判、AI 日报/周报/月报/专题汇报 Prompt 引导、线索事件处置闭环、态势大屏与工作台、定制化优势、差异化对比、安全合规和交付价值。
+- **输出文件**：`C:\Users\qjw\Desktop\产品手册\卓然科技\卓然舆情监测与研判平台产品介绍_v2.pptx`。原无 `_v2` 文件名在最后覆盖时被 Windows 占用，保留为中间版本，本次最终交付使用 `_v2`。
+- **验证记录**：PPTX 包检查通过，15 slides、2 media、0 empty media；最终 PPTX 重新导入渲染成功；布局检查 0 error，仅保留中文短标签高度和少量卡片 padding 的保守 warning，预览未见遮挡。
+- **代码影响**：未修改业务代码、API、权限、状态机或数据库；仅新增产品 PPT 交付物和本进度记录。
+
 ## 2026-05-18 监测误预警候选只读审计
 
 - **工作分支 / worktree**：`claude/monitor-alert-candidate-audit`，`D:\PRJ\yuqing-report-ai-recovery`。

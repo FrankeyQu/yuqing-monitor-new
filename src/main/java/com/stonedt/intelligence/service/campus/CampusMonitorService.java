@@ -132,6 +132,8 @@ public interface CampusMonitorService {
                                                   Long operatorUserId,
                                                   String operatorName);
 
+    CampusMonitorAiAnalyzeResponse analyzePendingAiResults(Integer limit);
+
     CampusMonitorAlertCleanupPreview previewAlertCleanupCandidates(Integer limit);
 
     CampusMonitorAlertCleanupResponse cleanupAlertCandidates(CampusMonitorAlertCleanupRequest request,
